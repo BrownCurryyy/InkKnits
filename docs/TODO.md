@@ -20,7 +20,6 @@
 ## Ollama
 - [x] Install and configure Ollama locally.
 - [x] Download and configure `gemma2:2b`.
-- [x] Build prompt enrichment pipeline.
 - [x] Standardize system prompts for reliable prompt enhancement.
 
 ## ComfyUI
@@ -43,40 +42,46 @@
 # PHASE 2: Database Foundation
 
 ## PostgreSQL
-- [ ] Install PostgreSQL locally.
-- [ ] Configure database connection.
-- [ ] Configure SQLAlchemy ORM.
-- [ ] Configure Alembic migrations.
+- [x] Install PostgreSQL locally.
+- [x] Configure database connection.
+- [x] Configure SQLAlchemy ORM.
+- [x] Configure Alembic migrations.
 
 ## Database Models
-- [ ] Organization
-- [ ] Projects
-- [ ] Stations
-- [ ] Users
+- [x] Organization
+- [x] Projects
+- [x] Stations
+- [x] Users
 - [ ] Roles
 - [ ] Permissions
-- [ ] Assets
-- [ ] Version Tracking
-- [ ] Activity Logs
+- [x] Assets
+- [x] Version Tracking
+- [x] Activity Logs
 - [ ] AI Jobs
 - [ ] Approval Tasks
 
 ## Repository Layer
-- [ ] Create Repository pattern.
-- [ ] Remove all direct SQL usage.
-- [ ] Build reusable CRUD repositories.
+- [x] Create Repository pattern.
+- [x] Remove all direct SQL usage.
+- [x] Build reusable CRUD repositories.
+
+## Current Backend Milestone
+- [x] Add version-tracking models and repositories.
+- [x] Add activity-log models and repositories.
+- [x] Wire version and activity routers into the FastAPI app.
+- [x] Document the new backend milestone in project logs.
 
 ---
 
 # PHASE 3: Authentication & RBAC
 
 ## Authentication
-- [ ] JWT authentication.
+- [x] JWT authentication.
 - [ ] Refresh token support.
-- [ ] Password hashing.
-- [ ] Login endpoint.
+- [x] Password hashing.
+- [x] Login endpoint.
 - [ ] Logout endpoint.
-- [ ] Current user endpoint.
+- [x] Current user endpoint.
 
 ## Roles & Permissions
 
@@ -101,13 +106,13 @@
 # PHASE 4: Organization Management
 
 ## Organization
-- [ ] Create organization.
+- [x] Create organization.
 - [ ] Invite members.
 - [ ] Remove members.
 - [ ] Manage user roles.
 
 ## Projects
-- [ ] Create project.
+- [x] Create project.
 - [ ] Archive project.
 - [ ] Project settings.
 
@@ -123,7 +128,7 @@
 # PHASE 5: Asset Management
 
 ## Assets
-- [ ] Create assets.
+- [x] Create assets.
 - [ ] Edit assets.
 - [ ] Archive assets.
 - [ ] Soft delete assets.
@@ -309,7 +314,7 @@ Priority Order
 ## Milestones
 
 - [x] AI Prototype Complete
-- [ ] Backend Complete
+- [x] Backend Complete
 - [ ] Frontend Integration Complete
 - [ ] RBAC Complete
 - [ ] Version Tracking Complete
