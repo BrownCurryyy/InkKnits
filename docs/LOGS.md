@@ -88,3 +88,55 @@ Date: 2026-07-19
 
 ### Notes
 - The documentation now reflects the latest backend progress and remains synchronized with the implementation milestones.
+
+## v1.4.0 — Database Completion & Auth Extensions
+Date: 2026-07-19
+
+### Added
+- Completed Phase 2 database models (`Role`, `Permission`, `RolePermission`, `UserRole`, `StationMember`, `AIJob`, `ApprovalTask`, `AssetLink`).
+- Generated Alembic migrations for new models.
+- Added corresponding repository pattern implementations.
+- Extended Auth with `refresh_token` generation and endpoint.
+- Added stateless `/logout` endpoint.
+- Added preliminary RBAC routers for listing and creating roles/permissions.
+- Wired RBAC routers into the main FastAPI application.
+
+### Notes
+- The backend now has all the fundamental tables as specified in `DATABASE_SCHEMA.md`.
+- RBAC foundations are available to be consumed by the frontend and authorization middlewares.
+
+## v1.5.0 — Organization Management & RBAC Seeding
+Date: 2026-07-19
+
+### Added
+- Created `StationRepository` for managing stations.
+- Implemented `/rbac/seed` endpoint for automatically populating default roles and permissions.
+- Added `/organizations/{id}/members` endpoints for inviting/adding members.
+- Added `/organizations/{id}/members/{user_id}/role` to manage member roles.
+- Added `/projects/{id}` updates and soft-archive via `PATCH /{id}/archive`.
+- Added complete `stations.py` router with creation, member assignment, asset filtering (stub), and dashboard (stub) endpoints.
+- Expanded `schemas.py` to support all these new management features.
+
+### Notes
+- This completes Phase 3 (Authentication & RBAC) and Phase 4 (Organization Management) backend endpoints.
+- The next logical step involves Phase 5 (Asset Management).
+
+## v1.6.0 — Asset Management & Storage Engine
+Date: 2026-07-19
+
+### Added
+- Extended `Asset` model with `title` and `content` columns to fully align with `DATABASE_SCHEMA.md`.
+- Updated `AssetCreate`, `AssetOut`, and `AssetUpdate` schemas to expose all asset fields.
+- Implemented `POST /assets/upload` — multipart/form-data file upload; saves file to structured SSD path and stores path in DB.
+- Implemented `GET /assets/{id}/download` — reads file from SSD, returns Base64-encoded JSON (per STO-003).
+- Implemented `PUT /assets/{id}` — partial update of name, title, content, and asset_type.
+- Implemented `PATCH /assets/{id}/metadata` — merges new key-value pairs into existing `raw_metadata` JSON.
+- Implemented `DELETE /assets/{id}` — soft delete via `deleted_at` timestamp; file preserved on disk.
+- Implemented `GET /assets/search?q=` — case-insensitive search across name and title of non-deleted assets.
+- Updated `GET /assets` to filter out soft-deleted assets.
+- Implemented `StorageService` in `backend/services/storage.py` with structured path generation, file save, base64 read, and cleanup utilities.
+- Replaced all stub endpoints in `stations.py`: asset filter now queries DB, dashboard now returns real asset/member/approval counts.
+
+### Notes
+- Phase 5 (Asset Management) is fully complete.
+- The next phase is Phase 6 (AI Engine) — Ollama/ComfyUI integration to be handled separately as discussed.

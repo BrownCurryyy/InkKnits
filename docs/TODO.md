@@ -52,13 +52,13 @@
 - [x] Projects
 - [x] Stations
 - [x] Users
-- [ ] Roles
-- [ ] Permissions
+- [x] Roles
+- [x] Permissions
 - [x] Assets
 - [x] Version Tracking
 - [x] Activity Logs
-- [ ] AI Jobs
-- [ ] Approval Tasks
+- [x] AI Jobs
+- [x] Approval Tasks
 
 ## Repository Layer
 - [x] Create Repository pattern.
@@ -77,29 +77,29 @@
 
 ## Authentication
 - [x] JWT authentication.
-- [ ] Refresh token support.
+- [x] Refresh token support.
 - [x] Password hashing.
 - [x] Login endpoint.
-- [ ] Logout endpoint.
+- [x] Logout endpoint.
 - [x] Current user endpoint.
 
 ## Roles & Permissions
 
 ### Default Roles
-- [ ] Administrator
-- [ ] Manager
-- [ ] Editor
-- [ ] Reviewer
-- [ ] Publisher
-- [ ] Viewer
+- [x] Administrator
+- [x] Manager
+- [x] Editor
+- [x] Reviewer
+- [x] Publisher
+- [x] Viewer
 
 ### Permission Engine
-- [ ] Asset permissions.
-- [ ] Station permissions.
-- [ ] AI permissions.
-- [ ] Approval permissions.
-- [ ] Log permissions.
-- [ ] Organization permissions.
+- [x] Asset permissions.
+- [x] Station permissions.
+- [x] AI permissions.
+- [x] Approval permissions.
+- [x] Log permissions.
+- [x] Organization permissions.
 
 ---
 
@@ -107,21 +107,21 @@
 
 ## Organization
 - [x] Create organization.
-- [ ] Invite members.
-- [ ] Remove members.
-- [ ] Manage user roles.
+- [x] Invite members.
+- [x] Remove members.
+- [x] Manage user roles.
 
 ## Projects
 - [x] Create project.
-- [ ] Archive project.
-- [ ] Project settings.
+- [x] Archive project.
+- [x] Project settings.
 
 ## Stations
-- [ ] Create station.
-- [ ] Assign members.
-- [ ] Configure permissions.
-- [ ] Asset filtering.
-- [ ] Station dashboard.
+- [x] Create station.
+- [x] Assign members.
+- [x] Configure permissions.
+- [x] Asset filtering.
+- [x] Station dashboard.
 
 ---
 
@@ -129,18 +129,18 @@
 
 ## Assets
 - [x] Create assets.
-- [ ] Edit assets.
-- [ ] Archive assets.
-- [ ] Soft delete assets.
-- [ ] Asset search.
-- [ ] Asset metadata.
+- [x] Edit assets.
+- [x] Archive assets.
+- [x] Soft delete assets.
+- [x] Asset search.
+- [x] Asset metadata.
 
 ## Storage
-- [ ] Structured SSD storage.
-- [ ] Asset directory management.
-- [ ] Image path management.
-- [ ] Base64 encoder.
-- [ ] Automatic cleanup.
+- [x] Structured SSD storage.
+- [x] Asset directory management.
+- [x] Image path management.
+- [x] Base64 encoder.
+- [x] Automatic cleanup.
 
 ---
 

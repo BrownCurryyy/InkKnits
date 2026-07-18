@@ -16,6 +16,8 @@ class Asset(Base):
     station_id: Mapped[UUID] = mapped_column(ForeignKey("stations.id"), nullable=False)
     owner_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    title: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    content: Mapped[str | None] = mapped_column(Text, nullable=True)
     asset_type: Mapped[str] = mapped_column(String(50), nullable=False, default="GENERIC")
     storage_path: Mapped[str | None] = mapped_column(Text, nullable=True)
     raw_metadata: Mapped[dict | None] = mapped_column(JSON, nullable=True)

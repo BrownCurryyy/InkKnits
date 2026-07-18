@@ -43,6 +43,8 @@ class AssetCreate(BaseModel):
     station_id: UUID
     owner_id: UUID | None = None
     name: str = Field(..., min_length=1, max_length=255)
+    title: str | None = None
+    content: str | None = None
     asset_type: str = "GENERIC"
     storage_path: str | None = None
     raw_metadata: dict[str, Any] | None = None
@@ -56,6 +58,8 @@ class AssetOut(BaseModel):
     station_id: UUID
     owner_id: UUID | None = None
     name: str
+    title: str | None = None
+    content: str | None = None
     asset_type: str
     storage_path: str | None = None
     raw_metadata: dict[str, Any] | None = None
@@ -121,7 +125,11 @@ class AuthLogin(BaseModel):
 
 class TokenOut(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str = "bearer"
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
 
 
 class UserOut(BaseModel):
@@ -132,3 +140,121 @@ class UserOut(BaseModel):
     email: EmailStr
     display_name: str
     status: str
+
+
+class RoleCreate(BaseModel):
+    organization_id: UUID
+    name: str = Field(..., min_length=1, max_length=100)
+    description: str | None = None
+
+
+class RoleOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    organization_id: UUID
+    name: str
+    description: str | None = None
+
+
+class PermissionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    permission_name: str
+    description: str | None = None
+
+
+class AIJobCreate(BaseModel):
+    asset_id: UUID | None = None
+    job_type: str = Field(..., min_length=1, max_length=50)
+    priority: int = 100
+    model: str | None = None
+    prompt: str | None = None
+    parameters: str | None = None
+
+
+class AIJobOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    asset_id: UUID | None = None
+    created_by: UUID
+    job_type: str
+    priority: int
+    status: str
+    queue_position: int | None = None
+    model: str | None = None
+    prompt: str | None = None
+    parameters: str | None = None
+    result_asset: str | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    created_at: datetime
+
+
+class ApprovalTaskCreate(BaseModel):
+    asset_id: UUID
+    assigned_to: UUID
+    deadline: datetime | None = None
+    comments: str | None = None
+
+
+class ApprovalTaskOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    asset_id: UUID
+    assigned_to: UUID
+    assigned_by: UUID
+    status: str
+    deadline: datetime | None = None
+    escalated_to: UUID | None = None
+    comments: str | None = None
+    created_at: datetime
+    completed_at: datetime | None = None
+
+
+class StationCreate(BaseModel):
+    project_id: UUID
+    name: str = Field(..., min_length=1, max_length=255)
+    description: str | None = None
+    color: str | None = None
+    icon: str | None = None
+
+
+class StationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    project_id: UUID
+    name: str
+    description: str | None = None
+    color: str | None = None
+    icon: str | None = None
+
+
+class UserRoleUpdate(BaseModel):
+    role_name: str
+
+
+class ProjectUpdate(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    status: str | None = None
+    deadline: datetime | None = None
+
+
+class OrganizationMemberAdd(BaseModel):
+    user_id: UUID
+
+
+class AssetUpdate(BaseModel):
+    name: str | None = None
+    title: str | None = None
+    content: str | None = None
+    asset_type: str | None = None
+
+
+class AssetMetadataUpdate(BaseModel):
+    raw_metadata: dict

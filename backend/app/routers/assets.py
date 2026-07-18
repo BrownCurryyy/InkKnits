@@ -1,41 +1,185 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, File, status
 from sqlalchemy.orm import Session
 
-from backend.app.schemas import AssetCreate, AssetOut
+from backend.app.schemas import AssetCreate, AssetOut, AssetUpdate, AssetMetadataUpdate
 from backend.database.connection import get_db
 from backend.models.asset import Asset
 from backend.repositories.asset_repository import AssetRepository
+from backend.services.storage import StorageService
 
 router = APIRouter(prefix="/assets", tags=["assets"])
 
 
 @router.post("", response_model=AssetOut, status_code=status.HTTP_201_CREATED)
 async def create_asset(payload: AssetCreate, db: Session = Depends(get_db)) -> AssetOut:
-    repository = AssetRepository(db)
+    """Create a new text/generic asset record (no file upload)."""
+    now = datetime.now(timezone.utc)
     asset = Asset(
         organization_id=payload.organization_id,
         station_id=payload.station_id,
         owner_id=payload.owner_id,
         name=payload.name,
+        title=payload.title,
+        content=payload.content,
         asset_type=payload.asset_type,
         storage_path=payload.storage_path,
         raw_metadata=payload.raw_metadata,
+        created_at=now,
+        updated_at=now,
     )
+    repository = AssetRepository(db)
+    created = repository.create(asset)
+    return AssetOut.model_validate(created)
+
+
+@router.post("/upload", response_model=AssetOut, status_code=status.HTTP_201_CREATED)
+async def upload_asset(
+    organization_id: str = Form(...),
+    station_id: str = Form(...),
+    owner_id: str | None = Form(None),
+    name: str = Form(...),
+    asset_type: str = Form("IMAGE"),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+) -> AssetOut:
+    """Upload a file asset via multipart/form-data. Saves to SSD and stores path in DB."""
+    from uuid import uuid4, UUID
+
+    now = datetime.now(timezone.utc)
+    asset_id = uuid4()
+
+    # Save the file to structured SSD path; use station_id as the directory scope
+    storage_path = await StorageService.save_upload_file(
+        organization_id=UUID(organization_id),
+        project_id=UUID(station_id),
+        asset_id=asset_id,
+        file=file,
+    )
+
+    asset = Asset(
+        id=asset_id,
+        organization_id=organization_id,
+        station_id=station_id,
+        owner_id=owner_id,
+        name=name,
+        asset_type=asset_type,
+        storage_path=storage_path,
+        created_at=now,
+        updated_at=now,
+    )
+    repository = AssetRepository(db)
     created = repository.create(asset)
     return AssetOut.model_validate(created)
 
 
 @router.get("", response_model=list[AssetOut])
 async def list_assets(db: Session = Depends(get_db)) -> list[AssetOut]:
-    repository = AssetRepository(db)
-    assets = repository.list_all()
+    """List all non-deleted assets."""
+    assets = db.query(Asset).filter(Asset.deleted_at.is_(None)).all()
+    return [AssetOut.model_validate(item) for item in assets]
+
+
+@router.get("/search", response_model=list[AssetOut])
+async def search_assets(q: str, db: Session = Depends(get_db)) -> list[AssetOut]:
+    """Search assets by name or title (case-insensitive)."""
+    assets = (
+        db.query(Asset)
+        .filter(
+            Asset.deleted_at.is_(None),
+            Asset.name.ilike(f"%{q}%") | Asset.title.ilike(f"%{q}%"),
+        )
+        .all()
+    )
     return [AssetOut.model_validate(item) for item in assets]
 
 
 @router.get("/{asset_id}", response_model=AssetOut)
 async def get_asset(asset_id: str, db: Session = Depends(get_db)) -> AssetOut:
+    """Get a single asset by ID."""
     repository = AssetRepository(db)
     asset = repository.get_by_id(asset_id)
-    if not asset:
+    if not asset or asset.deleted_at is not None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
     return AssetOut.model_validate(asset)
+
+
+@router.get("/{asset_id}/download")
+async def download_asset(asset_id: str, db: Session = Depends(get_db)) -> dict:
+    """Return a stored file as a Base64-encoded JSON payload (per STO-003)."""
+    repository = AssetRepository(db)
+    asset = repository.get_by_id(asset_id)
+    if not asset or asset.deleted_at is not None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
+    if not asset.storage_path:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Asset has no stored file")
+
+    try:
+        encoded = StorageService.read_file_as_base64(asset.storage_path)
+    except FileNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found on disk")
+
+    return {
+        "asset_id": str(asset.id),
+        "name": asset.name,
+        "asset_type": asset.asset_type,
+        "data": encoded,
+        "encoding": "base64",
+    }
+
+
+@router.put("/{asset_id}", response_model=AssetOut)
+async def update_asset(asset_id: str, payload: AssetUpdate, db: Session = Depends(get_db)) -> AssetOut:
+    """Update an asset's core fields (name, title, content, type)."""
+    repository = AssetRepository(db)
+    asset = repository.get_by_id(asset_id)
+    if not asset or asset.deleted_at is not None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
+
+    if payload.name is not None:
+        asset.name = payload.name
+    if payload.title is not None:
+        asset.title = payload.title
+    if payload.content is not None:
+        asset.content = payload.content
+    if payload.asset_type is not None:
+        asset.asset_type = payload.asset_type
+
+    asset.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(asset)
+    return AssetOut.model_validate(asset)
+
+
+@router.patch("/{asset_id}/metadata", response_model=AssetOut)
+async def update_asset_metadata(
+    asset_id: str, payload: AssetMetadataUpdate, db: Session = Depends(get_db)
+) -> AssetOut:
+    """Merge new key-value pairs into the asset's existing raw_metadata JSON field."""
+    repository = AssetRepository(db)
+    asset = repository.get_by_id(asset_id)
+    if not asset or asset.deleted_at is not None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
+
+    existing = asset.raw_metadata or {}
+    existing.update(payload.raw_metadata)
+    asset.raw_metadata = existing
+    asset.updated_at = datetime.now(timezone.utc)
+
+    db.commit()
+    db.refresh(asset)
+    return AssetOut.model_validate(asset)
+
+
+@router.delete("/{asset_id}", status_code=status.HTTP_200_OK)
+async def soft_delete_asset(asset_id: str, db: Session = Depends(get_db)) -> dict:
+    """Soft-delete an asset by stamping deleted_at. File is preserved on disk per soft-delete policy."""
+    repository = AssetRepository(db)
+    asset = repository.get_by_id(asset_id)
+    if not asset or asset.deleted_at is not None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
+
+    asset.deleted_at = datetime.now(timezone.utc)
+    db.commit()
+    return {"message": "Asset soft-deleted successfully"}

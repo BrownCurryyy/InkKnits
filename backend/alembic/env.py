@@ -10,11 +10,14 @@ from sqlalchemy import engine_from_config, pool
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from backend.database.base import Base
-from backend.models import Asset, Organization, Project, Station, User
+import backend.models
 
 config = context.config
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    try:
+        fileConfig(config.config_file_name)
+    except KeyError:
+        pass
 
 target_metadata = Base.metadata
 

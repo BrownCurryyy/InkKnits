@@ -11,6 +11,7 @@ from pydantic import EmailStr
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-secret-key")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
+REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 
 def hash_password(password: str) -> str:
@@ -31,6 +32,17 @@ def create_access_token(subject: str, extra_claims: dict[str, Any] | None = None
     }
     if extra_claims:
         payload.update(extra_claims)
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def create_refresh_token(subject: str) -> str:
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": subject,
+        "iat": now,
+        "exp": now + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
+        "type": "refresh",
+    }
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 

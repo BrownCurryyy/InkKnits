@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from datetime import datetime, timezone
 
-from backend.app.auth import build_claims, create_access_token, hash_password, verify_password
-from backend.app.schemas import AuthLogin, AuthRegister, TokenOut, UserOut
+from backend.app.auth import build_claims, create_access_token, hash_password, verify_password, create_refresh_token, decode_access_token
+from backend.app.schemas import AuthLogin, AuthRegister, TokenOut, UserOut, RefreshTokenRequest
 from backend.database.connection import get_db
 from backend.models.user import User
 from backend.repositories.organization_repository import OrganizationRepository
@@ -32,7 +33,8 @@ async def register(payload: AuthRegister, db: Session = Depends(get_db)) -> Toke
         str(user.id),
         extra_claims=build_claims(str(payload.email), str(user.organization_id), ["ADMIN"]),
     )
-    return TokenOut(access_token=token)
+    refresh_token = create_refresh_token(str(user.id))
+    return TokenOut(access_token=token, refresh_token=refresh_token)
 
 
 @router.post("/login", response_model=TokenOut)
@@ -45,7 +47,37 @@ async def login(payload: AuthLogin, db: Session = Depends(get_db)) -> TokenOut:
         str(user.id),
         extra_claims=build_claims(str(user.email), str(user.organization_id), ["VIEWER"]),
     )
-    return TokenOut(access_token=token)
+    refresh_token = create_refresh_token(str(user.id))
+    return TokenOut(access_token=token, refresh_token=refresh_token)
+
+
+@router.post("/refresh", response_model=TokenOut)
+async def refresh(payload: RefreshTokenRequest, db: Session = Depends(get_db)) -> TokenOut:
+    try:
+        claims = decode_access_token(payload.refresh_token)
+        if claims.get("type") != "refresh":
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type")
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired refresh token")
+
+    user_id = claims.get("sub")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+
+    token = create_access_token(
+        str(user.id),
+        extra_claims=build_claims(str(user.email), str(user.organization_id), ["VIEWER"]),
+    )
+    refresh_token = create_refresh_token(str(user.id))
+    return TokenOut(access_token=token, refresh_token=refresh_token)
+
+
+@router.post("/logout", status_code=status.HTTP_200_OK)
+async def logout() -> dict:
+    # In a stateless setup, the client simply drops the tokens.
+    # If stateful revocation is needed later, token blocklisting would occur here.
+    return {"message": "Successfully logged out"}
 
 
 @router.get("/me", response_model=UserOut)
