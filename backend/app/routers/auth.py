@@ -1,6 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 from datetime import datetime, timezone
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy.orm import Session
 
 from backend.app.auth import build_claims, create_access_token, hash_password, verify_password, create_refresh_token, decode_access_token
 from backend.app.schemas import AuthLogin, AuthRegister, TokenOut, UserOut, RefreshTokenRequest
@@ -9,6 +11,25 @@ from backend.models.user import User
 from backend.repositories.organization_repository import OrganizationRepository
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+security = HTTPBearer(auto_error=False)
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    db: Session = Depends(get_db),
+) -> User:
+    if credentials is None or credentials.scheme.lower() != "bearer":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+
+    try:
+        claims = decode_access_token(credentials.credentials)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token") from exc
+
+    user = db.query(User).filter(User.id == claims.get("sub")).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+    return user
 
 
 @router.post("/register", response_model=TokenOut, status_code=status.HTTP_201_CREATED)
@@ -74,18 +95,13 @@ async def refresh(payload: RefreshTokenRequest, db: Session = Depends(get_db)) -
 
 
 @router.post("/logout", status_code=status.HTTP_200_OK)
-async def logout() -> dict:
-    # In a stateless setup, the client simply drops the tokens.
-    # If stateful revocation is needed later, token blocklisting would occur here.
+async def logout(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
+    from backend.services.activity_service import ActivityService
+
+    ActivityService.log(db, "LOGOUT", f"User '{current_user.email}' logged out", organization_id=current_user.organization_id, user_id=current_user.id)
     return {"message": "Successfully logged out"}
 
 
 @router.get("/me", response_model=UserOut)
-async def current_user() -> UserOut:
-    return UserOut(
-        id="00000000-0000-0000-0000-000000000000",
-        organization_id="00000000-0000-0000-0000-000000000000",
-        email="demo@example.com",
-        display_name="Demo User",
-        status="ACTIVE",
-    )
+async def current_user(current_user: User = Depends(get_current_user)) -> UserOut:
+    return UserOut.model_validate(current_user)

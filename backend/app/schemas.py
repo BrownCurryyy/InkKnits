@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
@@ -70,6 +70,7 @@ class AssetVersionCreate(BaseModel):
     version_number: int = Field(..., ge=1)
     snapshot_path: str
     raw_metadata: dict[str, Any] | None = None
+    parent_version_id: UUID | None = None
     created_by: UUID | None = None
 
 
@@ -167,6 +168,8 @@ class PermissionOut(BaseModel):
 
 class AIJobCreate(BaseModel):
     asset_id: UUID | None = None
+    organization_id: UUID | None = None
+    station_id: UUID | None = None
     job_type: str = Field(..., min_length=1, max_length=50)
     priority: int = 100
     model: str | None = None
@@ -179,6 +182,8 @@ class AIJobOut(BaseModel):
 
     id: UUID
     asset_id: UUID | None = None
+    organization_id: UUID | None = None
+    station_id: UUID | None = None
     created_by: UUID
     job_type: str
     priority: int
@@ -258,3 +263,42 @@ class AssetUpdate(BaseModel):
 
 class AssetMetadataUpdate(BaseModel):
     raw_metadata: dict
+
+
+class AIJobSubmit(BaseModel):
+    """Validated payload accepted by the asynchronous AI job API."""
+
+    job_type: Literal[
+        "TEXT", "REWRITE", "IMPROVE_TONE", "CHANGE_AUDIENCE", "SUMMARIZE",
+        "EXPAND", "ATOMIZE", "IMAGE",
+    ]
+    created_by: UUID
+    organization_id: UUID | None = None
+    station_id: UUID | None = None
+    asset_id: UUID | None = None
+    prompt: str = Field(default="", max_length=12000)
+    draft: str = Field(default="", max_length=12000)
+    action: str = "generate"
+    mood: str = "Professional"
+    style: str = "Narrative"
+    audience: str = ""
+    content_length: str = ""
+    formats: list[str] = Field(default_factory=list, max_length=12)
+    model: str | None = Field(default=None, max_length=100)
+    width: int = Field(default=512, ge=64, le=1024, multiple_of=64)
+    height: int = Field(default=512, ge=64, le=1024, multiple_of=64)
+    name: str | None = Field(default=None, max_length=255)
+    title: str | None = Field(default=None, max_length=255)
+
+
+class AIJobStatus(BaseModel):
+    task_id: UUID
+    job_type: str
+    priority: int
+    status: str
+    queue_position: int | None = None
+    result: dict[str, Any] | None = None
+    error: str | None = None
+    created_at: datetime
+    started_at: datetime | None = None
+    completed_at: datetime | None = None

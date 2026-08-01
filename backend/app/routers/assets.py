@@ -7,7 +7,9 @@ from backend.app.schemas import AssetCreate, AssetOut, AssetUpdate, AssetMetadat
 from backend.database.connection import get_db
 from backend.models.asset import Asset
 from backend.repositories.asset_repository import AssetRepository
+from backend.services.activity_service import ActivityService
 from backend.services.storage import StorageService
+from backend.services.version_service import VersionService
 
 router = APIRouter(prefix="/assets", tags=["assets"])
 
@@ -31,6 +33,8 @@ async def create_asset(payload: AssetCreate, db: Session = Depends(get_db)) -> A
     )
     repository = AssetRepository(db)
     created = repository.create(asset)
+    VersionService.create_snapshot(db, created, user_id=payload.owner_id)
+    ActivityService.log(db, "ASSET_CREATED", f"Asset '{created.name}' created", organization_id=created.organization_id, asset_id=created.id, user_id=payload.owner_id)
     return AssetOut.model_validate(created)
 
 
@@ -50,19 +54,26 @@ async def upload_asset(
     now = datetime.now(timezone.utc)
     asset_id = uuid4()
 
-    # Save the file to structured SSD path; use station_id as the directory scope
-    storage_path = await StorageService.save_upload_file(
-        organization_id=UUID(organization_id),
-        project_id=UUID(station_id),
-        asset_id=asset_id,
-        file=file,
-    )
+    station_uuid = UUID(station_id)
+    station = db.get("Station", station_uuid)
+    if station is None:
+        raise HTTPException(status_code=404, detail="Station not found")
+
+    try:
+        storage_path = await StorageService.save_upload_file(
+            organization_id=UUID(organization_id),
+            project_id=station.project_id,
+            asset_id=asset_id,
+            file=file,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     asset = Asset(
         id=asset_id,
-        organization_id=organization_id,
-        station_id=station_id,
-        owner_id=owner_id,
+        organization_id=UUID(organization_id),
+        station_id=station_uuid,
+        owner_id=UUID(owner_id) if owner_id else None,
         name=name,
         asset_type=asset_type,
         storage_path=storage_path,
@@ -71,6 +82,15 @@ async def upload_asset(
     )
     repository = AssetRepository(db)
     created = repository.create(asset)
+    VersionService.create_snapshot(db, created, user_id=UUID(owner_id) if owner_id else None)
+    ActivityService.log(
+        db,
+        "ASSET_CREATED",
+        f"Asset '{created.name}' uploaded",
+        organization_id=created.organization_id,
+        asset_id=created.id,
+        user_id=UUID(owner_id) if owner_id else None,
+    )
     return AssetOut.model_validate(created)
 
 
@@ -102,6 +122,14 @@ async def get_asset(asset_id: str, db: Session = Depends(get_db)) -> AssetOut:
     asset = repository.get_by_id(asset_id)
     if not asset or asset.deleted_at is not None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
+    ActivityService.log(
+        db,
+        "ASSET_OPENED",
+        f"Asset '{asset.name}' opened",
+        organization_id=asset.organization_id,
+        asset_id=asset.id,
+        user_id=asset.owner_id,
+    )
     return AssetOut.model_validate(asset)
 
 
@@ -149,6 +177,8 @@ async def update_asset(asset_id: str, payload: AssetUpdate, db: Session = Depend
     asset.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(asset)
+    VersionService.create_snapshot(db, asset, user_id=asset.owner_id)
+    ActivityService.log(db, "ASSET_UPDATED", f"Asset '{asset.name}' updated", organization_id=asset.organization_id, asset_id=asset.id, user_id=asset.owner_id)
     return AssetOut.model_validate(asset)
 
 
@@ -169,6 +199,15 @@ async def update_asset_metadata(
 
     db.commit()
     db.refresh(asset)
+    VersionService.create_snapshot(db, asset, user_id=asset.owner_id)
+    ActivityService.log(
+        db,
+        "ASSET_UPDATED",
+        f"Asset metadata for '{asset.name}' updated",
+        organization_id=asset.organization_id,
+        asset_id=asset.id,
+        user_id=asset.owner_id,
+    )
     return AssetOut.model_validate(asset)
 
 
@@ -182,4 +221,5 @@ async def soft_delete_asset(asset_id: str, db: Session = Depends(get_db)) -> dic
 
     asset.deleted_at = datetime.now(timezone.utc)
     db.commit()
+    ActivityService.log(db, "ARCHIVE", f"Asset '{asset.name}' archived", organization_id=asset.organization_id, asset_id=asset.id, user_id=asset.owner_id)
     return {"message": "Asset soft-deleted successfully"}

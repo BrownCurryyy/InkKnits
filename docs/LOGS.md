@@ -140,3 +140,58 @@ Date: 2026-07-19
 ### Notes
 - Phase 5 (Asset Management) is fully complete.
 - The next phase is Phase 6 (AI Engine) — Ollama/ComfyUI integration to be handled separately as discussed.
+
+## v1.7.0 — AI Engine & Scheduling Integration
+Date: 2026-07-29
+
+### Added
+- Integrated the `ai_router` into the main FastAPI application (`backend/app/main.py`).
+- Set up a FastAPI `lifespan` handler to automatically start and stop the `AIScheduler` background worker task.
+- Fixed a bug in `backend/database/connection.py` where sessionmaker was using the non-existent parameter `expire_on_load` instead of `expire_on_commit`.
+- Checked off all Phase 6 items in `TODO.md` as fully completed.
+
+### Notes
+- Phase 6 (AI Engine) integration is fully complete.
+- The next phase is Phase 7 (Version Tracking).
+
+## v1.8.0 — Version Tracking & Activity Service Completion
+Date: 2026-08-01
+
+### Added
+- Implemented automatic version snapshots for asset create, update, metadata, and restore flows.
+- Added lineage support to version records via `parent_version_id` and restored snapshot metadata handling.
+- Expanded the activity service to log asset creation, opening, updates, archive/restore, approval, AI queueing, login, and logout events.
+- Wired approval routes into the main FastAPI application and ensured the router is imported consistently.
+- Added tenant-aware fields to AI jobs so organization and station context are preserved for downstream processing.
+- Replaced the placeholder auth `/me` response with a JWT-backed current-user dependency and added activity logging for auth lifecycle events.
+
+### Notes
+- Phases 7 and 8 are now implemented and documented as completed in the project checklist.
+- The backend now keeps version history and audit trails aligned with the documented architecture and requirements.
+
+## v1.9.0 — Approval Engine & Scheduler Completion
+Date: 2026-08-01
+
+### Added
+- Implemented a reusable approval service for overdue-task escalation and deadline tracking.
+- Wired approval escalation into the API so overdue tasks are marked as escalated automatically.
+- Added scheduler cancellation support so queued jobs can be cancelled cleanly.
+- Hardened scheduler persistence so job updates degrade gracefully when the database is unavailable.
+- Added regression tests covering approval escalation and scheduler cancellation behavior.
+
+### Notes
+- Phases 9 and 10 are now implemented and reflected as completed in the project checklist.
+- The backend now covers the approval workflow and AI job scheduler end to end, with no blocking errors in the current verification run.
+
+## v1.10.0 — Hardening Pass & Frontend Readiness
+Date: 2026-08-01
+
+### Added
+- Added a reusable role-check helper for access-control decisions and administrator override handling.
+- Added upload validation for file type, executable payloads, and size before writing assets to storage.
+- Wired upload validation into the asset upload route so invalid files are rejected with a clear API error.
+- Documented frontend integration touchpoints for auth, role-aware UI, upload handling, activity/version views, and AI queue monitoring.
+
+### Notes
+- The backend is now better prepared for frontend integration with stronger safety checks and clearer API behavior.
+- The added regression tests cover the new hardening helper and storage validation logic.

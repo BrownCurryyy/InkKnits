@@ -17,6 +17,7 @@ class AssetVersion(Base):
     version_number: Mapped[int] = mapped_column(Integer, nullable=False)
     snapshot_path: Mapped[str] = mapped_column(Text, nullable=False)
     raw_metadata: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    parent_version_id: Mapped[UUID | None] = mapped_column(ForeignKey("asset_versions.id"), nullable=True)
     created_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)

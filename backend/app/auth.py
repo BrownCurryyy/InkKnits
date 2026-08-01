@@ -56,3 +56,16 @@ def build_claims(email: EmailStr, organization_id: str, roles: list[str] | None 
         "organization_id": organization_id,
         "roles": roles or ["VIEWER"],
     }
+
+
+def has_required_roles(user_roles: list[str] | None, required_roles: tuple[str, ...] | list[str]) -> bool:
+    """Return True when the user has at least one of the required roles.
+
+    Administrators are implicitly granted access to all protected operations.
+    """
+    if not required_roles:
+        return True
+
+    normalized_user_roles = {role.upper() for role in (user_roles or [])}
+    normalized_required_roles = {role.upper() for role in required_roles}
+    return bool(normalized_required_roles & normalized_user_roles) or "ADMIN" in normalized_user_roles

@@ -7,6 +7,8 @@ from uuid import UUID
 from fastapi import UploadFile
 
 STORAGE_ROOT = Path("storage")
+ALLOWED_UPLOAD_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".txt", ".md", ".json", ".pdf", ".zip"}
+MAX_UPLOAD_SIZE_BYTES = 20 * 1024 * 1024
 
 
 class StorageService:
@@ -18,17 +20,40 @@ class StorageService:
         return path
 
     @staticmethod
+    def validate_upload_file(file: UploadFile, allowed_extensions: set[str] | None = None) -> None:
+        """Reject unsupported or unsafe uploads before they are written to disk."""
+        if file.filename is None:
+            raise ValueError("Upload requires a filename")
+
+        extension = Path(file.filename).suffix.lower()
+        allowed = allowed_extensions or ALLOWED_UPLOAD_EXTENSIONS
+        if extension not in allowed:
+            raise ValueError(f"Unsupported file extension '{extension}'. Allowed: {', '.join(sorted(allowed))}")
+
+        if file.content_type and file.content_type.startswith("application/x-msdownload"):
+            raise ValueError("Dangerous file type rejected")
+
+        if file.file.seekable():
+            current_position = file.file.tell()
+            file.file.seek(0, os.SEEK_END)
+            size = file.file.tell()
+            file.file.seek(current_position)
+            if size > MAX_UPLOAD_SIZE_BYTES:
+                raise ValueError(f"Upload exceeds the maximum size of {MAX_UPLOAD_SIZE_BYTES // (1024 * 1024)}MB")
+
+    @staticmethod
     async def save_upload_file(organization_id: UUID, project_id: UUID, asset_id: UUID, file: UploadFile) -> str:
         """Saves a multipart/form-data UploadFile to the SSD."""
+        StorageService.validate_upload_file(file)
         directory = StorageService.get_asset_directory(organization_id, project_id)
-        
+
         # Extract extension or default to .bin
         ext = os.path.splitext(file.filename)[1] if file.filename else ".bin"
         file_path = directory / f"{asset_id}{ext}"
-        
+
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
-            
+
         return str(file_path)
 
     @staticmethod

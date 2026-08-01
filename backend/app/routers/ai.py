@@ -1,0 +1,110 @@
+"""Asynchronous AI job submission and polling endpoints."""
+
+import json
+from datetime import datetime, timezone
+from uuid import UUID, uuid4
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from backend.app.schemas import AIJobStatus, AIJobSubmit
+from backend.database.connection import get_db
+from backend.models.ai_job import AIJob as PersistedAIJob
+from backend.models.asset import Asset
+from backend.services.activity_service import ActivityService
+from backend.services.ai_scheduler import JOB_TYPE_TO_PRIORITY, scheduler
+from backend.services.comfyui_service import ComfyUIService
+
+router = APIRouter(prefix="/ai", tags=["ai"])
+
+
+def _validate_payload(payload: AIJobSubmit, db: Session) -> None:
+    if payload.job_type == "ATOMIZE":
+        if payload.asset_id is None or not payload.formats:
+            raise HTTPException(422, "Atomization requires asset_id and at least one output format")
+        parent = db.get(Asset, payload.asset_id)
+        if parent is None or parent.deleted_at is not None:
+            raise HTTPException(404, "Parent asset not found")
+        if not parent.content:
+            raise HTTPException(422, "Parent asset has no text content to atomize")
+        if payload.organization_id is None:
+            payload.organization_id = parent.organization_id
+        if payload.station_id is None:
+            payload.station_id = parent.station_id
+        payload.draft = parent.content
+
+    if payload.job_type == "IMAGE" and (payload.organization_id is None or payload.station_id is None):
+        raise HTTPException(422, "Image generation requires organization_id and station_id")
+
+
+@router.post("/jobs", response_model=AIJobStatus, status_code=status.HTTP_202_ACCEPTED)
+async def submit_job(payload: AIJobSubmit, db: Session = Depends(get_db)) -> AIJobStatus:
+    """Create one durable job record, enqueue it, and return its task ID immediately."""
+    _validate_payload(payload, db)
+    task_id = uuid4()
+    now = datetime.now(timezone.utc)
+    job_type = payload.job_type.upper()
+    persisted = PersistedAIJob(
+        id=task_id,
+        asset_id=payload.asset_id,
+        organization_id=payload.organization_id,
+        station_id=payload.station_id,
+        created_by=payload.created_by,
+        job_type=job_type,
+        priority=int(JOB_TYPE_TO_PRIORITY[job_type]),
+        status="QUEUED",
+        model=payload.model,
+        prompt=payload.prompt,
+        parameters=json.dumps(payload.model_dump(mode="json"), default=str),
+        created_at=now,
+    )
+    db.add(persisted)
+    db.commit()
+
+    activity_type = "IMAGE_GENERATED" if job_type == "IMAGE" else "AI_GENERATED"
+    ActivityService.log(
+        db,
+        activity_type,
+        f"{job_type.title()} job queued",
+        organization_id=payload.organization_id,
+        asset_id=payload.asset_id,
+        user_id=payload.created_by,
+        raw_metadata={"job_type": job_type, "task_id": str(task_id)},
+    )
+
+    runtime_payload = payload.model_dump(mode="json")
+    if job_type == "ATOMIZE":
+        runtime_payload["parent_content"] = runtime_payload["draft"]
+    if job_type == "IMAGE":
+        runtime_payload["output_asset_id"] = str(uuid4())
+
+    job = scheduler.submit(job_type, runtime_payload, task_id=str(task_id))
+    return AIJobStatus(task_id=task_id, **{key: value for key, value in job.to_dict().items() if key != "task_id"})
+
+
+@router.get("/jobs/{task_id}", response_model=AIJobStatus)
+async def get_job(task_id: UUID, db: Session = Depends(get_db)) -> AIJobStatus:
+    """Poll a job's live in-memory status; completed jobs remain available in PostgreSQL."""
+    job = scheduler.get_job(str(task_id))
+    if job is not None:
+        return AIJobStatus(task_id=task_id, **{key: value for key, value in job.to_dict().items() if key != "task_id"})
+
+    persisted = db.get(PersistedAIJob, task_id)
+    if persisted is None:
+        raise HTTPException(status_code=404, detail="AI job not found")
+    return AIJobStatus(
+        task_id=task_id,
+        job_type=persisted.job_type,
+        priority=persisted.priority,
+        status=persisted.status,
+        queue_position=persisted.queue_position,
+        result={"asset_ids": json.loads(persisted.result_asset)} if persisted.result_asset else None,
+        created_at=persisted.created_at,
+        started_at=persisted.started_at,
+        completed_at=persisted.completed_at,
+    )
+
+
+@router.get("/health")
+async def ai_health() -> dict[str, bool | int]:
+    return {"scheduler_running": scheduler._worker_task is not None, "comfyui_available": ComfyUIService.is_available(), "queued_jobs": scheduler.queue_size()}

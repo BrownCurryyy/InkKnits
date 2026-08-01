@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, String, Text, Integer
+from sqlalchemy import DateTime, ForeignKey, String, Text, Integer
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.database.base import Base
@@ -13,6 +13,8 @@ class AIJob(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     asset_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    organization_id: Mapped[UUID | None] = mapped_column(ForeignKey("organizations.id"), nullable=True)
+    station_id: Mapped[UUID | None] = mapped_column(ForeignKey("stations.id"), nullable=True)
     created_by: Mapped[UUID] = mapped_column(nullable=False)
     job_type: Mapped[str] = mapped_column(String(50), nullable=False)
     priority: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
