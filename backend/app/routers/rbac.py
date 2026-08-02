@@ -3,12 +3,13 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from backend.app.routers.auth import get_current_user
 from backend.app.schemas import RoleCreate, RoleOut, PermissionOut
 from backend.database.connection import get_db
 from backend.models.rbac import Role, Permission
 from backend.repositories.rbac_repository import RoleRepository, PermissionRepository
 
-router = APIRouter(prefix="/rbac", tags=["rbac"])
+router = APIRouter(prefix="/rbac", tags=["rbac"], dependencies=[Depends(get_current_user)])
 
 
 @router.post("/roles", response_model=RoleOut, status_code=status.HTTP_201_CREATED)

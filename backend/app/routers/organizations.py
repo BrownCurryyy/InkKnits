@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from backend.app.routers.auth import get_current_user
 from backend.app.schemas import OrganizationCreate, OrganizationOut, OrganizationMemberAdd, UserRoleUpdate
 from backend.database.connection import get_db
 from backend.models.organization import Organization
 from backend.repositories.organization_repository import OrganizationRepository
 
-router = APIRouter(prefix="/organizations", tags=["organizations"])
+router = APIRouter(prefix="/organizations", tags=["organizations"], dependencies=[Depends(get_current_user)])
 
 
 @router.post("", response_model=OrganizationOut, status_code=status.HTTP_201_CREATED)

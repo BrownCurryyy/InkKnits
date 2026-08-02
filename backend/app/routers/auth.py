@@ -4,7 +4,16 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
-from backend.app.auth import build_claims, create_access_token, hash_password, verify_password, create_refresh_token, decode_access_token
+from backend.app.auth import (
+    build_claims,
+    create_access_token,
+    create_refresh_token,
+    decode_access_token,
+    ensure_default_user_role,
+    get_user_roles,
+    hash_password,
+    verify_password,
+)
 from backend.app.schemas import AuthLogin, AuthRegister, TokenOut, UserOut, RefreshTokenRequest
 from backend.database.connection import get_db
 from backend.models.user import User
@@ -39,6 +48,9 @@ async def register(payload: AuthRegister, db: Session = Depends(get_db)) -> Toke
     if not organization:
         raise HTTPException(status_code=404, detail="Organization not found")
 
+    existing_user_count = db.query(User).filter(User.organization_id == payload.organization_id).count()
+    role_name = "ADMIN" if existing_user_count == 0 else "VIEWER"
+
     user = User(
         organization_id=payload.organization_id,
         email=str(payload.email),
@@ -49,10 +61,12 @@ async def register(payload: AuthRegister, db: Session = Depends(get_db)) -> Toke
     db.add(user)
     db.commit()
     db.refresh(user)
+    ensure_default_user_role(db, user, role_name=role_name)
+    db.commit()
 
     token = create_access_token(
         str(user.id),
-        extra_claims=build_claims(str(payload.email), str(user.organization_id), ["ADMIN"]),
+        extra_claims=build_claims(str(payload.email), str(user.organization_id), [role_name]),
     )
     refresh_token = create_refresh_token(str(user.id))
     return TokenOut(access_token=token, refresh_token=refresh_token)
@@ -64,9 +78,10 @@ async def login(payload: AuthLogin, db: Session = Depends(get_db)) -> TokenOut:
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
+    roles = get_user_roles(db, user)
     token = create_access_token(
         str(user.id),
-        extra_claims=build_claims(str(user.email), str(user.organization_id), ["VIEWER"]),
+        extra_claims=build_claims(str(user.email), str(user.organization_id), roles),
     )
     refresh_token = create_refresh_token(str(user.id))
     return TokenOut(access_token=token, refresh_token=refresh_token)
@@ -86,9 +101,10 @@ async def refresh(payload: RefreshTokenRequest, db: Session = Depends(get_db)) -
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
 
+    roles = get_user_roles(db, user)
     token = create_access_token(
         str(user.id),
-        extra_claims=build_claims(str(user.email), str(user.organization_id), ["VIEWER"]),
+        extra_claims=build_claims(str(user.email), str(user.organization_id), roles),
     )
     refresh_token = create_refresh_token(str(user.id))
     return TokenOut(access_token=token, refresh_token=refresh_token)

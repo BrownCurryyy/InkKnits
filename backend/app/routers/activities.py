@@ -3,12 +3,13 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from backend.app.routers.auth import get_current_user
 from backend.app.schemas import ActivityCreate, ActivityOut
 from backend.database.connection import get_db
 from backend.models.activity import Activity
 from backend.repositories.activity_repository import ActivityRepository
 
-router = APIRouter(prefix="/activities", tags=["activities"])
+router = APIRouter(prefix="/activities", tags=["activities"], dependencies=[Depends(get_current_user)])
 
 
 @router.post("", response_model=ActivityOut, status_code=status.HTTP_201_CREATED)

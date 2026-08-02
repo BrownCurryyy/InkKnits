@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from backend.app.routers.auth import get_current_user
 from backend.app.schemas import ProjectCreate, ProjectOut, ProjectUpdate
 from backend.database.connection import get_db
 from backend.models.project import Project
 from backend.repositories.project_repository import ProjectRepository
 
-router = APIRouter(prefix="/projects", tags=["projects"])
+router = APIRouter(prefix="/projects", tags=["projects"], dependencies=[Depends(get_current_user)])
 
 
 @router.post("", response_model=ProjectOut, status_code=status.HTTP_201_CREATED)

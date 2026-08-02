@@ -4,6 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from backend.app.routers.auth import get_current_user
 from backend.app.schemas import AssetVersionCreate, AssetVersionOut
 from backend.database.connection import get_db
 from backend.models.asset import Asset
@@ -12,7 +13,7 @@ from backend.repositories.asset_version_repository import AssetVersionRepository
 from backend.services.activity_service import ActivityService
 from backend.services.version_service import VersionService
 
-router = APIRouter(prefix="/versions", tags=["versions"])
+router = APIRouter(prefix="/versions", tags=["versions"], dependencies=[Depends(get_current_user)])
 
 
 @router.post("", response_model=AssetVersionOut, status_code=status.HTTP_201_CREATED)

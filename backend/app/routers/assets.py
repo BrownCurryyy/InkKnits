@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, File, status
 from sqlalchemy.orm import Session
 
+from backend.app.routers.auth import get_current_user
 from backend.app.schemas import AssetCreate, AssetOut, AssetUpdate, AssetMetadataUpdate
 from backend.database.connection import get_db
 from backend.models.asset import Asset
@@ -11,7 +12,7 @@ from backend.services.activity_service import ActivityService
 from backend.services.storage import StorageService
 from backend.services.version_service import VersionService
 
-router = APIRouter(prefix="/assets", tags=["assets"])
+router = APIRouter(prefix="/assets", tags=["assets"], dependencies=[Depends(get_current_user)])
 
 
 @router.post("", response_model=AssetOut, status_code=status.HTTP_201_CREATED)
@@ -55,7 +56,9 @@ async def upload_asset(
     asset_id = uuid4()
 
     station_uuid = UUID(station_id)
-    station = db.get("Station", station_uuid)
+    from backend.models.station import Station
+
+    station = db.get(Station, station_uuid)
     if station is None:
         raise HTTPException(status_code=404, detail="Station not found")
 

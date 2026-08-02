@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from backend.app.routers.auth import get_current_user
 from backend.app.schemas import StationCreate, StationOut
 from backend.database.connection import get_db
 from backend.models.station import Station
@@ -8,7 +9,7 @@ from backend.repositories.station_repository import StationRepository
 from backend.models.station_member import StationMember
 from backend.app.schemas import OrganizationMemberAdd
 
-router = APIRouter(prefix="/stations", tags=["stations"])
+router = APIRouter(prefix="/stations", tags=["stations"], dependencies=[Depends(get_current_user)])
 
 
 @router.post("", response_model=StationOut, status_code=status.HTTP_201_CREATED)

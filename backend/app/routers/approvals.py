@@ -17,6 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from backend.app.routers.auth import get_current_user
 from backend.app.schemas import ApprovalTaskCreate, ApprovalTaskOut
 from backend.database.connection import get_db
 from backend.models.approval_task import ApprovalTask
@@ -25,7 +26,7 @@ from backend.repositories.approval_task_repository import ApprovalTaskRepository
 from backend.services.activity_service import ActivityService
 from backend.services.approval_service import ApprovalService
 
-router = APIRouter(prefix="/approvals", tags=["approvals"])
+router = APIRouter(prefix="/approvals", tags=["approvals"], dependencies=[Depends(get_current_user)])
 
 
 # ---------------------------------------------------------------------------

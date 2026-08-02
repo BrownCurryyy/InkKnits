@@ -8,6 +8,9 @@ import bcrypt
 import jwt
 from pydantic import EmailStr
 
+from backend.models.rbac import Role, UserRole
+from backend.models.user import User
+
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-secret-key")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
@@ -56,6 +59,31 @@ def build_claims(email: EmailStr, organization_id: str, roles: list[str] | None 
         "organization_id": organization_id,
         "roles": roles or ["VIEWER"],
     }
+
+
+def get_user_roles(db: Any, user: User) -> list[str]:
+    role_names = (
+        db.query(Role.name)
+        .join(UserRole, UserRole.role_id == Role.id)
+        .filter(UserRole.user_id == user.id)
+        .order_by(Role.name)
+        .all()
+    )
+    if not role_names:
+        return ["VIEWER"]
+    return [name for (name,) in role_names]
+
+
+def ensure_default_user_role(db: Any, user: User, role_name: str = "VIEWER") -> None:
+    role = db.query(Role).filter(Role.organization_id == user.organization_id, Role.name == role_name).first()
+    if not role:
+        role = Role(organization_id=user.organization_id, name=role_name, description=f"{role_name.title()} role")
+        db.add(role)
+        db.flush()
+
+    existing_assignment = db.query(UserRole).filter(UserRole.user_id == user.id).first()
+    if not existing_assignment:
+        db.add(UserRole(user_id=user.id, role_id=role.id))
 
 
 def has_required_roles(user_roles: list[str] | None, required_roles: tuple[str, ...] | list[str]) -> bool:

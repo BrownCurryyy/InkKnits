@@ -7,6 +7,7 @@ from uuid import UUID, uuid4
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from backend.app.routers.auth import get_current_user
 from backend.app.schemas import AIJobStatus, AIJobSubmit
 from backend.database.connection import get_db
 from backend.models.ai_job import AIJob as PersistedAIJob
@@ -15,7 +16,7 @@ from backend.services.activity_service import ActivityService
 from backend.services.ai_scheduler import JOB_TYPE_TO_PRIORITY, scheduler
 from backend.services.comfyui_service import ComfyUIService
 
-router = APIRouter(prefix="/ai", tags=["ai"])
+router = APIRouter(prefix="/ai", tags=["ai"], dependencies=[Depends(get_current_user)])
 
 
 def _validate_payload(payload: AIJobSubmit, db: Session) -> None:
