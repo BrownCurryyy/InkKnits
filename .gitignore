@@ -36,3 +36,12 @@ coverage/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Local audit venv
+.audit_venv/
+
+# Backend local DB
+backend/dev.db
+
+# Frontend
+frontend/node_modules/

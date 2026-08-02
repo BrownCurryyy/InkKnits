@@ -72,3 +72,16 @@ async def archive_project(project_id: str, db: Session = Depends(get_db)) -> Pro
     db.commit()
     db.refresh(project)
     return ProjectOut.model_validate(project)
+
+
+@router.delete("/{project_id}", status_code=status.HTTP_200_OK)
+async def delete_project(project_id: str, db: Session = Depends(get_db)) -> dict:
+    repository = ProjectRepository(db)
+    project = repository.get_by_id(project_id)
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+    project.deleted_at = datetime.now(timezone.utc)
+    project.status = "ARCHIVED"
+    db.commit()
+    return {"message": "Project soft-deleted successfully"}

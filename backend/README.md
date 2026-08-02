@@ -13,4 +13,18 @@ This folder contains the initial FastAPI + SQLAlchemy backend scaffold for InkKn
 
 1. Create and activate a virtual environment.
 2. Install dependencies: `pip install -r requirements.txt`
-3. Start the API: `uvicorn app.main:app --reload`
+3. Initialize a local development database and seed demo data (no Postgres required):
+
+	```bash
+	python scripts/local_dev_setup.py
+	```
+
+	This will create `backend/dev.db`, create all tables from the ORM models, and seed a demo organization, admin user (admin@example.com / password123), a project, and a station.
+
+4. Start the API: `uvicorn app.main:app --reload`
+
+## CORS / Frontend
+
+By default the backend allows CORS from `http://127.0.0.1:5173` (Vite dev server). To customize allowed origins set the `FRONTEND_ORIGINS` environment variable to a comma-separated list of origins.
+
+For production, serve the built frontend `dist/` via a static host (or CDN) and set `FRONTEND_ORIGINS` to your production domain(s). Use `DATABASE_URL` to point to a production Postgres instance and run Alembic migrations before starting the app.

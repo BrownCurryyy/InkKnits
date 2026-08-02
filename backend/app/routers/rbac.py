@@ -35,7 +35,7 @@ async def seed_rbac(organization_id: str, db: Session = Depends(get_db)) -> dict
     # Basic seeder for default roles and permissions
     role_repo = RoleRepository(db)
     
-    default_roles = ["Administrator", "Manager", "Editor", "Reviewer", "Publisher", "Viewer"]
+    default_roles = ["ADMIN", "MANAGER", "EDITOR", "REVIEWER", "PUBLISHER", "VIEWER"]
     created_roles = []
     
     # Simple check if roles already exist for org

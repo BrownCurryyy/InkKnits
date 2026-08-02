@@ -8,9 +8,10 @@ from .station_member import StationMember
 from .ai_job import AIJob
 from .approval_task import ApprovalTask
 from .asset_link import AssetLink
+from .token_revocation import TokenRevocation
 
 __all__ = [
     "Asset", "Organization", "Project", "Station", "User",
     "Role", "Permission", "RolePermission", "UserRole",
-    "StationMember", "AIJob", "ApprovalTask", "AssetLink"
+    "StationMember", "AIJob", "ApprovalTask", "AssetLink", "TokenRevocation"
 ]

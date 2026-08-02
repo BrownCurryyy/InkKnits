@@ -1,5 +1,8 @@
 from contextlib import asynccontextmanager
+import os
+
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.routers.activities import router as activities_router
 from backend.app.routers.assets import router as assets_router
@@ -20,6 +23,16 @@ async def lifespan(app: FastAPI):
     await scheduler.stop()
 
 app = FastAPI(title="InkKnits API", version="0.1.0", lifespan=lifespan)
+
+# CORS: allow frontend dev servers by default; override with FRONTEND_ORIGINS env var
+_origins = os.getenv("FRONTEND_ORIGINS", "http://127.0.0.1:5173").split(",")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(auth_router)
 app.include_router(organizations_router)

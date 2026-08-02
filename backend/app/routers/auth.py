@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from backend.app.auth import (
@@ -12,6 +13,8 @@ from backend.app.auth import (
     ensure_default_user_role,
     get_user_roles,
     hash_password,
+    is_token_revoked,
+    revoke_token,
     verify_password,
 )
 from backend.app.schemas import AuthLogin, AuthRegister, TokenOut, UserOut, RefreshTokenRequest
@@ -34,6 +37,12 @@ def get_current_user(
         claims = decode_access_token(credentials.credentials)
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token") from exc
+
+    if claims.get("type") != "access":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type")
+
+    if is_token_revoked(db, claims.get("jti")):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token revoked")
 
     user = db.query(User).filter(User.id == claims.get("sub")).first()
     if not user:
@@ -87,6 +96,10 @@ async def login(payload: AuthLogin, db: Session = Depends(get_db)) -> TokenOut:
     return TokenOut(access_token=token, refresh_token=refresh_token)
 
 
+class LogoutRequest(BaseModel):
+    refresh_token: str | None = None
+
+
 @router.post("/refresh", response_model=TokenOut)
 async def refresh(payload: RefreshTokenRequest, db: Session = Depends(get_db)) -> TokenOut:
     try:
@@ -96,10 +109,15 @@ async def refresh(payload: RefreshTokenRequest, db: Session = Depends(get_db)) -
     except Exception:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired refresh token")
 
+    if is_token_revoked(db, claims.get("jti")):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token revoked")
+
     user_id = claims.get("sub")
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+
+    revoke_token(db, claims.get("jti"), "refresh", user_id=user.id)
 
     roles = get_user_roles(db, user)
     token = create_access_token(
@@ -111,8 +129,36 @@ async def refresh(payload: RefreshTokenRequest, db: Session = Depends(get_db)) -
 
 
 @router.post("/logout", status_code=status.HTTP_200_OK)
-async def logout(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
+async def logout(
+    payload: LogoutRequest | None = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+) -> dict:
     from backend.services.activity_service import ActivityService
+
+    if credentials is None or credentials.scheme.lower() != "bearer":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+
+    try:
+        access_claims = decode_access_token(credentials.credentials)
+        if access_claims.get("type") != "access":
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type")
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
+
+    revoke_token(db, access_claims.get("jti"), "access", user_id=current_user.id)
+
+    if payload and payload.refresh_token:
+        try:
+            refresh_claims = decode_access_token(payload.refresh_token)
+            if refresh_claims.get("type") != "refresh":
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type")
+            revoke_token(db, refresh_claims.get("jti"), "refresh", user_id=current_user.id)
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired refresh token")
 
     ActivityService.log(db, "LOGOUT", f"User '{current_user.email}' logged out", organization_id=current_user.organization_id, user_id=current_user.id)
     return {"message": "Successfully logged out"}

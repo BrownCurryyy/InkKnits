@@ -3,12 +3,14 @@ from __future__ import annotations
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Any
+from uuid import UUID, uuid4
 
 import bcrypt
 import jwt
 from pydantic import EmailStr
 
 from backend.models.rbac import Role, UserRole
+from backend.models.token_revocation import TokenRevocation
 from backend.models.user import User
 
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-secret-key")
@@ -28,29 +30,50 @@ def verify_password(password: str, password_hash: str) -> bool:
 
 def create_access_token(subject: str, extra_claims: dict[str, Any] | None = None) -> str:
     now = datetime.now(timezone.utc)
+    jti = str(uuid4())
     payload = {
         "sub": subject,
         "iat": now,
         "exp": now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+        "jti": jti,
+        "type": "access",
     }
     if extra_claims:
         payload.update(extra_claims)
+    payload["jti"] = jti
+    payload["type"] = "access"
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
 def create_refresh_token(subject: str) -> str:
     now = datetime.now(timezone.utc)
+    jti = str(uuid4())
     payload = {
         "sub": subject,
         "iat": now,
         "exp": now + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
         "type": "refresh",
+        "jti": jti,
     }
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
 def decode_access_token(token: str) -> dict[str, Any]:
     return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+
+
+def is_token_revoked(db: Any, jti: str | None) -> bool:
+    if not jti:
+        return False
+    return db.query(TokenRevocation).filter(TokenRevocation.jti == jti).first() is not None
+
+
+def revoke_token(db: Any, jti: str, token_type: str, user_id: str | UUID | None = None) -> None:
+    if not jti or is_token_revoked(db, jti):
+        return
+    token = TokenRevocation(jti=jti, token_type=token_type, user_id=user_id)
+    db.add(token)
+    db.commit()
 
 
 def build_claims(email: EmailStr, organization_id: str, roles: list[str] | None = None) -> dict[str, Any]:

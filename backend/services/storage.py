@@ -6,7 +6,7 @@ from uuid import UUID
 
 from fastapi import UploadFile
 
-STORAGE_ROOT = Path("storage")
+STORAGE_ROOT = Path(os.getenv("STORAGE_ROOT", Path(__file__).resolve().parents[2] / "storage")).resolve()
 ALLOWED_UPLOAD_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".txt", ".md", ".json", ".pdf", ".zip"}
 MAX_UPLOAD_SIZE_BYTES = 20 * 1024 * 1024
 
@@ -29,9 +29,6 @@ class StorageService:
         allowed = allowed_extensions or ALLOWED_UPLOAD_EXTENSIONS
         if extension not in allowed:
             raise ValueError(f"Unsupported file extension '{extension}'. Allowed: {', '.join(sorted(allowed))}")
-
-        if file.content_type and file.content_type.startswith("application/x-msdownload"):
-            raise ValueError("Dangerous file type rejected")
 
         if file.file.seekable():
             current_position = file.file.tell()
