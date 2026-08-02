@@ -19,11 +19,15 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from backend.database.base import Base
 from backend.database.connection import DEFAULT_DATABASE_URL
+# Import the models package to ensure all models are registered with SQLAlchemy
+import backend.models
 from backend.models.organization import Organization
 from backend.models.project import Project
 from backend.models.station import Station
 from backend.models.user import User
 from backend.models.rbac import Role, UserRole
+from backend.models.activity import Activity
+from backend.models.asset_version import AssetVersion
 from backend.app.auth import hash_password
 
 # Require DATABASE_URL or use the same Postgres default as the running app.
