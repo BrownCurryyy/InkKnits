@@ -13,7 +13,10 @@ from backend.models.rbac import Role, UserRole
 from backend.models.token_revocation import TokenRevocation
 from backend.models.user import User
 
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-secret-key")
+SECRET_KEY = os.getenv(
+    "JWT_SECRET_KEY",
+    "6f2e19a3d9c142b5e12d0a9ffc2b1f3ae5d7c9bf0a0b4d4c8b6e8f1a3c2d4e5f",
+)
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 REFRESH_TOKEN_EXPIRE_DAYS = 7

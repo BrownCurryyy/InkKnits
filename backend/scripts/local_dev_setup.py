@@ -1,8 +1,7 @@
-"""Create a local SQLite database, create all tables from ORM models, and seed demo data.
+"""Create a Postgres database, create all tables from ORM models, and seed demo data.
 
-This script is intended for zero-Postgres local development. It:
- - creates `backend/dev.db` (SQLite)
- - creates all tables via SQLAlchemy `Base.metadata.create_all`
+This script is intended for local backend development with Postgres. It:
+ - creates the schema via SQLAlchemy `Base.metadata.create_all`
  - seeds a demo organization, admin user (admin@example.com / password123), one project and one station
 
 Run: `python backend/scripts/local_dev_setup.py`
@@ -19,6 +18,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
 from backend.database.base import Base
+from backend.database.connection import DEFAULT_DATABASE_URL
 from backend.models.organization import Organization
 from backend.models.project import Project
 from backend.models.station import Station
@@ -26,8 +26,8 @@ from backend.models.user import User
 from backend.models.rbac import Role, UserRole
 from backend.app.auth import hash_password
 
-# Use DATABASE_URL if provided, otherwise fall back to sqlite
-DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///" + str(Path(__file__).resolve().parents[1] / "dev.db"))
+# Require DATABASE_URL or use the same Postgres default as the running app.
+DATABASE_URL = os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL)
 print("Using DATABASE_URL:", DATABASE_URL)
 
 engine = create_engine(DATABASE_URL, future=True)
@@ -68,6 +68,6 @@ with Session(engine) as session:
     session.commit()
 
 print("Local dev database initialized:")
-print(" - DB file:", Path(__file__).resolve().parents[1] / "dev.db")
+print(" - Database URL:", DATABASE_URL)
 print(" - Admin user: admin@example.com / password123 (password is hashed and ready for /auth/login)")
 print("Next: start server: uvicorn backend.app.main:app --reload")

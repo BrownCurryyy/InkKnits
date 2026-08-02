@@ -18,17 +18,19 @@ InkKnits is a FastAPI + SQLAlchemy backend for managing organization, project, s
    ```bash
    pip install -r backend/requirements.txt
    ```
-4. Initialize a local development database and seed demo data (zero Postgres required):
+4. Initialize a local development database and seed demo data using Postgres:
 
-   - Option A (recommended for quick local dev): use the included SQLite fallback and seed script
+   - Option A (recommended for local dev): use the included seed script with a local Postgres instance.
 
      ```bash
+     export DATABASE_URL="postgresql+psycopg://postgres:postgres@localhost:5432/inkknits"
+     export JWT_SECRET_KEY="$(openssl rand -hex 32)"
      python backend/scripts/local_dev_setup.py
      ```
 
-     This will create `backend/dev.db`, create all tables from the ORM models, and seed a demo organization, admin user (admin@example.com / password123), a project, and a station.
+     This will create the database schema and seed a demo organization, admin user (admin@example.com / password123), a project, and a station.
 
-   - Option B (use PostgreSQL): set `DATABASE_URL` and run Alembic from the `backend/` folder
+   - Option B (manual migration): set `DATABASE_URL` and run Alembic from the `backend/` folder
 
      ```bash
      # from repo root
@@ -41,6 +43,8 @@ InkKnits is a FastAPI + SQLAlchemy backend for managing organization, project, s
    ```bash
    uvicorn backend.app.main:app --reload
    ```
+
+> Note: `/auth/register` can only register users for an existing organization. The seed script creates the first org and first admin user.
 
 ## Docs
 - `docs/API_CONTRACT.md`
