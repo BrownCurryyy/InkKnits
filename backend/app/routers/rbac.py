@@ -4,16 +4,23 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from backend.app.routers.auth import get_current_user
+from backend.app.auth import get_user_roles, require_roles
 from backend.app.schemas import RoleCreate, RoleOut, PermissionOut
 from backend.database.connection import get_db
 from backend.models.rbac import Role, Permission
+from backend.models.user import User
 from backend.repositories.rbac_repository import RoleRepository, PermissionRepository
 
 router = APIRouter(prefix="/rbac", tags=["rbac"], dependencies=[Depends(get_current_user)])
 
 
 @router.post("/roles", response_model=RoleOut, status_code=status.HTTP_201_CREATED)
-async def create_role(payload: RoleCreate, db: Session = Depends(get_db)) -> RoleOut:
+async def create_role(
+    payload: RoleCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> RoleOut:
+    require_roles(get_user_roles(db, current_user), ("ADMIN",))
     role_repo = RoleRepository(db)
     role = Role(
         organization_id=payload.organization_id,
@@ -25,13 +32,22 @@ async def create_role(payload: RoleCreate, db: Session = Depends(get_db)) -> Rol
 
 
 @router.get("/roles", response_model=List[RoleOut])
-async def list_roles(db: Session = Depends(get_db)) -> List[RoleOut]:
+async def list_roles(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> List[RoleOut]:
+    require_roles(get_user_roles(db, current_user), ("ADMIN",))
     role_repo = RoleRepository(db)
     return role_repo.list_all()
 
 
 @router.post("/seed", status_code=status.HTTP_201_CREATED)
-async def seed_rbac(organization_id: str, db: Session = Depends(get_db)) -> dict:
+async def seed_rbac(
+    organization_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    require_roles(get_user_roles(db, current_user), ("ADMIN",))
     # Basic seeder for default roles and permissions
     role_repo = RoleRepository(db)
     
@@ -51,6 +67,10 @@ async def seed_rbac(organization_id: str, db: Session = Depends(get_db)) -> dict
 
 
 @router.get("/permissions", response_model=List[PermissionOut])
-async def list_permissions(db: Session = Depends(get_db)) -> List[PermissionOut]:
+async def list_permissions(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> List[PermissionOut]:
+    require_roles(get_user_roles(db, current_user), ("ADMIN",))
     perm_repo = PermissionRepository(db)
     return perm_repo.list_all()

@@ -7,6 +7,7 @@ from uuid import UUID, uuid4
 
 import bcrypt
 import jwt
+from fastapi import HTTPException, status
 from pydantic import EmailStr
 
 from backend.models.rbac import Role, UserRole
@@ -123,3 +124,8 @@ def has_required_roles(user_roles: list[str] | None, required_roles: tuple[str, 
     normalized_user_roles = {role.upper() for role in (user_roles or [])}
     normalized_required_roles = {role.upper() for role in required_roles}
     return bool(normalized_required_roles & normalized_user_roles) or "ADMIN" in normalized_user_roles
+
+
+def require_roles(user_roles: list[str] | None, required_roles: tuple[str, ...] | list[str]) -> None:
+    if not has_required_roles(user_roles, required_roles):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"Requires {' or '.join(required_roles)} role or higher")

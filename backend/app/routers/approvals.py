@@ -20,6 +20,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from backend.app.routers.auth import get_current_user
+from backend.app.auth import get_user_roles, require_roles
 from backend.app.schemas import ApprovalTaskCreate, ApprovalTaskOut
 from backend.database.connection import get_db
 from backend.models.approval_task import ApprovalTask
@@ -111,7 +112,12 @@ async def get_approval(task_id: str, db: Session = Depends(get_db)) -> ApprovalT
 
 
 @router.post("/tasks/{task_id}/approve", response_model=ApprovalTaskOut)
-async def approve_task(task_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> ApprovalTaskOut:
+async def approve_task(
+    task_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ApprovalTaskOut:
+    require_roles(get_user_roles(db, current_user), ("EDITOR", "ADMIN"))
     """Approve the asset linked to this approval task."""
     task_uuid = parse_uuid(task_id, "task_id")
     repository = ApprovalTaskRepository(db)
@@ -137,7 +143,12 @@ async def approve_task(task_id: str, db: Session = Depends(get_db), current_user
 
 
 @router.post("/tasks/{task_id}/reject", response_model=ApprovalTaskOut)
-async def reject_task(task_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> ApprovalTaskOut:
+async def reject_task(
+    task_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ApprovalTaskOut:
+    require_roles(get_user_roles(db, current_user), ("EDITOR", "ADMIN"))
     """Reject the asset linked to this approval task."""
     task_uuid = parse_uuid(task_id, "task_id")
     repository = ApprovalTaskRepository(db)
@@ -178,7 +189,12 @@ async def update_comment(task_id: str, payload: CommentUpdate, db: Session = Dep
 
 
 @router.post("/tasks/{task_id}/escalate", response_model=ApprovalTaskOut)
-async def escalate_task(task_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> ApprovalTaskOut:
+async def escalate_task(
+    task_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ApprovalTaskOut:
+    require_roles(get_user_roles(db, current_user), ("EDITOR", "ADMIN"))
     """Escalate the approval task to a higher-review state."""
     task_uuid = parse_uuid(task_id, "task_id")
     repository = ApprovalTaskRepository(db)
@@ -205,11 +221,15 @@ async def escalate_task(task_id: str, db: Session = Depends(get_db), current_use
 
 
 @router.post("/escalate", response_model=dict)
-async def escalate_overdue(db: Session = Depends(get_db)) -> dict:
+async def escalate_overdue(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
     """
     Manual trigger for the auto-escalation sweep.
     Finds all PENDING tasks past their deadline and marks them ESCALATED.
     """
+    require_roles(get_user_roles(db, current_user), ("ADMIN",))
     now = datetime.now(timezone.utc)
     escalated_ids = ApprovalService.escalate_overdue(db, now=now)
     return {"escalated_count": len(escalated_ids), "task_ids": [str(task_id) for task_id in escalated_ids]}

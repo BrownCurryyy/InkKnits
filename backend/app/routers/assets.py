@@ -4,9 +4,11 @@ from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, File, s
 from sqlalchemy.orm import Session
 
 from backend.app.routers.auth import get_current_user
+from backend.app.auth import get_user_roles, require_roles
 from backend.app.schemas import AssetCreate, AssetOut, AssetUpdate, AssetMetadataUpdate
 from backend.database.connection import get_db
 from backend.models.asset import Asset
+from backend.models.user import User
 from backend.repositories.asset_repository import AssetRepository
 from backend.services.activity_service import ActivityService
 from backend.services.storage import StorageService
@@ -16,8 +18,13 @@ router = APIRouter(prefix="/assets", tags=["assets"], dependencies=[Depends(get_
 
 
 @router.post("", response_model=AssetOut, status_code=status.HTTP_201_CREATED)
-async def create_asset(payload: AssetCreate, db: Session = Depends(get_db)) -> AssetOut:
+async def create_asset(
+    payload: AssetCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> AssetOut:
     """Create a new text/generic asset record (no file upload)."""
+    require_roles(get_user_roles(db, current_user), ("EDITOR", "ADMIN"))
     now = datetime.now(timezone.utc)
     asset = Asset(
         organization_id=payload.organization_id,
@@ -48,7 +55,9 @@ async def upload_asset(
     asset_type: str = Form("IMAGE"),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> AssetOut:
+    require_roles(get_user_roles(db, current_user), ("EDITOR", "ADMIN"))
     """Upload a file asset via multipart/form-data. Saves to SSD and stores path in DB."""
     from uuid import uuid4, UUID
 
@@ -161,8 +170,14 @@ async def download_asset(asset_id: str, db: Session = Depends(get_db)) -> dict:
 
 
 @router.put("/{asset_id}", response_model=AssetOut)
-async def update_asset(asset_id: str, payload: AssetUpdate, db: Session = Depends(get_db)) -> AssetOut:
+async def update_asset(
+    asset_id: str,
+    payload: AssetUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> AssetOut:
     """Update an asset's core fields (name, title, content, type)."""
+    require_roles(get_user_roles(db, current_user), ("EDITOR", "ADMIN"))
     repository = AssetRepository(db)
     asset = repository.get_by_id(asset_id)
     if not asset or asset.deleted_at is not None:
@@ -187,9 +202,13 @@ async def update_asset(asset_id: str, payload: AssetUpdate, db: Session = Depend
 
 @router.patch("/{asset_id}/metadata", response_model=AssetOut)
 async def update_asset_metadata(
-    asset_id: str, payload: AssetMetadataUpdate, db: Session = Depends(get_db)
+    asset_id: str,
+    payload: AssetMetadataUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> AssetOut:
     """Merge new key-value pairs into the asset's existing raw_metadata JSON field."""
+    require_roles(get_user_roles(db, current_user), ("EDITOR", "ADMIN"))
     repository = AssetRepository(db)
     asset = repository.get_by_id(asset_id)
     if not asset or asset.deleted_at is not None:
@@ -215,8 +234,13 @@ async def update_asset_metadata(
 
 
 @router.delete("/{asset_id}", status_code=status.HTTP_200_OK)
-async def soft_delete_asset(asset_id: str, db: Session = Depends(get_db)) -> dict:
+async def soft_delete_asset(
+    asset_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
     """Soft-delete an asset by stamping deleted_at. File is preserved on disk per soft-delete policy."""
+    require_roles(get_user_roles(db, current_user), ("EDITOR", "ADMIN"))
     repository = AssetRepository(db)
     asset = repository.get_by_id(asset_id)
     if not asset or asset.deleted_at is not None:

@@ -2,16 +2,23 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from backend.app.routers.auth import get_current_user
+from backend.app.auth import get_user_roles, require_roles
 from backend.app.schemas import OrganizationCreate, OrganizationOut, OrganizationMemberAdd, UserRoleUpdate
 from backend.database.connection import get_db
 from backend.models.organization import Organization
+from backend.models.user import User
 from backend.repositories.organization_repository import OrganizationRepository
 
 router = APIRouter(prefix="/organizations", tags=["organizations"], dependencies=[Depends(get_current_user)])
 
 
 @router.post("", response_model=OrganizationOut, status_code=status.HTTP_201_CREATED)
-async def create_organization(payload: OrganizationCreate, db: Session = Depends(get_db)) -> OrganizationOut:
+async def create_organization(
+    payload: OrganizationCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> OrganizationOut:
+    require_roles(get_user_roles(db, current_user), ("ADMIN",))
     repository = OrganizationRepository(db)
     organization = Organization(
         name=payload.name,
@@ -39,7 +46,13 @@ async def get_organization(organization_id: str, db: Session = Depends(get_db)) 
 
 
 @router.post("/{organization_id}/members", status_code=status.HTTP_201_CREATED)
-async def add_member(organization_id: str, payload: OrganizationMemberAdd, db: Session = Depends(get_db)) -> dict:
+async def add_member(
+    organization_id: str,
+    payload: OrganizationMemberAdd,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    require_roles(get_user_roles(db, current_user), ("ADMIN",))
     # Direct assignment of user to organization (assuming user exists and is updated or checked)
     # Since our User model has organization_id, we just update the user's organization_id.
     from backend.models.user import User
@@ -53,7 +66,13 @@ async def add_member(organization_id: str, payload: OrganizationMemberAdd, db: S
 
 
 @router.delete("/{organization_id}/members/{user_id}", status_code=status.HTTP_200_OK)
-async def remove_member(organization_id: str, user_id: str, db: Session = Depends(get_db)) -> dict:
+async def remove_member(
+    organization_id: str,
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    require_roles(get_user_roles(db, current_user), ("ADMIN",))
     from backend.models.user import User
     user = db.query(User).filter(User.id == user_id, User.organization_id == organization_id).first()
     if not user:
@@ -66,7 +85,14 @@ async def remove_member(organization_id: str, user_id: str, db: Session = Depend
 
 
 @router.put("/{organization_id}/members/{user_id}/role", status_code=status.HTTP_200_OK)
-async def update_member_role(organization_id: str, user_id: str, payload: UserRoleUpdate, db: Session = Depends(get_db)) -> dict:
+async def update_member_role(
+    organization_id: str,
+    user_id: str,
+    payload: UserRoleUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    require_roles(get_user_roles(db, current_user), ("ADMIN",))
     from backend.models.rbac import UserRole, Role
     # Find role
     role = db.query(Role).filter(Role.name == payload.role_name, Role.organization_id == organization_id).first()

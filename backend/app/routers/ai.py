@@ -8,10 +8,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from backend.app.routers.auth import get_current_user
+from backend.app.auth import get_user_roles, require_roles
 from backend.app.schemas import AIJobStatus, AIJobSubmit
 from backend.database.connection import get_db
 from backend.models.ai_job import AIJob as PersistedAIJob
 from backend.models.asset import Asset
+from backend.models.user import User
 from backend.services.activity_service import ActivityService
 from backend.services.ai_scheduler import JOB_TYPE_TO_PRIORITY, scheduler
 from backend.services.comfyui_service import ComfyUIService
@@ -39,8 +41,13 @@ def _validate_payload(payload: AIJobSubmit, db: Session) -> None:
 
 
 @router.post("/jobs", response_model=AIJobStatus, status_code=status.HTTP_202_ACCEPTED)
-async def submit_job(payload: AIJobSubmit, db: Session = Depends(get_db)) -> AIJobStatus:
+async def submit_job(
+    payload: AIJobSubmit,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> AIJobStatus:
     """Create one durable job record, enqueue it, and return its task ID immediately."""
+    require_roles(get_user_roles(db, current_user), ("EDITOR", "ADMIN"))
     _validate_payload(payload, db)
     task_id = uuid4()
     now = datetime.now(timezone.utc)
