@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { apiFetch } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -42,6 +43,8 @@ function getPermissionMessage(error: unknown, fallback: string) {
 
 export function ApprovalsQueue() {
   const { user, roles } = useAuth();
+  const navigate = useNavigate();
+
   const [tasks, setTasks] = useState<ApprovalTaskFull[]>([]);
   const [selectedTaskId, setSelectedTaskId] = useState<string>('');
   const [selectedTask, setSelectedTask] = useState<ApprovalTaskFull | null>(null);
@@ -65,8 +68,7 @@ export function ApprovalsQueue() {
     try {
       setLoading(true);
       const allTasks = await apiFetch<ApprovalTaskRecord[]>('/approvals/tasks');
-      
-      // Enrich tasks with user/asset data
+
       const enriched: ApprovalTaskFull[] = await Promise.all(
         allTasks.map(async (task) => {
           try {
@@ -77,7 +79,7 @@ export function ApprovalsQueue() {
           }
         }),
       );
-      
+
       setTasks(enriched);
       if (!enriched.some((t) => t.id === selectedTaskId)) {
         setSelectedTaskId('');
@@ -180,9 +182,7 @@ export function ApprovalsQueue() {
   }, [tasks, statusFilter, showOnlyAssignedToMe, user]);
 
   if (loading) {
-    return (
-      <CozySkeleton rows={4} />
-    );
+    return <CozySkeleton rows={4} />;
   }
 
   return (
@@ -196,7 +196,9 @@ export function ApprovalsQueue() {
       <div className="rounded-cozy bg-white/70 p-5 shadow-cozy dark:bg-[#3a2d2d]/80">
         <div className="mb-4">
           <h2 className="text-2xl font-semibold">Approval Tasks</h2>
-          <p className="mt-1 text-sm text-text/60 dark:text-textDark/60">Review and manage asset approvals</p>
+          <p className="mt-1 text-sm text-text/60 dark:text-textDark/60">
+            Review and manage asset approvals across stations
+          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -234,7 +236,11 @@ export function ApprovalsQueue() {
           <h3 className="mb-4 text-lg font-semibold">Tasks</h3>
 
           {filteredTasks.length === 0 ? (
-            <CozyEmptyState icon="✓" title="No approvals waiting" message="The review desk is clear. New approval requests will appear here when they are ready." />
+            <CozyEmptyState
+              icon="✓"
+              title="No approvals waiting"
+              message="The review desk is clear. New approval requests will appear here when they are ready."
+            />
           ) : (
             <div className="space-y-3">
               {filteredTasks.map((task) => (
@@ -251,9 +257,15 @@ export function ApprovalsQueue() {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <h4 className="font-semibold">{task.assetTitle}</h4>
-                      <p className="mt-1 text-xs text-text/60 dark:text-textDark/60">Task {task.id.slice(0, 8)}</p>
+                      <p className="mt-1 text-xs text-text/60 dark:text-textDark/60">
+                        Task {task.id.slice(0, 8)}
+                      </p>
                     </div>
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide ${statusColors[task.status] || statusColors.PENDING}`}>
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide ${
+                        statusColors[task.status] || statusColors.PENDING
+                      }`}
+                    >
                       {task.status}
                     </span>
                   </div>
@@ -272,7 +284,18 @@ export function ApprovalsQueue() {
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-lg font-semibold">Task Detail</h3>
-                <p className="mt-1 text-xs text-text/60 dark:text-textDark/60">{selectedTask.assetTitle}</p>
+                <p className="mt-1 text-xs text-text/60 dark:text-textDark/60">
+                  {selectedTask.assetTitle}
+                </p>
+                {selectedTask.asset_id ? (
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/assets/${selectedTask.asset_id}`)}
+                    className="mt-2.5 inline-flex items-center gap-1 rounded-xl bg-accent/20 px-3 py-1.5 text-xs font-bold text-accent transition hover:bg-accent hover:text-backgroundDark"
+                  >
+                    Open Asset in Workspace →
+                  </button>
+                ) : null}
               </div>
               <button
                 type="button"
@@ -285,49 +308,65 @@ export function ApprovalsQueue() {
 
             <div className="space-y-4">
               <div>
-                <p className="text-xs uppercase tracking-wide text-text/60 dark:text-textDark/60">Status</p>
-                <p className={`mt-1 inline-block rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide ${statusColors[selectedTask.status] || statusColors.PENDING}`}>
+                <p className="text-xs uppercase tracking-wide text-text/60 dark:text-textDark/60">
+                  Status
+                </p>
+                <p
+                  className={`mt-1 inline-block rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide ${
+                    statusColors[selectedTask.status] || statusColors.PENDING
+                  }`}
+                >
                   {selectedTask.status}
                 </p>
               </div>
 
               {selectedTask.deadline ? (
                 <div>
-                  <p className="text-xs uppercase tracking-wide text-text/60 dark:text-textDark/60">Deadline</p>
+                  <p className="text-xs uppercase tracking-wide text-text/60 dark:text-textDark/60">
+                    Deadline
+                  </p>
                   <p className="mt-1 text-sm font-medium">{formatDate(selectedTask.deadline)}</p>
                 </div>
               ) : null}
 
               <div>
-                <p className="text-xs uppercase tracking-wide text-text/60 dark:text-textDark/60">Created</p>
+                <p className="text-xs uppercase tracking-wide text-text/60 dark:text-textDark/60">
+                  Created
+                </p>
                 <p className="mt-1 text-sm font-medium">{formatDate(selectedTask.created_at)}</p>
               </div>
 
               {selectedTask.completed_at ? (
                 <div>
-                  <p className="text-xs uppercase tracking-wide text-text/60 dark:text-textDark/60">Completed</p>
+                  <p className="text-xs uppercase tracking-wide text-text/60 dark:text-textDark/60">
+                    Completed
+                  </p>
                   <p className="mt-1 text-sm font-medium">{formatDate(selectedTask.completed_at)}</p>
                 </div>
               ) : null}
 
-              {canReview ? <div className="border-t border-black/10 pt-4 dark:border-white/10">
-                <label className="block text-sm">
-                  <p className="mb-2 text-xs uppercase tracking-wide text-text/60 dark:text-textDark/60">Comments</p>
-                  <textarea
-                    value={commentDraft}
-                    onChange={(event) => setCommentDraft(event.target.value)}
-                    rows={4}
-                    className="w-full rounded-xl border border-black/5 bg-white px-3 py-2 text-sm outline-none dark:border-white/10 dark:bg-[#4f3d3d]"
-                  />
-                </label>
-                <button
-                  type="button"
-                  onClick={() => void updateComment(selectedTask.id)}
-                  className="mt-2 rounded-lg bg-background px-3 py-1 text-sm font-medium text-text dark:bg-[#554949] dark:text-textDark"
-                >
-                  Save comment
-                </button>
-              </div> : null}
+              {canReview ? (
+                <div className="border-t border-black/10 pt-4 dark:border-white/10">
+                  <label className="block text-sm">
+                    <p className="mb-2 text-xs uppercase tracking-wide text-text/60 dark:text-textDark/60">
+                      Comments
+                    </p>
+                    <textarea
+                      value={commentDraft}
+                      onChange={(event) => setCommentDraft(event.target.value)}
+                      rows={4}
+                      className="w-full rounded-xl border border-black/5 bg-white px-3 py-2 text-sm outline-none dark:border-white/10 dark:bg-[#4f3d3d]"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => void updateComment(selectedTask.id)}
+                    className="mt-2 rounded-lg bg-background px-3 py-1 text-sm font-medium text-text dark:bg-[#554949] dark:text-textDark"
+                  >
+                    Save comment
+                  </button>
+                </div>
+              ) : null}
 
               {canReview && selectedTask.status === 'PENDING' ? (
                 <div className="border-t border-black/10 pt-4 dark:border-white/10">

@@ -9,9 +9,9 @@ Run: `python backend/scripts/local_dev_setup.py`
 from pathlib import Path
 import os
 import sys
+import uuid
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
-import uuid
 
 # Ensure repository root is on sys.path when script is invoked directly
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -40,38 +40,51 @@ print("Creating database schema (this uses ORM models directly)")
 Base.metadata.create_all(engine)
 
 with Session(engine) as session:
-    # Seed one organization
-    org_id = uuid.uuid4()
-    organization = Organization(id=org_id, name="Demo Org")
-    session.add(organization)
+    # Safely look for the existing admin user AFTER session initialization
+    existing = session.query(User).filter_by(email="admin@example.com").first()
+    
+    if existing:
+        print("\n[!] Demo data already exists, skipping seed process.")
+    else:
+        print("Seeding fresh demo data...")
+        # Seed one organization
+        org_id = uuid.uuid4()
+        organization = Organization(id=org_id, name="Demo Org")
+        session.add(organization)
 
-    # Seed roles
-    role_names = ["ADMIN", "MANAGER", "EDITOR", "REVIEWER", "PUBLISHER", "VIEWER"]
-    roles = []
-    for r in role_names:
-        role = Role(id=uuid.uuid4(), organization_id=org_id, name=r)
-        session.add(role)
-        roles.append(role)
+        # Seed roles
+        role_names = ["ADMIN", "MANAGER", "EDITOR", "REVIEWER", "PUBLISHER", "VIEWER"]
+        roles = []
+        for r in role_names:
+            role = Role(id=uuid.uuid4(), organization_id=org_id, name=r)
+            session.add(role)
+            roles.append(role)
 
-    # Seed admin user (store a hashed password so /auth/login works)
-    user_id = uuid.uuid4()
-    admin = User(id=user_id, organization_id=org_id, email="admin@example.com", display_name="Admin User", password_hash=hash_password("password123"))
-    session.add(admin)
-    session.flush()
+        # Seed admin user (store a hashed password so /auth/login works)
+        user_id = uuid.uuid4()
+        admin = User(
+            id=user_id, 
+            organization_id=org_id, 
+            email="admin@example.com", 
+            display_name="Admin User", 
+            password_hash=hash_password("password123")
+        )
+        session.add(admin)
+        session.flush()
 
-    # Assign ADMIN role
-    admin_role = [r for r in roles if r.name == "ADMIN"][0]
-    session.add(UserRole(user_id=admin.id, role_id=admin_role.id))
+        # Assign ADMIN role
+        admin_role = [r for r in roles if r.name == "ADMIN"][0]
+        session.add(UserRole(user_id=admin.id, role_id=admin_role.id))
 
-    # Seed a project and station
-    project = Project(id=uuid.uuid4(), organization_id=org_id, title="Demo Project")
-    session.add(project)
-    station = Station(id=uuid.uuid4(), organization_id=org_id, project_id=project.id, name="Demo Station")
-    session.add(station)
+        # Seed a project and station
+        project = Project(id=uuid.uuid4(), organization_id=org_id, title="Demo Project")
+        session.add(project)
+        station = Station(id=uuid.uuid4(), organization_id=org_id, project_id=project.id, name="Demo Station")
+        session.add(station)
 
-    session.commit()
+        session.commit()
+        print("\nLocal dev database successfully initialized:")
+        print(" - Database URL:", DATABASE_URL)
+        print(" - Admin user: admin@example.com / password123")
 
-print("Local dev database initialized:")
-print(" - Database URL:", DATABASE_URL)
-print(" - Admin user: admin@example.com / password123 (password is hashed and ready for /auth/login)")
 print("Next: start server: uvicorn backend.app.main:app --reload")

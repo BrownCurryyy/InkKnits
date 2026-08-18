@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { apiFetch } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -18,33 +19,12 @@ const jobTypeLabels: Record<string, string> = {
 
 const statusColors: Record<string, string> = {
   QUEUED: 'bg-statusPending/30 text-statusPending',
-  RUNNING: 'bg-accent/30 text-accent',
+  RUNNING: 'bg-accent/30 text-accent animate-pulse shadow-sm',
   COMPLETED: 'bg-statusSuccess/30 text-statusSuccess',
   FAILED: 'bg-statusError/30 text-statusError',
 };
 
 type JobType = 'TEXT' | 'REWRITE' | 'IMPROVE_TONE' | 'CHANGE_AUDIENCE' | 'SUMMARIZE' | 'EXPAND' | 'ATOMIZE' | 'IMAGE';
-
-function formatDate(value?: string) {
-  if (!value) return '—';
-  return new Date(value).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function getPermissionMessage(error: unknown, fallback: string) {
-  if (error instanceof Error) {
-    const message = error.message.toLowerCase();
-    if (message.includes('403') || message.includes('forbidden') || message.includes('permission')) {
-      return "You don't have permission for this.";
-    }
-    return error.message;
-  }
-  return fallback;
-}
 
 function friendlyJobError(error?: string | null) {
   if (!error) return 'The job could not be completed. Please try again.';
@@ -55,12 +35,17 @@ function friendlyJobError(error?: string | null) {
 
 export function AIJobConsole() {
   const { user, roles } = useAuth();
+  const navigate = useNavigate();
+
   const [jobs, setJobs] = useState<AIJobStatusRecord[]>([]);
   const [selectedJobId, setSelectedJobId] = useState<string>('');
   const [selectedJob, setSelectedJob] = useState<AIJobStatusRecord | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'RUNNING' | 'QUEUED' | 'COMPLETED' | 'FAILED'>('ALL');
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [toast, setToast] = useState<string | null>(null);
+
   const [isSubmitOpen, setSubmitOpen] = useState(false);
   const [submitPrompt, setSubmitPrompt] = useState('');
   const [submitJobType, setSubmitJobType] = useState<JobType>('TEXT');
@@ -77,9 +62,6 @@ export function AIJobConsole() {
   const showToast = (message: string) => setToast(message);
 
   const loadJobs = async () => {
-    // Note: This endpoint doesn't exist in the backend, so we'll need to load individual jobs
-    // or modify this to call a list endpoint if it exists. For now, we'll show submitted jobs.
-    // In a real app, you'd want a GET /ai/jobs endpoint to list all jobs.
     setLoading(false);
   };
 
@@ -89,8 +71,7 @@ export function AIJobConsole() {
       setSelectedJob(job);
       setJobs((current) => current.map((item) => (item.task_id === job.task_id ? { ...item, ...job } : item)));
       return job.status;
-    } catch (err) {
-      showToast(getPermissionMessage(err, 'Unable to load job status'));
+    } catch {
       return null;
     }
   };
@@ -107,7 +88,6 @@ export function AIJobConsole() {
 
     void pollJobStatus(selectedJobId);
 
-    // Set up polling
     const pollInterval = window.setInterval(async () => {
       const status = await pollJobStatus(selectedJobId);
       if (status === 'COMPLETED' || status === 'FAILED') {
@@ -139,83 +119,127 @@ export function AIJobConsole() {
         },
       });
 
-      // Add to job list and select it
       setJobs((current) => [result, ...current]);
       setSelectedJobId(result.task_id);
       setSubmitOpen(false);
       setSubmitPrompt('');
-      showToast('Job submitted.');
-    } catch (err) {
-      showToast(getPermissionMessage(err, 'Unable to submit job.'));
+      showToast('AI Job submitted.');
+    } catch {
+      showToast('Unable to submit AI job.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const filteredJobs = jobs.filter((j) => (statusFilter === 'ALL' ? true : j.status === statusFilter));
+
   if (loading) {
-    return (
-      <CozySkeleton rows={3} />
-    );
+    return <CozySkeleton rows={3} />;
   }
 
   return (
     <div className="space-y-6">
       {error ? (
-        <div className="rounded-cozy border border-statusError/60 bg-statusError/20 p-3 text-sm text-text dark:text-textDark">
-          {error}
+        <div className="rounded-2xl border border-statusError/60 bg-statusError/20 p-4 text-sm font-semibold text-text dark:text-textDark shadow-cozy">
+          ⚠️ {error}
         </div>
       ) : null}
 
-      <div className="rounded-cozy bg-white/70 p-5 shadow-cozy dark:bg-[#3a2d2d]/80">
-        <div className="flex items-center justify-between gap-3">
+      {/* Header */}
+      <div className="rounded-3xl border border-black/5 bg-white/80 p-6 shadow-cozy backdrop-blur-md dark:border-white/10 dark:bg-[#3a2d2d]/90">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="text-2xl font-semibold">AI Job Console</h2>
-            <p className="mt-1 text-sm text-text/60 dark:text-textDark/60">Submit and monitor AI processing jobs</p>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-accent">
+                WORKFLOW
+              </span>
+              <span className="rounded-full bg-accent/15 px-2.5 py-0.5 text-xs font-semibold text-accent">
+                Global Monitor
+              </span>
+            </div>
+            <h2 className="mt-1 text-2xl font-bold text-text dark:text-textDark">
+              AI Queue & Job Monitor
+            </h2>
+            <p className="mt-1 text-xs text-text/60 dark:text-textDark/60">
+              Monitor asynchronous text and image generation tasks across stations
+            </p>
           </div>
+
           {canSubmit ? (
             <button
               type="button"
               onClick={() => setSubmitOpen(true)}
-              className="rounded-xl bg-accent px-4 py-2 font-medium text-backgroundDark"
+              className="rounded-2xl bg-accent px-5 py-2.5 text-xs font-bold text-backgroundDark shadow-sm transition hover:opacity-90 active:scale-95"
             >
-              New job
+              ⚡ Submit General Job
             </button>
           ) : null}
+        </div>
+
+        {/* Filter Pills */}
+        <div className="mt-4 flex gap-2 border-t border-black/5 pt-4 dark:border-white/5">
+          {(['ALL', 'RUNNING', 'QUEUED', 'COMPLETED', 'FAILED'] as const).map((st) => (
+            <button
+              key={st}
+              type="button"
+              onClick={() => setStatusFilter(st)}
+              className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                statusFilter === st
+                  ? 'bg-accent text-backgroundDark'
+                  : 'bg-background text-text/70 hover:text-text dark:bg-[#554949] dark:text-textDark/70'
+              }`}
+            >
+              {st}
+            </button>
+          ))}
         </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
-        <div className="rounded-cozy bg-white/70 p-5 shadow-cozy dark:bg-[#3a2d2d]/80">
-          <h3 className="mb-4 text-lg font-semibold">Job Queue</h3>
+        {/* Job Monitor Queue List */}
+        <div className="rounded-3xl border border-black/5 bg-white/80 p-6 shadow-cozy backdrop-blur-md dark:border-white/10 dark:bg-[#3a2d2d]/90">
+          <h3 className="mb-4 text-base font-bold text-text dark:text-textDark">Active Jobs Monitor</h3>
 
-          {jobs.length === 0 ? (
-            <CozyEmptyState icon="✦" title="The queue is delightfully quiet" message="When you run an AI job, it will appear here with live progress and its finished result." />
+          {filteredJobs.length === 0 ? (
+            <CozyEmptyState
+              icon="✦"
+              title="The queue is quiet"
+              message="Contextual AI jobs triggered from an Asset Workspace will appear here with live progress."
+            />
           ) : (
             <div className="space-y-3">
-              {jobs.map((job) => (
+              {filteredJobs.map((job) => (
                 <button
                   key={job.task_id}
                   type="button"
                   onClick={() => setSelectedJobId(job.task_id)}
-                  className={`w-full rounded-cozy border p-4 text-left shadow-sm transition ${
+                  className={`w-full rounded-2xl border p-4 text-left shadow-sm transition-all duration-200 ${
                     selectedJobId === job.task_id
-                      ? 'border-accent bg-accent/10'
-                      : 'border-transparent bg-background/50 dark:bg-[#4f3d3d]/60'
+                      ? 'border-accent bg-accent/10 shadow-cozy'
+                      : 'border-black/5 bg-background/40 hover:border-accent/40 hover:bg-background/80 dark:border-white/10 dark:bg-[#4f3d3d]/60'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <h4 className="font-semibold">{jobTypeLabels[job.job_type] || job.job_type}</h4>
-                      <p className="mt-1 text-xs text-text/60 dark:text-textDark/60">
-                        {job.prompt ? job.prompt.slice(0, 60) + (job.prompt.length > 60 ? '…' : '') : 'No prompt'}
+                      <h4 className="font-bold text-text dark:text-textDark">
+                        {jobTypeLabels[job.job_type] || job.job_type}
+                      </h4>
+                      <p className="mt-1 text-xs text-text/60 dark:text-textDark/60 line-clamp-1">
+                        {job.prompt ? job.prompt : 'No prompt details'}
                       </p>
                     </div>
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide whitespace-nowrap ${statusColors[job.status] || statusColors.QUEUED} ${job.status === 'RUNNING' ? 'animate-pulse shadow-[0_0_14px_rgba(180,151,231,.55)]' : ''}`}>
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${
+                        statusColors[job.status] || statusColors.QUEUED
+                      }`}
+                    >
                       {job.status}
                     </span>
                   </div>
-                  {job.queue_position !== null && job.status === 'QUEUED' ? (
-                    <p className="mt-2 text-xs text-text/60 dark:text-textDark/60">Position: #{job.queue_position}</p>
+                  {job.queue_position !== null && job.queue_position !== undefined && job.status === 'QUEUED' ? (
+                    <p className="mt-2 text-xs font-semibold text-accent">
+                      Queue Position: #{job.queue_position}
+                    </p>
                   ) : null}
                 </button>
               ))}
@@ -223,67 +247,69 @@ export function AIJobConsole() {
           )}
         </div>
 
+        {/* Selected Job Detail Sidebar */}
         {selectedJob ? (
-          <aside className="rounded-cozy bg-white/70 p-5 shadow-cozy dark:bg-[#3a2d2d]/80">
+          <aside className="rounded-3xl border border-black/5 bg-white/80 p-6 shadow-cozy backdrop-blur-md dark:border-white/10 dark:bg-[#3a2d2d]/90">
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
-                <h3 className="text-lg font-semibold">Job Detail</h3>
-                <p className="mt-1 text-xs text-text/60 dark:text-textDark/60">{selectedJob.task_id.slice(0, 8)}</p>
+                <h3 className="text-base font-bold text-text dark:text-textDark">Task Status Detail</h3>
+                <p className="mt-0.5 font-mono text-[10px] text-text/60 dark:text-textDark/60">
+                  ID: {selectedJob.task_id}
+                </p>
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedJobId('')}
-                className="text-sm text-text/70 dark:text-textDark/70"
+                className="text-xs font-bold text-text/70 dark:text-textDark/70"
               >
-                Close
+                ✕ Close
               </button>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-4 text-xs">
               <div>
-                <p className="text-xs uppercase tracking-wide text-text/60 dark:text-textDark/60">Job Type</p>
-                <p className="mt-1 text-sm font-medium">{jobTypeLabels[selectedJob.job_type] || selectedJob.job_type}</p>
+                <p className="font-bold text-text/60 dark:text-textDark/60">Job Type</p>
+                <p className="mt-1 font-semibold text-accent">
+                  {jobTypeLabels[selectedJob.job_type] || selectedJob.job_type}
+                </p>
               </div>
 
               <div>
-                <p className="text-xs uppercase tracking-wide text-text/60 dark:text-textDark/60">Status</p>
-                <p className={`mt-1 inline-block rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide ${statusColors[selectedJob.status] || statusColors.QUEUED}`}>
+                <p className="font-bold text-text/60 dark:text-textDark/60">Status</p>
+                <p
+                  className={`mt-1 inline-block rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${
+                    statusColors[selectedJob.status] || statusColors.QUEUED
+                  }`}
+                >
                   {selectedJob.status}
                 </p>
               </div>
 
-              {selectedJob.queue_position !== null && selectedJob.status === 'QUEUED' ? (
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-text/60 dark:text-textDark/60">Queue Position</p>
-                  <p className="mt-1 text-sm font-medium">#{selectedJob.queue_position}</p>
-                </div>
-              ) : null}
-
               {selectedJob.prompt ? (
                 <div>
-                  <p className="text-xs uppercase tracking-wide text-text/60 dark:text-textDark/60">Prompt</p>
-                  <p className="mt-1 max-h-32 overflow-auto rounded-lg bg-background/50 p-2 text-sm dark:bg-[#4f3d3d]">
+                  <p className="font-bold text-text/60 dark:text-textDark/60">Prompt</p>
+                  <p className="mt-1 max-h-32 overflow-auto rounded-xl bg-background/50 p-3 text-xs leading-relaxed dark:bg-[#4f3d3d]">
                     {selectedJob.prompt}
                   </p>
                 </div>
               ) : null}
 
               {selectedJob.status === 'COMPLETED' && selectedJob.result ? (
-                <div className="border-t border-black/10 pt-4 dark:border-white/10">
-                  <p className="mb-2 text-xs uppercase tracking-wide text-text/60 dark:text-textDark/60">Result</p>
-                  <div className="max-h-48 overflow-auto rounded-lg bg-background/50 p-3 dark:bg-[#4f3d3d]">
+                <div className="border-t border-black/5 pt-3 dark:border-white/5">
+                  <p className="mb-2 font-bold text-accent">Result Output</p>
+                  <div className="max-h-48 overflow-auto rounded-xl bg-background/50 p-3 dark:bg-[#4f3d3d]">
                     {typeof selectedJob.result === 'string' ? (
-                      <p className="whitespace-pre-wrap text-sm">{selectedJob.result}</p>
+                      <p className="whitespace-pre-wrap leading-relaxed">{selectedJob.result}</p>
                     ) : typeof selectedJob.result.data === 'string' ? (
                       <img
                         src={`data:image/png;base64,${selectedJob.result.data}`}
-                        alt="AI-generated result"
-                        className="max-h-80 w-full rounded-lg object-contain"
+                        alt="AI Result"
+                        className="max-h-60 rounded-xl object-contain shadow-cozy"
                       />
                     ) : typeof selectedJob.result.content === 'string' ? (
-                      <p className="whitespace-pre-wrap text-sm">{selectedJob.result.content}</p>
+                      <p className="whitespace-pre-wrap leading-relaxed">{selectedJob.result.content}</p>
                     ) : (
-                      <pre className="overflow-auto text-xs">
+                      <pre className="overflow-auto font-mono text-[10px]">
                         {JSON.stringify(selectedJob.result, null, 2)}
                       </pre>
                     )}
@@ -292,9 +318,9 @@ export function AIJobConsole() {
               ) : null}
 
               {selectedJob.status === 'FAILED' ? (
-                <div className="border-t border-statusError/30 bg-statusError/10 p-3 dark:border-statusError/20">
-                  <p className="text-sm font-medium text-statusError">Job failed</p>
-                  <p className="mt-2 text-xs text-text dark:text-textDark">{friendlyJobError(selectedJob.error)}</p>
+                <div className="rounded-xl border border-statusError/30 bg-statusError/10 p-3 text-statusError">
+                  <p className="font-bold">Job Execution Failed</p>
+                  <p className="mt-1 leading-relaxed">{friendlyJobError(selectedJob.error)}</p>
                 </div>
               ) : null}
             </div>
@@ -302,33 +328,34 @@ export function AIJobConsole() {
         ) : null}
       </div>
 
+      {/* New General Job Modal */}
       {isSubmitOpen ? (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#423838]/60 p-4">
-          <div className="w-full max-w-xl rounded-cozy bg-background p-5 text-text shadow-cozy dark:bg-[#2d2222] dark:text-textDark">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#423838]/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-xl rounded-3xl bg-background p-6 text-text shadow-cozy dark:bg-[#2d2222] dark:text-textDark border border-black/5 dark:border-white/10">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-xl font-semibold">New AI Job</h3>
+              <h3 className="text-xl font-bold">New AI Job</h3>
               <button
                 type="button"
                 onClick={() => setSubmitOpen(false)}
-                className="text-sm text-text/70 dark:text-textDark/70"
+                className="text-sm font-semibold text-text/70 dark:text-textDark/70"
               >
-                Close
+                ✕ Close
               </button>
             </div>
 
             <form
               className="space-y-4"
-              onSubmit={(event) => {
-                event.preventDefault();
+              onSubmit={(e) => {
+                e.preventDefault();
                 void submitJob();
               }}
             >
-              <label className="block text-sm">
-                <span className="mb-2 block">Job Type</span>
+              <label className="block text-xs font-bold">
+                <span className="mb-1.5 block">Job Type</span>
                 <select
                   value={submitJobType}
-                  onChange={(event) => setSubmitJobType(event.target.value as JobType)}
-                  className="w-full rounded-xl border border-black/5 bg-white px-3 py-2 outline-none dark:border-white/10 dark:bg-[#4f3d3d]"
+                  onChange={(e) => setSubmitJobType(e.target.value as JobType)}
+                  className="w-full rounded-2xl border border-black/10 bg-white px-3.5 py-2.5 text-sm outline-none dark:border-white/10 dark:bg-[#4f3d3d]"
                 >
                   <option value="TEXT">Text Generation</option>
                   <option value="REWRITE">Rewrite</option>
@@ -340,30 +367,30 @@ export function AIJobConsole() {
                 </select>
               </label>
 
-              <label className="block text-sm">
-                <span className="mb-2 block">Prompt</span>
+              <label className="block text-xs font-bold">
+                <span className="mb-1.5 block">Prompt</span>
                 <textarea
                   value={submitPrompt}
-                  onChange={(event) => setSubmitPrompt(event.target.value)}
-                  rows={8}
+                  onChange={(e) => setSubmitPrompt(e.target.value)}
+                  rows={6}
                   placeholder="Describe what you want the AI to generate…"
-                  className="w-full rounded-xl border border-black/5 bg-white px-3 py-2 outline-none dark:border-white/10 dark:bg-[#4f3d3d]"
+                  className="w-full rounded-2xl border border-black/10 bg-white px-3.5 py-2.5 text-sm outline-none dark:border-white/10 dark:bg-[#4f3d3d]"
                   required
                 />
               </label>
 
-              <div className="flex justify-end gap-3">
+              <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setSubmitOpen(false)}
-                  className="rounded-xl bg-white px-4 py-2 text-sm font-medium text-text dark:bg-[#554949] dark:text-textDark"
+                  className="rounded-2xl bg-white px-4 py-2 text-xs font-bold text-text dark:bg-[#554949] dark:text-textDark"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="rounded-xl bg-accent px-4 py-2 text-sm font-medium text-backgroundDark disabled:opacity-50"
+                  className="rounded-2xl bg-accent px-5 py-2 text-xs font-bold text-backgroundDark shadow-sm disabled:opacity-50"
                 >
                   {isSubmitting ? 'Submitting…' : 'Submit'}
                 </button>
@@ -373,8 +400,9 @@ export function AIJobConsole() {
         </div>
       ) : null}
 
+      {/* Toast */}
       {toast ? (
-        <div className="fixed bottom-5 right-5 z-50 rounded-xl bg-[#423838] px-4 py-3 text-sm text-[#FFF2C2] shadow-cozy">
+        <div className="fixed bottom-6 right-6 z-50 rounded-2xl bg-[#423838] px-5 py-3.5 text-sm font-medium text-[#FFF2C2] shadow-cozy border border-accent/20">
           {toast}
         </div>
       ) : null}

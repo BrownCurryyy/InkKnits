@@ -25,7 +25,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="InkKnits API", version="0.1.0", lifespan=lifespan)
 
 # CORS: allow frontend dev servers by default; override with FRONTEND_ORIGINS env var
-_origins = os.getenv("FRONTEND_ORIGINS", "http://127.0.0.1:5173").split(",")
+_origins = os.getenv("FRONTEND_ORIGINS", "http://127.0.0.1:5173,http://localhost:5173").split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_origins,

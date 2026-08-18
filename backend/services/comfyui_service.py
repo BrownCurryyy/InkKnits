@@ -241,12 +241,19 @@ class ComfyUIService:
         if not history_entry:
             raise TimeoutError(f"ComfyUI job {prompt_id} timed out")
 
-        # Extract the SaveImage output (node 9)
+        # Extract the SaveImage output (checks node 9 first, then auto-detects any output node with images)
         outputs = history_entry.get("outputs", {})
-        node_9 = outputs.get("9", {})
-        images = node_9.get("images", [])
+        images = []
+        if "9" in outputs and outputs["9"].get("images"):
+          images = outputs["9"]["images"]
+        else:
+          for node_id, node_out in outputs.items():
+            if isinstance(node_out, dict) and "images" in node_out and node_out["images"]:
+              images = node_out["images"]
+              break
+
         if not images:
-            raise RuntimeError("ComfyUI returned no images in output node 9")
+          raise RuntimeError(f"ComfyUI returned no images in output nodes: {list(outputs.keys())}")
 
         image_info = images[0]
         image_bytes = ComfyUIService._fetch_image_bytes(
