@@ -5,6 +5,13 @@ const TOKEN_STORAGE_KEY = 'inkknits_tokens';
 
 let inMemoryTokens: AuthTokens | null = null;
 
+function safeErrorMessage(status: number): string {
+  if (status === 403) return "You don't have permission to do that.";
+  if (status === 404) return "That item is no longer available.";
+  if (status >= 500) return 'Something went wrong. Please try again.';
+  return 'We could not complete that request. Please check your details and try again.';
+}
+
 export function readStoredTokens(): AuthTokens | null {
   if (typeof window === 'undefined') return inMemoryTokens;
 
@@ -77,9 +84,15 @@ async function refreshAccessToken(): Promise<AuthTokens> {
   return nextTokens;
 }
 
+type ApiFetchOptions = Omit<RequestInit, 'body'> & {
+  skipAuth?: boolean;
+  retry?: boolean;
+  body?: BodyInit | Record<string, unknown> | null;
+};
+
 export async function apiFetch<T>(
   path: string,
-  options: RequestInit & { skipAuth?: boolean; retry?: boolean; body?: BodyInit | Record<string, unknown> } = {},
+  options: ApiFetchOptions = {},
 ): Promise<T> {
   const { skipAuth = false, retry = true, body, ...requestOptions } = options;
   const headers = new Headers(requestOptions.headers ?? {});
@@ -95,12 +108,17 @@ export async function apiFetch<T>(
 
   const requestBody = body instanceof FormData || body instanceof URLSearchParams || typeof body === 'string' ? body : body ? JSON.stringify(body) : undefined;
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...requestOptions,
-    method: requestOptions.method ?? 'GET',
-    headers,
-    body: requestBody,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...requestOptions,
+      method: requestOptions.method ?? 'GET',
+      headers,
+      body: requestBody,
+    });
+  } catch {
+    throw new Error('Unable to reach the server. Check your connection and try again.');
+  }
 
   if (response.status === 401 && !skipAuth && retry && !path.includes('/auth/login') && !path.includes('/auth/refresh')) {
     try {
@@ -114,16 +132,7 @@ export async function apiFetch<T>(
   }
 
   if (!response.ok) {
-    const errorText = await response.text();
-    let detail = 'Request failed';
-    try {
-      const parsed = JSON.parse(errorText) as { detail?: string };
-      detail = parsed.detail ?? detail;
-    } catch {
-      detail = errorText || detail;
-    }
-
-    throw new Error(detail);
+    throw new Error(safeErrorMessage(response.status));
   }
 
   if (response.status === 204) {

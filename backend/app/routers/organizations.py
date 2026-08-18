@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.routers.auth import get_current_user
 from backend.app.auth import get_user_roles, require_roles
-from backend.app.schemas import OrganizationCreate, OrganizationOut, OrganizationMemberAdd, UserRoleUpdate
+from backend.app.schemas import OrganizationCreate, OrganizationOut, OrganizationMemberAdd, UserOut, UserRoleUpdate
 from backend.database.connection import get_db
 from backend.models.organization import Organization
 from backend.models.user import User
@@ -43,6 +43,18 @@ async def get_organization(organization_id: str, db: Session = Depends(get_db)) 
     if not organization:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
     return OrganizationOut.model_validate(organization)
+
+
+@router.get("/{organization_id}/members", response_model=list[UserOut])
+async def list_members(organization_id: str, db: Session = Depends(get_db)) -> list[UserOut]:
+    """Return active members for an approval-task assignee picker."""
+    members = (
+        db.query(User)
+        .filter(User.organization_id == organization_id, User.status == "ACTIVE", User.deleted_at.is_(None))
+        .order_by(User.display_name)
+        .all()
+    )
+    return [UserOut.model_validate(member) for member in members]
 
 
 @router.post("/{organization_id}/members", status_code=status.HTTP_201_CREATED)

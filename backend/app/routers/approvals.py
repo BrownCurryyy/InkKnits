@@ -64,6 +64,7 @@ async def assign_approval(
     current_user: User = Depends(get_current_user),
 ) -> ApprovalTaskOut:
     """Assign an approval task to a reviewer for a specific asset."""
+    require_roles(get_user_roles(db, current_user), ("EDITOR", "ADMIN"))
     asset = db.get(Asset, payload.asset_id)
     if not asset or asset.deleted_at is not None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
@@ -176,6 +177,7 @@ async def reject_task(
 @router.post("/tasks/{task_id}/comment", response_model=ApprovalTaskOut)
 async def update_comment(task_id: str, payload: CommentUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> ApprovalTaskOut:
     """Add or update a comment on an approval task."""
+    require_roles(get_user_roles(db, current_user), ("EDITOR", "ADMIN"))
     task_uuid = parse_uuid(task_id, "task_id")
     repository = ApprovalTaskRepository(db)
     task = repository.get_by_id(task_uuid)

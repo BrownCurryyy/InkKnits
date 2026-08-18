@@ -2,6 +2,8 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Dashboard } from './components/Dashboard';
+import { ApprovalsQueue } from './components/ApprovalsQueue';
+import { AIJobConsole } from './components/AIJobConsole';
 import { LoginPage } from './components/LoginPage';
 import { AppShell } from './components/AppShell';
 
@@ -15,6 +17,26 @@ export default function App() {
           <ProtectedRoute>
             <AppShell>
               <Dashboard />
+            </AppShell>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/approvals"
+        element={
+          <ProtectedRoute>
+            <AppShell>
+              <ApprovalsQueue />
+            </AppShell>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/ai"
+        element={
+          <ProtectedRoute>
+            <AppShell>
+              <AIJobConsole />
             </AppShell>
           </ProtectedRoute>
         }

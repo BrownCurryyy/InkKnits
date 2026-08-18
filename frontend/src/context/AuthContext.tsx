@@ -38,6 +38,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      // TODO: if the roles array is not present in the JWT claims, fetch the user role payload from
+      // the backend RBAC APIs and merge it here before treating the session as fully hydrated.
+
       try {
         const saved = JSON.parse(rawTokens) as Partial<AuthTokens>;
         if (!saved.accessToken) {
