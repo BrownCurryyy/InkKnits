@@ -51,7 +51,7 @@ export function AIJobConsole() {
   const [submitJobType, setSubmitJobType] = useState<JobType>('TEXT');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const canSubmit = roles.some((role) => ['ADMIN', 'EDITOR'].includes(role.toUpperCase()));
+  const canSubmit = roles.some((role) => ['ADMIN', 'EDITOR', 'MANAGER'].includes(role.toUpperCase()));
 
   useEffect(() => {
     if (!toast) return;
@@ -62,7 +62,18 @@ export function AIJobConsole() {
   const showToast = (message: string) => setToast(message);
 
   const loadJobs = async () => {
-    setLoading(false);
+    try {
+      setError('');
+      const loadedJobs = await apiFetch<AIJobStatusRecord[]>('/ai/jobs');
+      setJobs(loadedJobs);
+      if (!selectedJobId && loadedJobs[0]) {
+        setSelectedJobId(loadedJobs[0].task_id);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to load AI jobs');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const pollJobStatus = async (jobId: string) => {
@@ -111,8 +122,6 @@ export function AIJobConsole() {
         body: {
           job_type: submitJobType,
           prompt: submitPrompt,
-          created_by: user.id,
-          organization_id: user.organization_id,
           action: 'generate',
           mood: 'Professional',
           style: 'Narrative',

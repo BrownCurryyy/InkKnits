@@ -20,7 +20,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from backend.app.routers.auth import get_current_user
-from backend.app.auth import get_user_roles, require_roles
+from backend.app.auth import can_access_station, get_user_roles, require_roles
 from backend.app.schemas import ApprovalTaskCreate, ApprovalTaskOut
 from backend.database.connection import get_db
 from backend.models.approval_task import ApprovalTask
@@ -53,6 +53,18 @@ def parse_uuid(value: str, field_name: str) -> UUID:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Invalid {field_name} format")
 
 
+def get_scoped_task(task_id: UUID, db: Session, current_user: User) -> tuple[ApprovalTask, Asset]:
+    task = ApprovalTaskRepository(db).get_by_id(task_id)
+    if not task:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Approval task not found")
+    asset = db.get(Asset, task.asset_id)
+    if not asset or asset.deleted_at is not None or asset.organization_id != current_user.organization_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Approval task not found")
+    if not can_access_station(db, current_user, asset.station_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Approval task not found")
+    return task, asset
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -66,8 +78,11 @@ async def assign_approval(
     """Assign an approval task to a reviewer for a specific asset."""
     require_roles(get_user_roles(db, current_user), ("EDITOR", "ADMIN"))
     asset = db.get(Asset, payload.asset_id)
-    if not asset or asset.deleted_at is not None:
+    if not asset or asset.deleted_at is not None or asset.organization_id != current_user.organization_id or not can_access_station(db, current_user, asset.station_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
+    assigned_user = db.get(User, payload.assigned_to)
+    if not assigned_user or assigned_user.organization_id != current_user.organization_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assignee not found")
 
     now = datetime.now(timezone.utc)
     task = ApprovalTask(
@@ -94,21 +109,25 @@ async def assign_approval(
 
 
 @router.get("/tasks", response_model=list[ApprovalTaskOut])
-async def list_approvals(db: Session = Depends(get_db)) -> list[ApprovalTaskOut]:
+async def list_approvals(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[ApprovalTaskOut]:
     """List all approval tasks."""
     repository = ApprovalTaskRepository(db)
-    tasks = repository.list_all()
+    tasks = []
+    for task in repository.list_all():
+        try:
+            scoped_task, _ = get_scoped_task(task.id, db, current_user)
+            if scoped_task.assigned_to == current_user.id or scoped_task.assigned_by == current_user.id or "ADMIN" in {role.upper() for role in get_user_roles(db, current_user)}:
+                tasks.append(scoped_task)
+        except HTTPException:
+            continue
     return [ApprovalTaskOut.model_validate(t) for t in tasks]
 
 
 @router.get("/tasks/{task_id}", response_model=ApprovalTaskOut)
-async def get_approval(task_id: str, db: Session = Depends(get_db)) -> ApprovalTaskOut:
+async def get_approval(task_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> ApprovalTaskOut:
     """Get a single approval task by ID."""
     task_uuid = parse_uuid(task_id, "task_id")
-    repository = ApprovalTaskRepository(db)
-    task = repository.get_by_id(task_uuid)
-    if not task:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Approval task not found")
+    task, _ = get_scoped_task(task_uuid, db, current_user)
     return ApprovalTaskOut.model_validate(task)
 
 
@@ -118,13 +137,12 @@ async def approve_task(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ApprovalTaskOut:
-    require_roles(get_user_roles(db, current_user), ("EDITOR", "ADMIN"))
+    require_roles(get_user_roles(db, current_user), ("EDITOR", "REVIEWER", "ADMIN"))
     """Approve the asset linked to this approval task."""
     task_uuid = parse_uuid(task_id, "task_id")
-    repository = ApprovalTaskRepository(db)
-    task = repository.get_by_id(task_uuid)
-    if not task:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Approval task not found")
+    task, _ = get_scoped_task(task_uuid, db, current_user)
+    if task.assigned_to != current_user.id and "ADMIN" not in {role.upper() for role in get_user_roles(db, current_user)}:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Approval assignment required")
     if task.status != "PENDING":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Cannot approve a task with status '{task.status}'")
 
@@ -149,13 +167,12 @@ async def reject_task(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ApprovalTaskOut:
-    require_roles(get_user_roles(db, current_user), ("EDITOR", "ADMIN"))
+    require_roles(get_user_roles(db, current_user), ("EDITOR", "REVIEWER", "ADMIN"))
     """Reject the asset linked to this approval task."""
     task_uuid = parse_uuid(task_id, "task_id")
-    repository = ApprovalTaskRepository(db)
-    task = repository.get_by_id(task_uuid)
-    if not task:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Approval task not found")
+    task, _ = get_scoped_task(task_uuid, db, current_user)
+    if task.assigned_to != current_user.id and "ADMIN" not in {role.upper() for role in get_user_roles(db, current_user)}:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Approval assignment required")
     if task.status != "PENDING":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Cannot reject a task with status '{task.status}'")
 
@@ -177,12 +194,11 @@ async def reject_task(
 @router.post("/tasks/{task_id}/comment", response_model=ApprovalTaskOut)
 async def update_comment(task_id: str, payload: CommentUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> ApprovalTaskOut:
     """Add or update a comment on an approval task."""
-    require_roles(get_user_roles(db, current_user), ("EDITOR", "ADMIN"))
+    require_roles(get_user_roles(db, current_user), ("EDITOR", "REVIEWER", "ADMIN"))
     task_uuid = parse_uuid(task_id, "task_id")
-    repository = ApprovalTaskRepository(db)
-    task = repository.get_by_id(task_uuid)
-    if not task:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Approval task not found")
+    task, _ = get_scoped_task(task_uuid, db, current_user)
+    if task.assigned_to != current_user.id and task.assigned_by != current_user.id and "ADMIN" not in {role.upper() for role in get_user_roles(db, current_user)}:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Approval assignment required")
 
     task.comments = payload.comments
     db.commit()
@@ -196,13 +212,12 @@ async def escalate_task(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ApprovalTaskOut:
-    require_roles(get_user_roles(db, current_user), ("EDITOR", "ADMIN"))
+    require_roles(get_user_roles(db, current_user), ("EDITOR", "REVIEWER", "ADMIN"))
     """Escalate the approval task to a higher-review state."""
     task_uuid = parse_uuid(task_id, "task_id")
-    repository = ApprovalTaskRepository(db)
-    task = repository.get_by_id(task_uuid)
-    if not task:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Approval task not found")
+    task, _ = get_scoped_task(task_uuid, db, current_user)
+    if task.assigned_to != current_user.id and "ADMIN" not in {role.upper() for role in get_user_roles(db, current_user)}:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Approval assignment required")
     if task.status != "PENDING":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Cannot escalate a task with status '{task.status}'")
 

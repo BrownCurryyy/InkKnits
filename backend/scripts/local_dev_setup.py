@@ -1,15 +1,12 @@
-"""Create a Postgres database, create all tables from ORM models, and seed demo data.
+"""Create the deterministic local InkKnits development organization.
 
-This script is intended for local backend development with Postgres. It:
- - creates the schema via SQLAlchemy `Base.metadata.create_all`
- - seeds a demo organization, admin user (admin@example.com / password123), one project and one station
-
-Run: `python backend/scripts/local_dev_setup.py`
+Development-only credentials are intentionally predictable. Never use them outside
+local development or commit production secrets to the repository.
 """
 from pathlib import Path
 import os
 import sys
-import uuid
+from uuid import NAMESPACE_URL, UUID, uuid5
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
@@ -26,65 +23,96 @@ from backend.models.project import Project
 from backend.models.station import Station
 from backend.models.user import User
 from backend.models.rbac import Role, UserRole
-from backend.models.activity import Activity
-from backend.models.asset_version import AssetVersion
 from backend.app.auth import hash_password
+from backend.models.station_member import StationMember
 
 # Require DATABASE_URL or use the same Postgres default as the running app.
 DATABASE_URL = os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL)
-print("Using DATABASE_URL:", DATABASE_URL)
+SEED_NAMESPACE = uuid5(NAMESPACE_URL, "https://inkknits.local/dev-seed")
+PASSWORD = "inkknits-dev-only"
 
-engine = create_engine(DATABASE_URL, future=True)
+def stable_id(kind: str, name: str) -> UUID:
+    return uuid5(SEED_NAMESPACE, f"{kind}:{name}")
 
-print("Creating database schema (this uses ORM models directly)")
-Base.metadata.create_all(engine)
 
-with Session(engine) as session:
-    # Safely look for the existing admin user AFTER session initialization
-    existing = session.query(User).filter_by(email="admin@example.com").first()
-    
-    if existing:
-        print("\n[!] Demo data already exists, skipping seed process.")
+def get_or_create(session: Session, model, object_id: UUID, **values):
+    record = session.get(model, object_id)
+    if record is None:
+        record = model(id=object_id, **values)
+        session.add(record)
     else:
-        print("Seeding fresh demo data...")
-        # Seed one organization
-        org_id = uuid.uuid4()
-        organization = Organization(id=org_id, name="Demo Org")
-        session.add(organization)
+        for key, value in values.items():
+            setattr(record, key, value)
+    return record
 
-        # Seed roles
-        role_names = ["ADMIN", "MANAGER", "EDITOR", "REVIEWER", "PUBLISHER", "VIEWER"]
-        roles = []
-        for r in role_names:
-            role = Role(id=uuid.uuid4(), organization_id=org_id, name=r)
-            session.add(role)
-            roles.append(role)
 
-        # Seed admin user (store a hashed password so /auth/login works)
-        user_id = uuid.uuid4()
-        admin = User(
-            id=user_id, 
-            organization_id=org_id, 
-            email="admin@example.com", 
-            display_name="Admin User", 
-            password_hash=hash_password("password123")
-        )
-        session.add(admin)
-        session.flush()
+def seed() -> None:
+    engine = create_engine(DATABASE_URL, future=True)
+    Base.metadata.create_all(engine)
 
-        # Assign ADMIN role
-        admin_role = [r for r in roles if r.name == "ADMIN"][0]
-        session.add(UserRole(user_id=admin.id, role_id=admin_role.id))
+    with Session(engine) as session:
+        organization_id = stable_id("organization", "inkknits-demo")
+        get_or_create(session, Organization, organization_id, name="InkKnits Demo Organization", description="Deterministic local development organization")
 
-        # Seed a project and station
-        project = Project(id=uuid.uuid4(), organization_id=org_id, title="Demo Project")
-        session.add(project)
-        station = Station(id=uuid.uuid4(), organization_id=org_id, project_id=project.id, name="Demo Station")
-        session.add(station)
+        role_records = {}
+        for role_name in ("ADMIN", "MANAGER", "EDITOR", "REVIEWER", "PUBLISHER", "VIEWER"):
+            role_records[role_name] = get_or_create(session, Role, stable_id("role", role_name), organization_id=organization_id, name=role_name, description=f"Development {role_name.title()} role")
+
+        user_specs = {
+            "admin": ("admin@inkknits.local", "Demo Admin", "ADMIN"),
+            "manager": ("manager@inkknits.local", "Demo Manager", "MANAGER"),
+            "writer": ("writer@inkknits.local", "Demo Writer", "EDITOR"),
+            "reviewer": ("reviewer@inkknits.local", "Demo Reviewer", "REVIEWER"),
+            "publisher": ("publisher@inkknits.local", "Demo Publisher", "PUBLISHER"),
+            "viewer": ("viewer@inkknits.local", "Demo Viewer", "VIEWER"),
+        }
+        users = {}
+        for key, (email, display_name, role_name) in user_specs.items():
+            user = session.query(User).filter(User.email == email).first()
+            if user is None:
+                user = User(id=stable_id("user", key), organization_id=organization_id, email=email)
+                session.add(user)
+            user.organization_id = organization_id
+            user.display_name = display_name
+            user.password_hash = hash_password(PASSWORD)
+            user.status = "ACTIVE"
+            users[key] = user
+            session.flush()
+            if session.get(UserRole, {"user_id": user.id, "role_id": role_records[role_name].id}) is None:
+                session.add(UserRole(user_id=user.id, role_id=role_records[role_name].id))
+
+        project_specs = {
+            "world-cup": ("World Cup Campaign", ["Writing Station", "Editing Station", "Generation Station", "Image Station", "Approval Station"]),
+            "product-launch": ("Product Launch", ["Writing Station", "Generation Station", "Image Station"]),
+            "editorial": ("Editorial Campaign", ["Writing Station", "Editing Station"]),
+        }
+        station_ids = {}
+        for project_key, (project_title, station_names) in project_specs.items():
+            project = get_or_create(session, Project, stable_id("project", project_key), organization_id=organization_id, title=project_title, description=f"{project_title} development campaign", status="ACTIVE")
+            for station_name in station_names:
+                station_key = f"{project_key}:{station_name}"
+                station = get_or_create(session, Station, stable_id("station", station_key), organization_id=organization_id, project_id=project.id, name=station_name, description=f"{station_name} for {project_title}", status="ACTIVE")
+                station_ids[station_key] = station.id
+
+        assignments = {
+            "admin": list(station_ids.values()),
+            "manager": [station_ids["world-cup:Approval Station"], station_ids["world-cup:Writing Station"], station_ids["product-launch:Writing Station"]],
+            "writer": [station_id for key, station_id in station_ids.items() if "Writing Station" in key],
+            "reviewer": [station_ids["world-cup:Approval Station"]],
+            "publisher": [station_ids["world-cup:Approval Station"]],
+            "viewer": [station_ids["world-cup:Writing Station"]],
+        }
+        for user_key, assigned_stations in assignments.items():
+            for station_id in assigned_stations:
+                if session.get(StationMember, {"station_id": station_id, "user_id": users[user_key].id}) is None:
+                    session.add(StationMember(station_id=station_id, user_id=users[user_key].id))
 
         session.commit()
-        print("\nLocal dev database successfully initialized:")
-        print(" - Database URL:", DATABASE_URL)
-        print(" - Admin user: admin@example.com / password123")
+        print("Seeded InkKnits Demo Organization")
+        print(f"Development password for all demo users: {PASSWORD}")
+        for key, (email, _, _) in user_specs.items():
+            print(f" - {key}: {email}")
 
-print("Next: start server: uvicorn backend.app.main:app --reload")
+
+if __name__ == "__main__":
+    seed()

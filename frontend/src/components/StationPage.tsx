@@ -61,7 +61,7 @@ export function StationPage() {
   });
   const [editMetadataDraft, setEditMetadataDraft] = useState('{}');
 
-  const canWrite = roles.some((role) => ['ADMIN', 'EDITOR'].includes(role.toUpperCase()));
+  const canWrite = roles.some((role) => ['ADMIN', 'MANAGER'].includes(role.toUpperCase()));
 
   useEffect(() => {
     if (!toast) return;

@@ -224,8 +224,6 @@ class StationCreate(BaseModel):
     project_id: UUID
     name: str = Field(..., min_length=1, max_length=255)
     description: str | None = None
-    color: str | None = None
-    icon: str | None = None
 
 
 class StationOut(BaseModel):
@@ -235,8 +233,6 @@ class StationOut(BaseModel):
     project_id: UUID
     name: str
     description: str | None = None
-    color: str | None = None
-    icon: str | None = None
 
 
 class UserRoleUpdate(BaseModel):

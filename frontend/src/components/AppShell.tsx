@@ -169,7 +169,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                           : 'text-text/70 hover:bg-black/5 dark:text-textDark/70 dark:hover:bg-white/5'
                       }`}
                     >
-                      {st.icon || '✨'} {st.name}
+                      {st.name}
                     </button>
                   );
                 })

@@ -304,7 +304,7 @@ export function Dashboard() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
                       <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-accent/20 text-base font-bold text-accent shadow-sm">
-                        {st.icon || '✨'}
+                        {st.name}
                       </div>
                       <div>
                         <h4 className="text-base font-bold text-text dark:text-textDark">{st.name}</h4>

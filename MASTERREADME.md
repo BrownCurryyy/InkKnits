@@ -99,7 +99,7 @@ From the repo root:
 
 ```powershell
 $env:DATABASE_URL = "postgresql+psycopg://postgres:postgres@localhost:5432/inkknits"
-$env:JWT_SECRET_KEY = "replace-with-a-random-secret"
+$env:JWT_SECRET_KEY = "67ygHSIK347R91MkSd0F51G6skKfI63CrPoLB7oE8Mz"
 python backend\scripts\local_dev_setup.py
 ```
 

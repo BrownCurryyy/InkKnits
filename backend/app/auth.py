@@ -11,6 +11,8 @@ from fastapi import HTTPException, status
 from pydantic import EmailStr
 
 from backend.models.rbac import Role, UserRole
+from backend.models.station import Station
+from backend.models.station_member import StationMember
 from backend.models.token_revocation import TokenRevocation
 from backend.models.user import User
 
@@ -92,7 +94,7 @@ def get_user_roles(db: Any, user: User) -> list[str]:
     role_names = (
         db.query(Role.name)
         .join(UserRole, UserRole.role_id == Role.id)
-        .filter(UserRole.user_id == user.id)
+        .filter(UserRole.user_id == user.id, Role.organization_id == user.organization_id)
         .order_by(Role.name)
         .all()
     )
@@ -129,3 +131,43 @@ def has_required_roles(user_roles: list[str] | None, required_roles: tuple[str, 
 def require_roles(user_roles: list[str] | None, required_roles: tuple[str, ...] | list[str]) -> None:
     if not has_required_roles(user_roles, required_roles):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"Requires {' or '.join(required_roles)} role or higher")
+
+
+def is_admin(db: Any, user: User) -> bool:
+    return "ADMIN" in {role.upper() for role in get_user_roles(db, user)}
+
+
+def can_access_station(db: Any, user: User, station_id: UUID) -> bool:
+    if is_admin(db, user):
+        return db.query(Station.id).filter(
+            Station.id == station_id,
+            Station.organization_id == user.organization_id,
+            Station.deleted_at.is_(None),
+        ).first() is not None
+
+    return db.query(StationMember.station_id).join(
+        Station, Station.id == StationMember.station_id
+    ).filter(
+        StationMember.station_id == station_id,
+        StationMember.user_id == user.id,
+        Station.organization_id == user.organization_id,
+        Station.deleted_at.is_(None),
+    ).first() is not None
+
+
+def can_access_project(db: Any, user: User, project_id: UUID) -> bool:
+    if is_admin(db, user):
+        return db.query(Station.id).filter(
+            Station.project_id == project_id,
+            Station.organization_id == user.organization_id,
+            Station.deleted_at.is_(None),
+        ).first() is not None
+
+    return db.query(StationMember.station_id).join(
+        Station, Station.id == StationMember.station_id
+    ).filter(
+        Station.project_id == project_id,
+        StationMember.user_id == user.id,
+        Station.organization_id == user.organization_id,
+        Station.deleted_at.is_(None),
+    ).first() is not None
