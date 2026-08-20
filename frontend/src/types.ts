@@ -41,8 +41,6 @@ export type StationRecord = {
   project_id: string;
   name: string;
   description?: string | null;
-  color?: string | null;
-  icon?: string | null;
 };
 
 export type StationDashboardRecord = {
@@ -109,10 +107,15 @@ export type ApprovalTaskRecord = {
 export type AIJobStatusRecord = {
   task_id: string;
   job_type: string;
+  project_id?: string | null;
+  station_id?: string | null;
+  asset_id?: string | null;
+  created_by?: string;
   priority: number;
   status: string;
   queue_position?: number | null;
   result?: string | Record<string, unknown> | null;
+  result_available?: boolean;
   error?: string | null;
   prompt?: string;
   model?: string;

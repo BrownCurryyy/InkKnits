@@ -3,11 +3,22 @@
 @tailwind utilities;
 
 :root {
-  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --ink-cream: #FFF2C2;
+  --ink-ink: #423838;
+  --ink-lilac: #B497E7;
+  --ink-sage: #A9C7A2;
+  --ink-peach: #E8B08C;
+  --ink-coral: #D88983;
+  --ink-orange: #D58B57;
+  --ink-line: rgba(66, 56, 56, 0.12);
+  --ink-line-dark: rgba(255, 242, 194, 0.14);
+  --ink-shadow: 0 14px 35px rgba(66, 56, 56, 0.08);
+  --ink-shadow-dark: 0 16px 40px rgba(18, 14, 14, 0.2);
+  font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
   line-height: 1.5;
   font-weight: 400;
   color: #423838;
-  background: #FFF2C2;
+  background: var(--ink-cream);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -22,8 +33,9 @@ html, body, #root {
 
 body {
   min-height: 100vh;
-  background: #FFF2C2;
-  color: #423838;
+  background: var(--ink-cream);
+  color: var(--ink-ink);
+  letter-spacing: 0;
 }
 
 .dark body {
@@ -34,6 +46,33 @@ body {
 * {
   box-sizing: border-box;
 }
+
+h1, h2, h3, h4 {
+  font-family: Georgia, 'Times New Roman', serif;
+  letter-spacing: 0;
+}
+
+button, input, textarea, select {
+  letter-spacing: 0;
+}
+
+button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: 2px solid var(--ink-lilac);
+  outline-offset: 2px;
+}
+
+/* Keep the existing component language soft and structured instead of inflated. */
+.rounded-3xl { border-radius: 16px !important; }
+.rounded-2xl { border-radius: 12px !important; }
+.rounded-xl { border-radius: 10px !important; }
+.shadow-cozy { box-shadow: var(--ink-shadow); }
+.dark .shadow-cozy { box-shadow: var(--ink-shadow-dark); }
+
+.tiptap:focus { outline: none; }
+.tiptap p { margin: 0 0 0.85rem; }
+.tiptap h1, .tiptap h2, .tiptap h3 { margin: 1.2rem 0 0.6rem; }
+.tiptap ul, .tiptap ol { margin: 0.75rem 0; padding-left: 1.4rem; }
+.tiptap blockquote { border-left: 3px solid var(--ink-lilac); margin: 1rem 0; padding-left: 1rem; opacity: 0.8; }
 
 button,
 input {

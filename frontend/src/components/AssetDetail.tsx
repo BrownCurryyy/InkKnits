@@ -193,7 +193,7 @@ export function AssetDetail({
       }
     }, 1500);
 
-    return () => window.clearTimeout(pollInterval);
+    return () => window.clearInterval(pollInterval);
   }, [aiJobId]);
 
   // Submit AI job from inline panel
@@ -215,9 +215,6 @@ export function AssetDetail({
         body: {
           job_type: typeToUse,
           prompt: promptToUse,
-          created_by: user.id,
-          organization_id: asset.organization_id || user.organization_id,
-          station_id: asset.station_id,
           asset_id: asset.id,
           draft: editorContent,
           formats: typeToUse === 'ATOMIZE' ? ['LinkedIn Post', 'Tweet Thread', 'Email Summary'] : undefined,

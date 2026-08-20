@@ -105,9 +105,24 @@ python backend\scripts\local_dev_setup.py
 
 This creates the schema and seeds:
 
-- Organization: Demo Org
-- Admin user: `admin@example.com`
-- Password: `password123`
+- Organization: InkKnits Demo Organization
+- Six demo users: ADMIN, MANAGER, EDITOR, REVIEWER, PUBLISHER, VIEWER
+- Shared development-only password: `InkKnits-Dev-2026!`
+- Three projects with Writing, Editing, Generation, Image, and Approval stations
+- Demo assets, immutable asset versions, and approval tasks
+
+### Demo login accounts
+
+| Role | Email |
+|---|---|
+| ADMIN | `admin@example.com` |
+| MANAGER | `manager@example.com` |
+| EDITOR | `editor@example.com` |
+| REVIEWER | `reviewer@example.com` |
+| PUBLISHER | `publisher@example.com` |
+| VIEWER | `viewer@example.com` |
+
+Use the shared password above only for local development.
 
 ---
 
@@ -175,19 +190,19 @@ Open the frontend at:
 http://localhost:5173
 ```
 
-Then test the read-only browsing flow:
+Then test the authenticated production workflow:
 
-1. Log in with:
+1. Log in with one of the seeded accounts, for example:
    - Email: `admin@example.com`
-   - Password: `password123`
+   - Password: `InkKnits-Dev-2026!`
 2. Confirm the app loads the workspace shell.
-3. Confirm you see the organization/project/station selectors.
-4. Confirm the station board lists stations for the selected project.
-5. Click a station card.
-6. Confirm the asset library renders assets in a grid or list.
-7. Click an asset.
-8. Confirm the asset detail panel opens.
-9. Check the version timeline and history rendered from `/versions/{asset_id}`.
+3. Confirm the left sidebar shows Home, My Projects, accessible Stations, and Workflow.
+4. Confirm Organization is visible only for management roles.
+5. Open Writing, Editing, Generation, and Image stations and confirm their distinct responsibilities.
+6. In Writing, edit a document with Tiptap and confirm word count, character count, save state, and autosave.
+7. Submit a contextual AI action and confirm it appears in AI Queue.
+8. Open an asset to inspect primary content, Info, Versions, Activity, and permitted approval actions.
+9. Check the project production state at `/projects/{project_id}/production-state` when using the API directly.
 10. Log out and confirm the app returns to the login page.
 
 ---
@@ -208,6 +223,9 @@ The app uses these endpoints directly:
 - `GET /assets/{asset_id}`
 - `GET /versions/{asset_id}`
 - `GET /activities`
+- `GET /projects/{project_id}/production-state`
+- `POST /ai/jobs`
+- `GET /ai/jobs`
 
 ---
 
@@ -267,4 +285,7 @@ npm run dev -- --host 0.0.0.0
 
 - The backend has no `/api` prefix in the app routes.
 - The frontend is configured to call the backend at `http://localhost:8000` unless overridden by an environment variable.
-- The current browsing implementation is intentionally read-only and does not include create, edit, or restore flows.
+- The frontend uses a left-sidebar information architecture and station-specific workspaces.
+- Writing uses Tiptap and debounced asset autosave.
+- AI actions use the centralized `/ai/jobs` pipeline; the frontend never calls Ollama directly.
+- Image generation results are materialized as first-class assets by the current backend. Text and generic generation materialization remains a backend capability gap.

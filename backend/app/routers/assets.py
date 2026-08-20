@@ -1,14 +1,16 @@
 from datetime import datetime, timezone
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, File, status
 from sqlalchemy.orm import Session
 
 from backend.app.routers.auth import get_current_user
-from backend.app.auth import can_access_station, get_user_roles, require_roles
-from backend.app.schemas import AssetCreate, AssetOut, AssetUpdate, AssetMetadataUpdate
+from backend.app.auth import can_access_asset, can_access_station, get_user_roles, require_roles
+from backend.app.schemas import AssetCreate, AssetLineageOut, AssetLinkOut, AssetOut, AssetUpdate, AssetMetadataUpdate
 from backend.database.connection import get_db
 from backend.models.asset import Asset
 from backend.models.user import User
+from backend.models.asset_link import AssetLink
 from backend.repositories.asset_repository import AssetRepository
 from backend.services.activity_service import ActivityService
 from backend.services.storage import StorageService
@@ -149,7 +151,7 @@ async def get_asset(asset_id: str, db: Session = Depends(get_db), current_user: 
         f"Asset '{asset.name}' opened",
         organization_id=asset.organization_id,
         asset_id=asset.id,
-        user_id=asset.owner_id,
+        user_id=current_user.id,
     )
     return AssetOut.model_validate(asset)
 
@@ -178,6 +180,41 @@ async def download_asset(asset_id: str, db: Session = Depends(get_db), current_u
     }
 
 
+@router.get("/{asset_id}/lineage", response_model=AssetLineageOut)
+async def get_asset_lineage(
+    asset_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> AssetLineageOut:
+    """Return the direct parent/child lineage for one authorized asset."""
+    try:
+        asset_uuid = UUID(asset_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid asset_id format") from exc
+    asset = AssetRepository(db).get_by_id(asset_uuid)
+    if not can_access_asset(db, current_user, asset):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
+
+    parent_links = db.query(AssetLink).filter(AssetLink.child_asset_id == asset.id).all()
+    child_links = db.query(AssetLink).filter(AssetLink.parent_asset_id == asset.id).all()
+    related_ids = {link.parent_asset_id for link in parent_links} | {link.child_asset_id for link in child_links}
+    related_assets = {
+        related.id: related
+        for related in db.query(Asset).filter(Asset.id.in_(related_ids), Asset.deleted_at.is_(None)).all()
+        if can_access_asset(db, current_user, related)
+    }
+
+    visible_parent_links = [link for link in parent_links if link.parent_asset_id in related_assets]
+    visible_child_links = [link for link in child_links if link.child_asset_id in related_assets]
+    links = visible_parent_links + visible_child_links
+    return AssetLineageOut(
+        asset=AssetOut.model_validate(asset),
+        parents=[AssetOut.model_validate(related_assets[link.parent_asset_id]) for link in visible_parent_links],
+        children=[AssetOut.model_validate(related_assets[link.child_asset_id]) for link in visible_child_links],
+        links=[AssetLinkOut.model_validate(link) for link in links],
+    )
+
+
 @router.put("/{asset_id}", response_model=AssetOut)
 async def update_asset(
     asset_id: str,
@@ -204,8 +241,8 @@ async def update_asset(
     asset.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(asset)
-    VersionService.create_snapshot(db, asset, user_id=asset.owner_id)
-    ActivityService.log(db, "ASSET_UPDATED", f"Asset '{asset.name}' updated", organization_id=asset.organization_id, asset_id=asset.id, user_id=asset.owner_id)
+    VersionService.create_snapshot(db, asset, user_id=current_user.id)
+    ActivityService.log(db, "ASSET_UPDATED", f"Asset '{asset.name}' updated", organization_id=asset.organization_id, asset_id=asset.id, user_id=current_user.id)
     return AssetOut.model_validate(asset)
 
 
@@ -220,7 +257,7 @@ async def update_asset_metadata(
     require_roles(get_user_roles(db, current_user), ("EDITOR", "ADMIN"))
     repository = AssetRepository(db)
     asset = repository.get_by_id(asset_id)
-    if not asset or asset.deleted_at is not None:
+    if not can_access_asset(db, current_user, asset):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
 
     existing = asset.raw_metadata or {}
@@ -230,14 +267,14 @@ async def update_asset_metadata(
 
     db.commit()
     db.refresh(asset)
-    VersionService.create_snapshot(db, asset, user_id=asset.owner_id)
+    VersionService.create_snapshot(db, asset, user_id=current_user.id)
     ActivityService.log(
         db,
         "ASSET_UPDATED",
         f"Asset metadata for '{asset.name}' updated",
         organization_id=asset.organization_id,
         asset_id=asset.id,
-        user_id=asset.owner_id,
+        user_id=current_user.id,
     )
     return AssetOut.model_validate(asset)
 
@@ -252,10 +289,10 @@ async def soft_delete_asset(
     require_roles(get_user_roles(db, current_user), ("EDITOR", "ADMIN"))
     repository = AssetRepository(db)
     asset = repository.get_by_id(asset_id)
-    if not asset or asset.deleted_at is not None:
+    if not can_access_asset(db, current_user, asset):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
 
     asset.deleted_at = datetime.now(timezone.utc)
     db.commit()
-    ActivityService.log(db, "ARCHIVE", f"Asset '{asset.name}' archived", organization_id=asset.organization_id, asset_id=asset.id, user_id=asset.owner_id)
+    ActivityService.log(db, "ARCHIVE", f"Asset '{asset.name}' archived", organization_id=asset.organization_id, asset_id=asset.id, user_id=current_user.id)
     return {"message": "Asset soft-deleted successfully"}

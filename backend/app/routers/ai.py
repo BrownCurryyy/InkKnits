@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.routers.auth import get_current_user
 from backend.app.auth import can_access_station, get_user_roles, require_roles
-from backend.app.schemas import AIJobOut, AIJobStatus, AIJobSubmit
+from backend.app.schemas import AIJobQueueOut, AIJobStatus, AIJobSubmit
 from backend.database.connection import get_db
 from backend.models.ai_job import AIJob as PersistedAIJob
 from backend.models.asset import Asset
@@ -51,6 +51,42 @@ def _job_is_visible(job: PersistedAIJob, db: Session, current_user: User) -> boo
     return job.station_id is not None and can_access_station(db, current_user, job.station_id)
 
 
+def _queue_item(job: PersistedAIJob, db: Session) -> AIJobQueueOut:
+    project_id = None
+    if job.station_id is not None:
+        from backend.models.station import Station
+
+        station = db.get(Station, job.station_id)
+        project_id = station.project_id if station else None
+
+    result = None
+    if job.result_data:
+        try:
+            result = json.loads(job.result_data)
+        except json.JSONDecodeError:
+            result = {"raw": job.result_data}
+
+    return AIJobQueueOut(
+        task_id=job.id,
+        job_type=job.job_type,
+        project_id=project_id,
+        station_id=job.station_id,
+        asset_id=job.asset_id,
+        created_by=job.created_by,
+        priority=job.priority,
+        status=job.status,
+        queue_position=job.queue_position,
+        model=job.model,
+        prompt=job.prompt,
+        result=result,
+        result_available=bool(job.result_data or job.result_asset),
+        error=job.error,
+        created_at=job.created_at,
+        started_at=job.started_at,
+        completed_at=job.completed_at,
+    )
+
+
 @router.post("/jobs", response_model=AIJobStatus, status_code=status.HTTP_202_ACCEPTED)
 async def submit_job(
     payload: AIJobSubmit,
@@ -59,7 +95,7 @@ async def submit_job(
 ) -> AIJobStatus:
     """Create one durable job record, enqueue it, and return its task ID immediately."""
     require_roles(get_user_roles(db, current_user), ("EDITOR", "ADMIN"))
-    if payload.created_by != current_user.id:
+    if payload.created_by is not None and payload.created_by != current_user.id:
         raise HTTPException(status_code=403, detail="created_by must match the authenticated user")
     if payload.asset_id is not None:
         asset = db.get(Asset, payload.asset_id)
@@ -72,6 +108,16 @@ async def submit_job(
     if payload.station_id is not None and not can_access_station(db, current_user, payload.station_id):
         raise HTTPException(status_code=404, detail="Station not found")
     payload.organization_id = current_user.organization_id
+    if payload.job_type == "IMAGE":
+        from backend.models.station import Station
+
+        station = db.get(Station, payload.station_id)
+        if station is None:
+            raise HTTPException(status_code=404, detail="Station not found")
+        runtime_project_id = station.project_id
+    else:
+        runtime_project_id = None
+    payload.created_by = current_user.id
     _validate_payload(payload, db)
     task_id = uuid4()
     now = datetime.now(timezone.utc)
@@ -105,6 +151,9 @@ async def submit_job(
     )
 
     runtime_payload = payload.model_dump(mode="json")
+    if runtime_project_id is not None:
+        runtime_payload["project_id"] = str(runtime_project_id)
+    runtime_payload["created_by"] = str(current_user.id)
     if job_type == "ATOMIZE":
         runtime_payload["parent_content"] = runtime_payload["draft"]
     if job_type == "IMAGE":
@@ -129,28 +178,38 @@ async def get_job(
     if job is not None:
         return AIJobStatus(task_id=task_id, **{key: value for key, value in job.to_dict().items() if key != "task_id"})
 
+    result = None
+    if persisted.result_data:
+        try:
+            result = json.loads(persisted.result_data)
+        except json.JSONDecodeError:
+            result = {"raw": persisted.result_data}
+    elif persisted.result_asset:
+        result = {"asset_ids": json.loads(persisted.result_asset)}
+
     return AIJobStatus(
         task_id=task_id,
         job_type=persisted.job_type,
         priority=persisted.priority,
         status=persisted.status,
         queue_position=persisted.queue_position,
-        result={"asset_ids": json.loads(persisted.result_asset)} if persisted.result_asset else None,
+        result=result,
+        error=persisted.error,
         created_at=persisted.created_at,
         started_at=persisted.started_at,
         completed_at=persisted.completed_at,
     )
 
 
-@router.get("/jobs", response_model=list[AIJobOut])
+@router.get("/jobs", response_model=list[AIJobQueueOut])
 async def list_jobs(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> list[AIJobOut]:
+) -> list[AIJobQueueOut]:
     jobs = db.query(PersistedAIJob).filter(
         PersistedAIJob.organization_id == current_user.organization_id,
     ).order_by(PersistedAIJob.created_at.desc()).all()
-    return [AIJobOut.model_validate(job) for job in jobs if _job_is_visible(job, db, current_user)]
+    return [_queue_item(job, db) for job in jobs if _job_is_visible(job, db, current_user)]
 
 
 @router.get("/health")

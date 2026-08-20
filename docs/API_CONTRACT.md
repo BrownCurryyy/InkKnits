@@ -67,6 +67,22 @@ List projects.
 ### GET /projects/{project_id}
 Get a project.
 
+### GET /projects/{project_id}/production-state
+Return the current assembled production state for a project.
+
+Response shape:
+- project_id: UUID
+- assets: list of objects with
+	- asset: AssetOut
+	- current_version: AssetVersionOut
+	- is_active: boolean
+- links: list of AssetLinkOut entries
+
+Important:
+- This is a computed current-state view, not Asset Version History.
+- It resolves the latest version per visible asset via project -> station -> asset -> asset_versions.
+- No persistent bundle snapshot row is created unless a separate product requirement justifies one.
+
 ### PUT /projects/{project_id}
 Update a project.
 

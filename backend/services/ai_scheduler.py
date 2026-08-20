@@ -146,6 +146,8 @@ class AIScheduler:
         if job.status in {"COMPLETED", "FAILED", "CANCELLED"}:
             return False
         if job.status == "RUNNING":
+            # The worker cannot safely interrupt an external Ollama/ComfyUI call.
+            # Marking it cancelled prevents its result from being published.
             job.status = "CANCELLED"
             job.completed_at = datetime.now(timezone.utc)
             self._persist_job_state(job)
@@ -184,8 +186,13 @@ class AIScheduler:
             self._update_queue_positions()
 
     async def _execute(self, job: AIJob) -> None:
+        if job.status == "CANCELLED":
+            self._persist_job_state(job)
+            return
+
         job.status = "RUNNING"
         job.started_at = datetime.now(timezone.utc)
+        await asyncio.to_thread(self._persist_job_state, job)
 
         try:
             if job.job_type in ("TEXT", "REWRITE", "IMPROVE_TONE", "CHANGE_AUDIENCE"):
@@ -209,11 +216,13 @@ class AIScheduler:
             else:
                 raise ValueError(f"Unknown job type: {job.job_type}")
 
-            job.status = "COMPLETED"
+            if job.status != "CANCELLED":
+                job.status = "COMPLETED"
 
         except Exception as exc:
-            job.status = "FAILED"
-            job.error = str(exc)
+            if job.status != "CANCELLED":
+                job.status = "FAILED"
+                job.error = str(exc)
 
         finally:
             job.completed_at = datetime.now(timezone.utc)
@@ -286,9 +295,12 @@ class AIScheduler:
         enriched_prompt = OllamaService.enrich_image_prompt(user_prompt)
 
         # Step 2: Build save path
+        project_id = payload.get("project_id")
+        if not project_id:
+            raise ValueError("Image generation requires project_id")
         save_dir = StorageService.get_asset_directory(
             organization_id=organization_id,
-            project_id=payload.get("station_id", asset_id),
+            project_id=project_id,
         )
         save_path = save_dir / f"{asset_id}.png"
 
@@ -333,6 +345,7 @@ class AIScheduler:
         queued.sort(key=lambda j: j.priority)
         for i, j in enumerate(queued):
             j.queue_position = i + 1
+            self._persist_job_state(j)
 
     @staticmethod
     def _persist_job_state(job: AIJob) -> None:
@@ -350,6 +363,9 @@ class AIScheduler:
             persisted.started_at = job.started_at
             persisted.completed_at = job.completed_at
             persisted.queue_position = job.queue_position
+            persisted.error = job.error
+            if job.result is not None:
+                persisted.result_data = json.dumps(job.result, default=str)
             if job.status == "COMPLETED":
                 asset_ids = AIScheduler._create_result_assets(session, job)
                 if asset_ids:
@@ -388,6 +404,19 @@ class AIScheduler:
                 created_at=completed_at,
                 updated_at=completed_at,
             ))
+            session.flush()
+            from backend.services.version_service import VersionService
+            from backend.services.activity_service import ActivityService
+
+            VersionService.create_snapshot(session, session.get(Asset, asset_id), user_id=job.payload.get("created_by"))
+            ActivityService.log(
+                session,
+                "ASSET_CREATED",
+                f"Generated image asset '{job.payload.get('name') or asset_id}' created",
+                organization_id=uuid.UUID(str(job.payload["organization_id"])),
+                asset_id=asset_id,
+                user_id=uuid.UUID(str(job.payload["created_by"])) if job.payload.get("created_by") else None,
+            )
             return [str(asset_id)]
 
         if job.job_type != "ATOMIZE":
@@ -396,9 +425,12 @@ class AIScheduler:
         parent_id = uuid.UUID(str(job.payload["asset_id"]))
         completed_at = job.completed_at
         asset_ids: list[str] = []
+        from backend.services.activity_service import ActivityService
+        from backend.services.version_service import VersionService
+
         for item in result.get("results", []):
             child_id = uuid.uuid4()
-            session.add(Asset(
+            child_asset = Asset(
                 id=child_id,
                 organization_id=uuid.UUID(str(job.payload["organization_id"])),
                 station_id=uuid.UUID(str(job.payload["station_id"])),
@@ -410,13 +442,34 @@ class AIScheduler:
                 raw_metadata={"parent_asset_id": str(parent_id), "generation": job.payload},
                 created_at=completed_at,
                 updated_at=completed_at,
-            ))
+            )
+            session.add(child_asset)
             session.add(AssetLink(
                 parent_asset_id=parent_id,
                 child_asset_id=child_id,
                 relationship_type="ATOMIZED_FROM",
                 created_at=completed_at,
             ))
+            session.flush()
+            VersionService.create_snapshot(session, child_asset, user_id=uuid.UUID(str(job.payload["created_by"])))
+            ActivityService.log(
+                session,
+                "ASSET_CREATED",
+                f"Atomized child asset '{child_asset.name}' created from parent {parent_id}",
+                organization_id=child_asset.organization_id,
+                asset_id=child_asset.id,
+                user_id=uuid.UUID(str(job.payload["created_by"])),
+                raw_metadata={"parent_asset_id": str(parent_id), "relationship_type": "ATOMIZED_FROM"},
+            )
+            ActivityService.log(
+                session,
+                "ATOMIZED",
+                f"Asset {child_asset.id} atomized from parent {parent_id}",
+                organization_id=child_asset.organization_id,
+                asset_id=child_asset.id,
+                user_id=uuid.UUID(str(job.payload["created_by"])),
+                raw_metadata={"parent_asset_id": str(parent_id), "format": item["format"]},
+            )
             asset_ids.append(str(child_id))
         return asset_ids
 

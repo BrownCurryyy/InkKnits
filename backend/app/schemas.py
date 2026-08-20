@@ -65,13 +65,36 @@ class AssetOut(BaseModel):
     raw_metadata: dict[str, Any] | None = None
 
 
+class AssetLinkOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    parent_asset_id: UUID
+    child_asset_id: UUID
+    relationship_type: str
+    created_at: datetime
+
+
+class AssetLineageOut(BaseModel):
+    asset: AssetOut
+    parents: list[AssetOut]
+    children: list[AssetOut]
+    links: list[AssetLinkOut]
+
+
+class ProjectLineageOut(BaseModel):
+    project_id: UUID
+    assets: list[AssetOut]
+    links: list[AssetLinkOut]
+
+
 class AssetVersionCreate(BaseModel):
     asset_id: UUID
     version_number: int = Field(..., ge=1)
     snapshot_path: str
     raw_metadata: dict[str, Any] | None = None
     parent_version_id: UUID | None = None
-    created_by: UUID | None = None
+    created_by: UUID | None = Field(default=None)
 
 
 class AssetVersionOut(BaseModel):
@@ -86,6 +109,20 @@ class AssetVersionOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     deleted_at: datetime | None = None
+
+
+class ProjectProductionAssetState(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    asset: AssetOut
+    current_version: AssetVersionOut
+    is_active: bool = True
+
+
+class ProjectProductionStateOut(BaseModel):
+    project_id: UUID
+    assets: list[ProjectProductionAssetState]
+    links: list[AssetLinkOut] = Field(default_factory=list)
 
 
 class ActivityCreate(BaseModel):
@@ -184,7 +221,7 @@ class AIJobOut(BaseModel):
     asset_id: UUID | None = None
     organization_id: UUID | None = None
     station_id: UUID | None = None
-    created_by: UUID
+    created_by: UUID | None = None
     job_type: str
     priority: int
     status: str
@@ -193,6 +230,8 @@ class AIJobOut(BaseModel):
     prompt: str | None = None
     parameters: str | None = None
     result_asset: str | None = None
+    result_data: str | None = None
+    error: str | None = None
     started_at: datetime | None = None
     completed_at: datetime | None = None
     created_at: datetime
@@ -268,7 +307,7 @@ class AIJobSubmit(BaseModel):
         "TEXT", "REWRITE", "IMPROVE_TONE", "CHANGE_AUDIENCE", "SUMMARIZE",
         "EXPAND", "ATOMIZE", "IMAGE",
     ]
-    created_by: UUID
+    created_by: UUID | None = Field(default=None)
     organization_id: UUID | None = None
     station_id: UUID | None = None
     asset_id: UUID | None = None
@@ -294,6 +333,26 @@ class AIJobStatus(BaseModel):
     status: str
     queue_position: int | None = None
     result: dict[str, Any] | None = None
+    error: str | None = None
+    created_at: datetime
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+
+
+class AIJobQueueOut(BaseModel):
+    task_id: UUID
+    job_type: str
+    project_id: UUID | None = None
+    station_id: UUID | None = None
+    asset_id: UUID | None = None
+    created_by: UUID
+    priority: int
+    status: str
+    queue_position: int | None = None
+    model: str | None = None
+    prompt: str | None = None
+    result: dict[str, Any] | None = None
+    result_available: bool = False
     error: str | None = None
     created_at: datetime
     started_at: datetime | None = None

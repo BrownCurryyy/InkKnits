@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 import { apiFetch } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -35,8 +34,6 @@ function friendlyJobError(error?: string | null) {
 
 export function AIJobConsole() {
   const { user, roles } = useAuth();
-  const navigate = useNavigate();
-
   const [jobs, setJobs] = useState<AIJobStatusRecord[]>([]);
   const [selectedJobId, setSelectedJobId] = useState<string>('');
   const [selectedJob, setSelectedJob] = useState<AIJobStatusRecord | null>(null);
@@ -45,13 +42,6 @@ export function AIJobConsole() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [toast, setToast] = useState<string | null>(null);
-
-  const [isSubmitOpen, setSubmitOpen] = useState(false);
-  const [submitPrompt, setSubmitPrompt] = useState('');
-  const [submitJobType, setSubmitJobType] = useState<JobType>('TEXT');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const canSubmit = roles.some((role) => ['ADMIN', 'EDITOR', 'MANAGER'].includes(role.toUpperCase()));
 
   useEffect(() => {
     if (!toast) return;
@@ -109,37 +99,6 @@ export function AIJobConsole() {
     return () => window.clearInterval(pollInterval);
   }, [selectedJobId]);
 
-  const submitJob = async () => {
-    if (!user || !submitPrompt.trim()) {
-      showToast('Please enter a prompt.');
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const result = await apiFetch<AIJobStatusRecord>('/ai/jobs', {
-        method: 'POST',
-        body: {
-          job_type: submitJobType,
-          prompt: submitPrompt,
-          action: 'generate',
-          mood: 'Professional',
-          style: 'Narrative',
-        },
-      });
-
-      setJobs((current) => [result, ...current]);
-      setSelectedJobId(result.task_id);
-      setSubmitOpen(false);
-      setSubmitPrompt('');
-      showToast('AI Job submitted.');
-    } catch {
-      showToast('Unable to submit AI job.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const filteredJobs = jobs.filter((j) => (statusFilter === 'ALL' ? true : j.status === statusFilter));
 
   if (loading) {
@@ -147,7 +106,7 @@ export function AIJobConsole() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {error ? (
         <div className="rounded-2xl border border-statusError/60 bg-statusError/20 p-4 text-sm font-semibold text-text dark:text-textDark shadow-cozy">
           ⚠️ {error}
@@ -155,7 +114,7 @@ export function AIJobConsole() {
       ) : null}
 
       {/* Header */}
-      <div className="rounded-3xl border border-black/5 bg-white/80 p-6 shadow-cozy backdrop-blur-md dark:border-white/10 dark:bg-[#3a2d2d]/90">
+      <div className="border-b border-black/10 pb-5 dark:border-white/10">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="flex items-center gap-2">
@@ -166,7 +125,7 @@ export function AIJobConsole() {
                 Global Monitor
               </span>
             </div>
-            <h2 className="mt-1 text-2xl font-bold text-text dark:text-textDark">
+            <h2 className="mt-2 text-3xl font-bold text-text dark:text-textDark">
               AI Queue & Job Monitor
             </h2>
             <p className="mt-1 text-xs text-text/60 dark:text-textDark/60">
@@ -174,15 +133,9 @@ export function AIJobConsole() {
             </p>
           </div>
 
-          {canSubmit ? (
-            <button
-              type="button"
-              onClick={() => setSubmitOpen(true)}
-              className="rounded-2xl bg-accent px-5 py-2.5 text-xs font-bold text-backgroundDark shadow-sm transition hover:opacity-90 active:scale-95"
-            >
-              ⚡ Submit General Job
-            </button>
-          ) : null}
+          <span className="rounded-full bg-background px-3 py-1.5 text-xs font-semibold text-text/70 dark:bg-[#554949] dark:text-textDark/70">
+            Monitoring surface
+          </span>
         </div>
 
         {/* Filter Pills */}
@@ -206,8 +159,8 @@ export function AIJobConsole() {
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
         {/* Job Monitor Queue List */}
-        <div className="rounded-3xl border border-black/5 bg-white/80 p-6 shadow-cozy backdrop-blur-md dark:border-white/10 dark:bg-[#3a2d2d]/90">
-          <h3 className="mb-4 text-base font-bold text-text dark:text-textDark">Active Jobs Monitor</h3>
+        <div className="rounded-2xl border border-black/10 bg-white/65 p-5 shadow-cozy dark:border-white/10 dark:bg-[#3a2d2d]/75">
+          <div className="mb-4 flex items-center justify-between"><h3 className="text-base font-bold text-text dark:text-textDark">Queue activity</h3><span className="text-xs text-text/50 dark:text-textDark/50">{filteredJobs.length} visible</span></div>
 
           {filteredJobs.length === 0 ? (
             <CozyEmptyState
@@ -222,7 +175,7 @@ export function AIJobConsole() {
                   key={job.task_id}
                   type="button"
                   onClick={() => setSelectedJobId(job.task_id)}
-                  className={`w-full rounded-2xl border p-4 text-left shadow-sm transition-all duration-200 ${
+                    className={`w-full rounded-xl border p-4 text-left transition-all duration-200 ${
                     selectedJobId === job.task_id
                       ? 'border-accent bg-accent/10 shadow-cozy'
                       : 'border-black/5 bg-background/40 hover:border-accent/40 hover:bg-background/80 dark:border-white/10 dark:bg-[#4f3d3d]/60'
@@ -250,6 +203,10 @@ export function AIJobConsole() {
                       Queue Position: #{job.queue_position}
                     </p>
                   ) : null}
+                  <p className="mt-2 text-[11px] text-text/50 dark:text-textDark/50">
+                    {job.project_id ? `Project ${job.project_id.slice(0, 8)}` : 'No project context'}
+                    {job.asset_id ? ` · Asset ${job.asset_id.slice(0, 8)}` : ''}
+                  </p>
                 </button>
               ))}
             </div>
@@ -258,7 +215,7 @@ export function AIJobConsole() {
 
         {/* Selected Job Detail Sidebar */}
         {selectedJob ? (
-          <aside className="rounded-3xl border border-black/5 bg-white/80 p-6 shadow-cozy backdrop-blur-md dark:border-white/10 dark:bg-[#3a2d2d]/90">
+          <aside className="rounded-2xl border border-black/10 bg-white/75 p-5 shadow-cozy dark:border-white/10 dark:bg-[#3a2d2d]/80">
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-base font-bold text-text dark:text-textDark">Task Status Detail</h3>
@@ -292,6 +249,17 @@ export function AIJobConsole() {
                 >
                   {selectedJob.status}
                 </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="font-bold text-text/60 dark:text-textDark/60">Priority</p>
+                  <p className="mt-1 font-semibold">{selectedJob.priority}</p>
+                </div>
+                <div>
+                  <p className="font-bold text-text/60 dark:text-textDark/60">Result</p>
+                  <p className="mt-1 font-semibold">{selectedJob.result_available ? 'Available' : 'Pending'}</p>
+                </div>
               </div>
 
               {selectedJob.prompt ? (
@@ -336,78 +304,6 @@ export function AIJobConsole() {
           </aside>
         ) : null}
       </div>
-
-      {/* New General Job Modal */}
-      {isSubmitOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#423838]/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-xl rounded-3xl bg-background p-6 text-text shadow-cozy dark:bg-[#2d2222] dark:text-textDark border border-black/5 dark:border-white/10">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-xl font-bold">New AI Job</h3>
-              <button
-                type="button"
-                onClick={() => setSubmitOpen(false)}
-                className="text-sm font-semibold text-text/70 dark:text-textDark/70"
-              >
-                ✕ Close
-              </button>
-            </div>
-
-            <form
-              className="space-y-4"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void submitJob();
-              }}
-            >
-              <label className="block text-xs font-bold">
-                <span className="mb-1.5 block">Job Type</span>
-                <select
-                  value={submitJobType}
-                  onChange={(e) => setSubmitJobType(e.target.value as JobType)}
-                  className="w-full rounded-2xl border border-black/10 bg-white px-3.5 py-2.5 text-sm outline-none dark:border-white/10 dark:bg-[#4f3d3d]"
-                >
-                  <option value="TEXT">Text Generation</option>
-                  <option value="REWRITE">Rewrite</option>
-                  <option value="IMPROVE_TONE">Improve Tone</option>
-                  <option value="CHANGE_AUDIENCE">Change Audience</option>
-                  <option value="SUMMARIZE">Summarize</option>
-                  <option value="EXPAND">Expand</option>
-                  <option value="IMAGE">Image Generation</option>
-                </select>
-              </label>
-
-              <label className="block text-xs font-bold">
-                <span className="mb-1.5 block">Prompt</span>
-                <textarea
-                  value={submitPrompt}
-                  onChange={(e) => setSubmitPrompt(e.target.value)}
-                  rows={6}
-                  placeholder="Describe what you want the AI to generate…"
-                  className="w-full rounded-2xl border border-black/10 bg-white px-3.5 py-2.5 text-sm outline-none dark:border-white/10 dark:bg-[#4f3d3d]"
-                  required
-                />
-              </label>
-
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setSubmitOpen(false)}
-                  className="rounded-2xl bg-white px-4 py-2 text-xs font-bold text-text dark:bg-[#554949] dark:text-textDark"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="rounded-2xl bg-accent px-5 py-2 text-xs font-bold text-backgroundDark shadow-sm disabled:opacity-50"
-                >
-                  {isSubmitting ? 'Submitting…' : 'Submit'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      ) : null}
 
       {/* Toast */}
       {toast ? (

@@ -251,7 +251,7 @@ export function AssetWorkspace() {
           onClick={() => navigate('/')}
           className="text-sm font-semibold text-accent hover:underline"
         >
-          ← Back to Dashboard
+          ← Back to Home
         </button>
         <div className="rounded-2xl border border-statusError/60 bg-statusError/20 p-4 text-sm font-semibold text-text dark:text-textDark shadow-cozy">
           ⚠️ {error || 'Asset not found.'}

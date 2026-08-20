@@ -30,14 +30,15 @@ async def create_organization(
 
 
 @router.get("", response_model=list[OrganizationOut])
-async def list_organizations(db: Session = Depends(get_db)) -> list[OrganizationOut]:
-    repository = OrganizationRepository(db)
-    organizations = repository.list_all()
-    return [OrganizationOut.model_validate(item) for item in organizations]
+async def list_organizations(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[OrganizationOut]:
+    organization = db.get(Organization, current_user.organization_id)
+    return [OrganizationOut.model_validate(organization)] if organization and organization.deleted_at is None else []
 
 
 @router.get("/{organization_id}", response_model=OrganizationOut)
-async def get_organization(organization_id: str, db: Session = Depends(get_db)) -> OrganizationOut:
+async def get_organization(organization_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> OrganizationOut:
+    if str(current_user.organization_id) != organization_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
     repository = OrganizationRepository(db)
     organization = repository.get_by_id(organization_id)
     if not organization:
@@ -46,8 +47,10 @@ async def get_organization(organization_id: str, db: Session = Depends(get_db)) 
 
 
 @router.get("/{organization_id}/members", response_model=list[UserOut])
-async def list_members(organization_id: str, db: Session = Depends(get_db)) -> list[UserOut]:
+async def list_members(organization_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[UserOut]:
     """Return active members for an approval-task assignee picker."""
+    if str(current_user.organization_id) != organization_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
     members = (
         db.query(User)
         .filter(User.organization_id == organization_id, User.status == "ACTIVE", User.deleted_at.is_(None))
@@ -65,12 +68,16 @@ async def add_member(
     current_user: User = Depends(get_current_user),
 ) -> dict:
     require_roles(get_user_roles(db, current_user), ("ADMIN",))
+    if str(current_user.organization_id) != organization_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Organization access denied")
     # Direct assignment of user to organization (assuming user exists and is updated or checked)
     # Since our User model has organization_id, we just update the user's organization_id.
     from backend.models.user import User
     user = db.query(User).filter(User.id == str(payload.user_id)).first()
-    if not user:
+    if not user or user.deleted_at is not None:
         raise HTTPException(status_code=404, detail="User not found")
+    if user.organization_id != current_user.organization_id:
+        raise HTTPException(status_code=409, detail="User already belongs to another organization")
         
     user.organization_id = organization_id
     db.commit()
@@ -85,6 +92,8 @@ async def remove_member(
     current_user: User = Depends(get_current_user),
 ) -> dict:
     require_roles(get_user_roles(db, current_user), ("ADMIN",))
+    if str(current_user.organization_id) != organization_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Organization access denied")
     from backend.models.user import User
     user = db.query(User).filter(User.id == user_id, User.organization_id == organization_id).first()
     if not user:
@@ -105,6 +114,8 @@ async def update_member_role(
     current_user: User = Depends(get_current_user),
 ) -> dict:
     require_roles(get_user_roles(db, current_user), ("ADMIN",))
+    if str(current_user.organization_id) != organization_id or user_id == str(current_user.id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Organization or administrator access denied")
     from backend.models.rbac import UserRole, Role
     # Find role
     role = db.query(Role).filter(Role.name == payload.role_name, Role.organization_id == organization_id).first()
@@ -112,7 +123,13 @@ async def update_member_role(
         raise HTTPException(status_code=404, detail="Role not found in organization")
         
     # Upsert UserRole
-    user_role = db.query(UserRole).filter(UserRole.user_id == user_id).first()
+    user = db.query(User).filter(User.id == user_id, User.organization_id == organization_id, User.deleted_at.is_(None)).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found in organization")
+    user_role = db.query(UserRole).join(Role, Role.id == UserRole.role_id).filter(
+        UserRole.user_id == user_id,
+        Role.organization_id == organization_id,
+    ).first()
     if user_role:
         db.delete(user_role)
         

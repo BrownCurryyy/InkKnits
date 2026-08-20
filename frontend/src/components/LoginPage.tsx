@@ -8,7 +8,7 @@ export function LoginPage() {
   const location = useLocation();
   const { login, isAuthenticated } = useAuth();
   const [email, setEmail] = useState('admin@example.com');
-  const [password, setPassword] = useState('password123');
+  const [password, setPassword] = useState('InkKnits-Dev-2026!');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -63,7 +63,7 @@ export function LoginPage() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-textDark placeholder:text-textDark/60 focus:border-accent focus:outline-none"
-              placeholder="password123"
+              placeholder="InkKnits-Dev-2026!"
               required
             />
           </label>

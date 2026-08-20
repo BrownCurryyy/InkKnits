@@ -45,7 +45,7 @@ def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token revoked")
 
     user = db.query(User).filter(User.id == claims.get("sub")).first()
-    if not user:
+    if not user or user.deleted_at is not None or user.status != "ACTIVE":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
     return user
 

@@ -236,7 +236,7 @@ export function ProjectPage() {
               >
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-accent/20 text-lg font-bold text-accent">
-                    {st.icon || '✨'}
+                    {st.name}
                   </div>
                   <div>
                     <h4 className="font-bold text-text dark:text-textDark group-hover:text-accent">
@@ -254,15 +254,15 @@ export function ProjectPage() {
       </div>
 
       {/* PROJECT VERSION BUNDLE / PRODUCTION STATE LINEAGE VISUALIZATION */}
-      <div className="rounded-3xl border border-accent/30 bg-gradient-to-br from-white via-accent/5 to-background p-6 shadow-cozy backdrop-blur-md dark:border-accent/30 dark:from-[#3a2d2d] dark:via-[#423838] dark:to-[#4f3d3d]">
+      <div className="rounded-2xl border border-accent/45 bg-white/55 p-6 shadow-cozy dark:border-accent/35 dark:bg-[#3a2d2d]/75">
         <div className="mb-4 flex items-center justify-between border-b border-black/5 pb-3 dark:border-white/10">
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold uppercase tracking-wider text-accent">
                 PRODUCTION STATE BUNDLE
               </span>
-              <span className="rounded-full bg-accent/20 px-2 py-0.5 text-[10px] font-bold text-accent">
-                Current Version Snapshot Tree
+              <span className="rounded-full bg-statusSuccess/20 px-2 py-0.5 text-[10px] font-bold text-statusSuccess">
+                Live assembled state
               </span>
             </div>
             <h3 className="mt-0.5 text-lg font-bold text-text dark:text-textDark">
@@ -293,7 +293,7 @@ export function ProjectPage() {
                     {/* Asset Bundle Card */}
                     <div
                       onClick={() => navigate(`/assets/${asset.id}`)}
-                      className="group flex flex-1 cursor-pointer flex-col gap-2 rounded-2xl border border-black/5 bg-white/90 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-accent hover:shadow-cozy sm:flex-row sm:items-center sm:justify-between dark:border-white/10 dark:bg-[#2d2222]"
+                      className="group flex flex-1 cursor-pointer flex-col gap-2 rounded-xl border border-black/10 bg-white/80 p-4 transition hover:border-accent hover:shadow-cozy sm:flex-row sm:items-center sm:justify-between dark:border-white/10 dark:bg-[#2d2222]"
                     >
                       <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-accent/20 text-base font-bold text-accent">

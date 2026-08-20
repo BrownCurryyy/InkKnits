@@ -17,7 +17,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
 
-      {/* Production Overview / Dashboard */}
+      {/* Home: what the employee needs to work on */}
       <Route
         path="/"
         element={
@@ -30,20 +30,14 @@ export default function App() {
       />
       <Route
         path="/dashboard"
-        element={
-          <ProtectedRoute>
-            <AppShell>
-              <Dashboard />
-            </AppShell>
-          </ProtectedRoute>
-        }
+        element={<Navigate to="/" replace />}
       />
 
-      {/* Organization Area */}
+      {/* Organization: management-only workspace */}
       <Route
         path="/organization"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}>
             <AppShell>
               <OrganizationPage />
             </AppShell>
@@ -51,7 +45,7 @@ export default function App() {
         }
       />
 
-      {/* Project View & Production State */}
+      {/* My Projects and project production campaigns */}
       <Route
         path="/projects"
         element={

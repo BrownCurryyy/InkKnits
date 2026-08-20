@@ -76,7 +76,7 @@ async def assign_approval(
     current_user: User = Depends(get_current_user),
 ) -> ApprovalTaskOut:
     """Assign an approval task to a reviewer for a specific asset."""
-    require_roles(get_user_roles(db, current_user), ("EDITOR", "ADMIN"))
+    require_roles(get_user_roles(db, current_user), ("MANAGER", "ADMIN"))
     asset = db.get(Asset, payload.asset_id)
     if not asset or asset.deleted_at is not None or asset.organization_id != current_user.organization_id or not can_access_station(db, current_user, asset.station_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
@@ -116,7 +116,8 @@ async def list_approvals(db: Session = Depends(get_db), current_user: User = Dep
     for task in repository.list_all():
         try:
             scoped_task, _ = get_scoped_task(task.id, db, current_user)
-            if scoped_task.assigned_to == current_user.id or scoped_task.assigned_by == current_user.id or "ADMIN" in {role.upper() for role in get_user_roles(db, current_user)}:
+            roles = {role.upper() for role in get_user_roles(db, current_user)}
+            if scoped_task.assigned_to == current_user.id or scoped_task.assigned_by == current_user.id or roles.intersection({"ADMIN", "MANAGER"}):
                 tasks.append(scoped_task)
         except HTTPException:
             continue
@@ -127,7 +128,7 @@ async def list_approvals(db: Session = Depends(get_db), current_user: User = Dep
 async def get_approval(task_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> ApprovalTaskOut:
     """Get a single approval task by ID."""
     task_uuid = parse_uuid(task_id, "task_id")
-    task, _ = get_scoped_task(task_uuid, db, current_user)
+    task, asset = get_scoped_task(task_uuid, db, current_user)
     return ApprovalTaskOut.model_validate(task)
 
 
@@ -137,11 +138,11 @@ async def approve_task(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ApprovalTaskOut:
-    require_roles(get_user_roles(db, current_user), ("EDITOR", "REVIEWER", "ADMIN"))
+    require_roles(get_user_roles(db, current_user), ("MANAGER", "REVIEWER", "ADMIN"))
     """Approve the asset linked to this approval task."""
     task_uuid = parse_uuid(task_id, "task_id")
     task, _ = get_scoped_task(task_uuid, db, current_user)
-    if task.assigned_to != current_user.id and "ADMIN" not in {role.upper() for role in get_user_roles(db, current_user)}:
+    if task.assigned_to != current_user.id and not {role.upper() for role in get_user_roles(db, current_user)}.intersection({"ADMIN", "MANAGER"}):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Approval assignment required")
     if task.status != "PENDING":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Cannot approve a task with status '{task.status}'")
@@ -155,6 +156,7 @@ async def approve_task(
         db,
         "APPROVAL",
         f"Asset approved via task {task_id}",
+        organization_id=asset.organization_id,
         asset_id=task.asset_id,
         user_id=current_user.id,
     )
@@ -167,11 +169,11 @@ async def reject_task(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ApprovalTaskOut:
-    require_roles(get_user_roles(db, current_user), ("EDITOR", "REVIEWER", "ADMIN"))
+    require_roles(get_user_roles(db, current_user), ("MANAGER", "REVIEWER", "ADMIN"))
     """Reject the asset linked to this approval task."""
     task_uuid = parse_uuid(task_id, "task_id")
-    task, _ = get_scoped_task(task_uuid, db, current_user)
-    if task.assigned_to != current_user.id and "ADMIN" not in {role.upper() for role in get_user_roles(db, current_user)}:
+    task, asset = get_scoped_task(task_uuid, db, current_user)
+    if task.assigned_to != current_user.id and not {role.upper() for role in get_user_roles(db, current_user)}.intersection({"ADMIN", "MANAGER"}):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Approval assignment required")
     if task.status != "PENDING":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Cannot reject a task with status '{task.status}'")
@@ -185,6 +187,7 @@ async def reject_task(
         db,
         "APPROVAL",
         f"Asset rejected via task {task_id}",
+        organization_id=asset.organization_id,
         asset_id=task.asset_id,
         user_id=current_user.id,
     )
@@ -194,9 +197,9 @@ async def reject_task(
 @router.post("/tasks/{task_id}/comment", response_model=ApprovalTaskOut)
 async def update_comment(task_id: str, payload: CommentUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> ApprovalTaskOut:
     """Add or update a comment on an approval task."""
-    require_roles(get_user_roles(db, current_user), ("EDITOR", "REVIEWER", "ADMIN"))
+    require_roles(get_user_roles(db, current_user), ("MANAGER", "REVIEWER", "ADMIN"))
     task_uuid = parse_uuid(task_id, "task_id")
-    task, _ = get_scoped_task(task_uuid, db, current_user)
+    task, asset = get_scoped_task(task_uuid, db, current_user)
     if task.assigned_to != current_user.id and task.assigned_by != current_user.id and "ADMIN" not in {role.upper() for role in get_user_roles(db, current_user)}:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Approval assignment required")
 
@@ -212,11 +215,11 @@ async def escalate_task(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ApprovalTaskOut:
-    require_roles(get_user_roles(db, current_user), ("EDITOR", "REVIEWER", "ADMIN"))
+    require_roles(get_user_roles(db, current_user), ("MANAGER", "REVIEWER", "ADMIN"))
     """Escalate the approval task to a higher-review state."""
     task_uuid = parse_uuid(task_id, "task_id")
-    task, _ = get_scoped_task(task_uuid, db, current_user)
-    if task.assigned_to != current_user.id and "ADMIN" not in {role.upper() for role in get_user_roles(db, current_user)}:
+    task, asset = get_scoped_task(task_uuid, db, current_user)
+    if task.assigned_to != current_user.id and not {role.upper() for role in get_user_roles(db, current_user)}.intersection({"ADMIN", "MANAGER"}):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Approval assignment required")
     if task.status != "PENDING":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Cannot escalate a task with status '{task.status}'")
@@ -231,6 +234,7 @@ async def escalate_task(
         db,
         "ESCALATION",
         f"Approval task {task_id} escalated",
+        organization_id=asset.organization_id,
         asset_id=task.asset_id,
         user_id=current_user.id,
     )

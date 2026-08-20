@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from backend.app.routers.auth import get_current_user
+from backend.app.auth import can_access_asset, get_user_roles, require_roles
 from backend.app.schemas import AssetVersionOut
 from backend.database.connection import get_db
 from backend.models.asset import Asset
@@ -23,15 +24,18 @@ class VersionRestoreRequest(BaseModel):
 
 
 @router.get("", response_model=list[AssetVersionOut])
-async def list_versions(db: Session = Depends(get_db)) -> list[AssetVersionOut]:
+async def list_versions(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[AssetVersionOut]:
     """List all versions across all assets."""
     repository = AssetVersionRepository(db)
-    versions = repository.list_all()
+    versions = [
+        version for version in repository.list_all()
+        if can_access_asset(db, current_user, db.get(Asset, version.asset_id))
+    ]
     return [AssetVersionOut.model_validate(item) for item in versions]
 
 
 @router.get("/{asset_id}", response_model=list[AssetVersionOut])
-async def list_versions_for_asset(asset_id: str, db: Session = Depends(get_db)) -> list[AssetVersionOut]:
+async def list_versions_for_asset(asset_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[AssetVersionOut]:
     """List all version snapshots for a specific asset."""
     try:
         asset_uuid = UUID(asset_id)
@@ -39,7 +43,7 @@ async def list_versions_for_asset(asset_id: str, db: Session = Depends(get_db)) 
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid asset_id format")
 
     asset = db.get(Asset, asset_uuid)
-    if not asset or asset.deleted_at is not None:
+    if not can_access_asset(db, current_user, asset):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
 
     versions = (
@@ -63,8 +67,9 @@ async def create_version_snapshot(
     except ValueError:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid asset_id format")
 
+    require_roles(get_user_roles(db, current_user), ("EDITOR", "ADMIN"))
     asset = db.get(Asset, asset_uuid)
-    if not asset or asset.deleted_at is not None:
+    if not can_access_asset(db, current_user, asset):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
 
     version = VersionService.create_snapshot(db, asset, user_id=current_user.id)
@@ -92,8 +97,9 @@ async def restore_version(
     except ValueError:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid asset_id format")
 
+    require_roles(get_user_roles(db, current_user), ("EDITOR", "ADMIN"))
     asset = db.get(Asset, asset_uuid)
-    if not asset or asset.deleted_at is not None:
+    if not can_access_asset(db, current_user, asset):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
 
     version = db.get(AssetVersion, payload.version_id)
@@ -121,7 +127,7 @@ async def restore_version(
 
 
 @router.get("/id/{version_id}", response_model=AssetVersionOut)
-async def get_version(version_id: str, db: Session = Depends(get_db)) -> AssetVersionOut:
+async def get_version(version_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> AssetVersionOut:
     """Get a single version by its ID."""
     try:
         version_uuid = UUID(version_id)
@@ -130,6 +136,6 @@ async def get_version(version_id: str, db: Session = Depends(get_db)) -> AssetVe
 
     repository = AssetVersionRepository(db)
     version = repository.get_by_id(version_uuid)
-    if not version:
+    if not version or not can_access_asset(db, current_user, db.get(Asset, version.asset_id)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Version not found")
     return AssetVersionOut.model_validate(version)

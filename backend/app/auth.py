@@ -11,6 +11,7 @@ from fastapi import HTTPException, status
 from pydantic import EmailStr
 
 from backend.models.rbac import Role, UserRole
+from backend.models.project import Project
 from backend.models.station import Station
 from backend.models.station_member import StationMember
 from backend.models.token_revocation import TokenRevocation
@@ -110,7 +111,10 @@ def ensure_default_user_role(db: Any, user: User, role_name: str = "VIEWER") -> 
         db.add(role)
         db.flush()
 
-    existing_assignment = db.query(UserRole).filter(UserRole.user_id == user.id).first()
+    existing_assignment = db.query(UserRole).join(Role, Role.id == UserRole.role_id).filter(
+        UserRole.user_id == user.id,
+        Role.organization_id == user.organization_id,
+    ).first()
     if not existing_assignment:
         db.add(UserRole(user_id=user.id, role_id=role.id))
 
@@ -157,10 +161,10 @@ def can_access_station(db: Any, user: User, station_id: UUID) -> bool:
 
 def can_access_project(db: Any, user: User, project_id: UUID) -> bool:
     if is_admin(db, user):
-        return db.query(Station.id).filter(
-            Station.project_id == project_id,
-            Station.organization_id == user.organization_id,
-            Station.deleted_at.is_(None),
+        return db.query(Project.id).filter(
+            Project.id == project_id,
+            Project.organization_id == user.organization_id,
+            Project.deleted_at.is_(None),
         ).first() is not None
 
     return db.query(StationMember.station_id).join(
@@ -171,3 +175,12 @@ def can_access_project(db: Any, user: User, project_id: UUID) -> bool:
         Station.organization_id == user.organization_id,
         Station.deleted_at.is_(None),
     ).first() is not None
+
+
+def can_access_asset(db: Any, user: User, asset: Any) -> bool:
+    return (
+        asset is not None
+        and asset.organization_id == user.organization_id
+        and asset.deleted_at is None
+        and can_access_station(db, user, asset.station_id)
+    )

@@ -24,9 +24,14 @@ import time
 import urllib.request
 import urllib.parse
 import uuid
+from copy import deepcopy
 from pathlib import Path
 
 COMFYUI_BASE_URL = os.getenv("COMFYUI_BASE_URL", "http://127.0.0.1:8188").rstrip("/")
+WORKFLOW_PATH = Path(os.getenv(
+    "COMFYUI_WORKFLOW_PATH",
+    Path(__file__).resolve().parents[1] / "final4.json",
+)).resolve()
 
 # ---------------------------------------------------------------------------
 # Positive quality boilerplate appended to every enriched prompt
@@ -49,117 +54,33 @@ NEGATIVE_PROMPT = (
 
 def _build_workflow(
     enriched_prompt: str,
-    model_filename: str = "epiCRealism.safetensors",
+    model_filename: str = "epicrealism_naturalSinRC1VAE.safetensors",
     width: int = 512,
     height: int = 512,
     seed: int | None = None,
 ) -> dict:
-    """
-    Build the ComfyUI API workflow JSON for the dual-KSampler + 4x upscaler pipeline.
-
-    Node layout:
-      4 — CheckpointLoaderSimple (model)
-      6 — CLIPTextEncode (positive prompt)
-      7 — CLIPTextEncode (negative prompt)
-      5 — EmptyLatentImage
-      3 — KSampler 1 (base pass, low denoise ~0.6)
-     10 — KSampler 2 (refine pass, high denoise ~0.9)
-      8 — VAEDecode
-     11 — UpscaleModelLoader (4x model)
-     12 — ImageUpscaleWithModel
-      9 — SaveImage
-    """
+    """Load the checked-in API workflow and inject request-specific inputs."""
     if seed is None:
         seed = int(time.time()) % 2**31
 
-    positive_text = f"{enriched_prompt}, {QUALITY_SUFFIX}"
+    if not WORKFLOW_PATH.is_file():
+        raise FileNotFoundError(f"ComfyUI workflow not found: {WORKFLOW_PATH}")
+    with WORKFLOW_PATH.open("r", encoding="utf-8") as workflow_file:
+        workflow = deepcopy(json.load(workflow_file))
 
-    return {
-        "4": {
-            "class_type": "CheckpointLoaderSimple",
-            "inputs": {"ckpt_name": model_filename},
-        },
-        "6": {
-            "class_type": "CLIPTextEncode",
-            "inputs": {
-                "text": positive_text,
-                "clip": ["4", 1],
-            },
-        },
-        "7": {
-            "class_type": "CLIPTextEncode",
-            "inputs": {
-                "text": NEGATIVE_PROMPT,
-                "clip": ["4", 1],
-            },
-        },
-        "5": {
-            "class_type": "EmptyLatentImage",
-            "inputs": {
-                "width": width,
-                "height": height,
-                "batch_size": 1,
-            },
-        },
-        # KSampler 1 — base generation pass
-        "3": {
-            "class_type": "KSampler",
-            "inputs": {
-                "model": ["4", 0],
-                "positive": ["6", 0],
-                "negative": ["7", 0],
-                "latent_image": ["5", 0],
-                "seed": seed,
-                "steps": 20,
-                "cfg": 7.0,
-                "sampler_name": "dpmpp_2m",
-                "scheduler": "karras",
-                "denoise": 0.6,
-            },
-        },
-        # KSampler 2 — high-denoise refine pass
-        "10": {
-            "class_type": "KSampler",
-            "inputs": {
-                "model": ["4", 0],
-                "positive": ["6", 0],
-                "negative": ["7", 0],
-                "latent_image": ["3", 0],
-                "seed": seed + 1,
-                "steps": 20,
-                "cfg": 7.0,
-                "sampler_name": "dpmpp_2m",
-                "scheduler": "karras",
-                "denoise": 0.9,
-            },
-        },
-        "8": {
-            "class_type": "VAEDecode",
-            "inputs": {
-                "samples": ["10", 0],
-                "vae": ["4", 2],
-            },
-        },
-        # 4x Upscaler
-        "11": {
-            "class_type": "UpscaleModelLoader",
-            "inputs": {"model_name": "4x-UltraSharp.pth"},
-        },
-        "12": {
-            "class_type": "ImageUpscaleWithModel",
-            "inputs": {
-                "upscale_model": ["11", 0],
-                "image": ["8", 0],
-            },
-        },
-        "9": {
-            "class_type": "SaveImage",
-            "inputs": {
-                "images": ["12", 0],
-                "filename_prefix": "inkknits_",
-            },
-        },
-    }
+    required_nodes = {"3", "4", "5", "6", "7", "8", "9", "19", "20"}
+    if not required_nodes.issubset(workflow):
+        raise RuntimeError(f"Workflow is missing required nodes: {sorted(required_nodes - set(workflow))}")
+
+    workflow["4"]["inputs"]["ckpt_name"] = model_filename
+    workflow["5"]["inputs"]["width"] = width
+    workflow["5"]["inputs"]["height"] = height
+    workflow["6"]["inputs"]["text"] = f"{enriched_prompt}, {QUALITY_SUFFIX}"
+    workflow["7"]["inputs"]["text"] = NEGATIVE_PROMPT
+    workflow["3"]["inputs"]["seed"] = seed
+    workflow["20"]["inputs"]["seed"] = seed + 1
+    workflow["9"]["inputs"]["filename_prefix"] = "inkknits_"
+    return workflow
 
 
 class ComfyUIService:
@@ -213,7 +134,7 @@ class ComfyUIService:
     def generate_image(
         enriched_prompt: str,
         save_path: Path,
-        model_filename: str = "epiCRealism.safetensors",
+        model_filename: str = "epicrealism_naturalSinRC1VAE.safetensors",
         width: int = 512,
         height: int = 512,
         seed: int | None = None,

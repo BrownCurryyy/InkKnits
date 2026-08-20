@@ -19,10 +19,11 @@ async def create_station(payload: StationCreate, db: Session = Depends(get_db), 
     from backend.models.project import Project
 
     project = db.get(Project, payload.project_id)
-    if not project or project.organization_id != current_user.organization_id:
+    if not project or project.organization_id != current_user.organization_id or not can_access_project(db, current_user, project.id):
         raise HTTPException(status_code=404, detail="Project not found")
     repository = StationRepository(db)
     station = Station(
+        organization_id=project.organization_id,
         project_id=payload.project_id,
         name=payload.name,
         description=payload.description,

@@ -2,12 +2,14 @@
 
 ![InkKnits Logo](docs/logo.png)
 
-InkKnits is a FastAPI + SQLAlchemy backend for managing organization, project, station, asset, version, approval, and AI workflows.
+InkKnits is a FastAPI + SQLAlchemy backend with a React + Vite frontend for organization, project, station, asset, version, approval, and AI workflows.
 
 ## What’s included
 - Authentication with role-based access control
 - Asset management with upload validation and version tracking
-- AI job scheduling and approval workflows
+- Centralized AI job scheduling and approval workflows
+- Station-specific Writing, Editing, Generation, and Image workspaces
+- Computed project production state from current assets and latest versions
 - Activity logging and structured storage
 - API contract and frontend directives in `docs/`
 
@@ -28,7 +30,7 @@ InkKnits is a FastAPI + SQLAlchemy backend for managing organization, project, s
      python backend/scripts/local_dev_setup.py
      ```
 
-     This will create the database schema and seed a demo organization, admin user (admin@example.com / password123), a project, and a station.
+   This creates the schema and deterministic demo organization, six role accounts, three projects, typed production stations, demo assets, versions, and approval tasks. All seeded accounts use the development-only password `InkKnits-Dev-2026!`.
 
    - Option B (manual migration): set `DATABASE_URL` and run Alembic from the `backend/` folder
 
@@ -41,10 +43,25 @@ InkKnits is a FastAPI + SQLAlchemy backend for managing organization, project, s
 
 5. Start the API:
    ```bash
-   uvicorn backend.app.main:app --reload
+   python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
    ```
 
 > Note: `/auth/register` can only register users for an existing organization. The seed script creates the first org and first admin user.
+
+## Demo login accounts
+
+Use these only for local development after running `backend/scripts/local_dev_setup.py`:
+
+| Role | Email |
+|---|---|
+| Admin | `admin@example.com` |
+| Manager | `manager@example.com` |
+| Editor | `editor@example.com` |
+| Reviewer | `reviewer@example.com` |
+| Publisher | `publisher@example.com` |
+| Viewer | `viewer@example.com` |
+
+Password for every account: `InkKnits-Dev-2026!`
 
 ## Docs
 - `docs/API_CONTRACT.md`
@@ -67,11 +84,11 @@ npm install
 npm run dev
 ```
 
-The Vite dev server proxies `/api/*` to `http://127.0.0.1:8001` so you can run the backend concurrently:
+The frontend calls the backend root routes directly, defaulting to `http://localhost:8000`. Set `VITE_API_BASE_URL` when the API runs elsewhere:
 
 ```bash
 # start backend
-uvicorn backend.app.main:app --reload
+python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
 # start frontend
 cd frontend && npm run dev
 ```
@@ -84,4 +101,4 @@ npm run build
 # serve `dist/` with your preferred static hosting (e.g. nginx, Vercel)
 ```
 
-The frontend is intentionally small — it provides a ping button and a skeleton `App` to exercise backend endpoints. Expand it as needed.
+The frontend uses a left sidebar organized as Home, My Projects, accessible Stations, Workflow, and management-only Organization. AI actions submit jobs through `/ai/jobs`; monitor them in the AI Queue.

@@ -48,7 +48,7 @@ export function OrganizationPage() {
 
   // Drafts
   const [projectDraft, setProjectDraft] = useState({ title: '', description: '', status: 'ACTIVE' });
-  const [stationDraft, setStationDraft] = useState({ name: '', description: '', project_id: '', icon: '✨' });
+  const [stationDraft, setStationDraft] = useState({ name: '', description: '', project_id: '' });
 
   const isAdmin = roles.some((r) => r.toUpperCase() === 'ADMIN');
 
@@ -139,11 +139,10 @@ export function OrganizationPage() {
           project_id: stationDraft.project_id,
           name: stationDraft.name,
           description: stationDraft.description,
-          icon: stationDraft.icon,
         },
       });
       setStationModalOpen(false);
-      setStationDraft({ name: '', description: '', project_id: '', icon: '✨' });
+      setStationDraft({ name: '', description: '', project_id: '' });
       showToast('Station created successfully.');
       await loadData();
     } catch (err) {
@@ -387,7 +386,7 @@ export function OrganizationPage() {
               >
                 <div className="flex items-center gap-3">
                   <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-accent/20 text-lg font-bold text-accent">
-                    {st.icon || '✨'}
+                    {st.name}
                   </span>
                   <div>
                     <h4 className="font-bold text-text dark:text-textDark group-hover:text-accent">{st.name}</h4>

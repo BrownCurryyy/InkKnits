@@ -25,6 +25,8 @@ class AIJob(Base):
     prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
     parameters: Mapped[str | None] = mapped_column(Text, nullable=True)
     result_asset: Mapped[str | None] = mapped_column(Text, nullable=True)
+    result_data: Mapped[str | None] = mapped_column(Text, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
     
     started_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
