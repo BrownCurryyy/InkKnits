@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.routers.auth import get_current_user
 from backend.app.auth import can_access_asset, can_access_station, get_user_roles, require_roles
-from backend.app.schemas import AssetCreate, AssetLineageOut, AssetLinkOut, AssetOut, AssetUpdate, AssetMetadataUpdate
+from backend.app.schemas import AssetCreate, AssetLineageOut, AssetLinkCreate, AssetLinkOut, AssetOut, AssetUpdate, AssetMetadataUpdate
 from backend.database.connection import get_db
 from backend.models.asset import Asset
 from backend.models.user import User
@@ -213,6 +213,46 @@ async def get_asset_lineage(
         children=[AssetOut.model_validate(related_assets[link.child_asset_id]) for link in visible_child_links],
         links=[AssetLinkOut.model_validate(link) for link in links],
     )
+
+
+@router.post("/{asset_id}/links", response_model=AssetLinkOut, status_code=status.HTTP_201_CREATED)
+async def create_asset_link(
+    asset_id: str,
+    payload: AssetLinkCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> AssetLinkOut:
+    """Link an authorized child asset to an authorized parent asset."""
+    require_roles(get_user_roles(db, current_user), ("EDITOR", "ADMIN"))
+    try:
+        parent_uuid = UUID(asset_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid asset_id format") from exc
+
+    parent = db.get(Asset, parent_uuid)
+    child = db.get(Asset, payload.child_asset_id)
+    if not can_access_asset(db, current_user, parent) or not can_access_asset(db, current_user, child):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
+    if parent.id == child.id:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="An asset cannot link to itself")
+
+    existing = db.query(AssetLink).filter(
+        AssetLink.parent_asset_id == parent.id,
+        AssetLink.child_asset_id == child.id,
+        AssetLink.relationship_type == payload.relationship_type,
+    ).first()
+    if existing:
+        return AssetLinkOut.model_validate(existing)
+
+    link = AssetLink(
+        parent_asset_id=parent.id,
+        child_asset_id=child.id,
+        relationship_type=payload.relationship_type,
+    )
+    db.add(link)
+    db.commit()
+    db.refresh(link)
+    return AssetLinkOut.model_validate(link)
 
 
 @router.put("/{asset_id}", response_model=AssetOut)

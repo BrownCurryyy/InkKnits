@@ -224,6 +224,9 @@ The app uses these endpoints directly:
 - `GET /versions/{asset_id}`
 - `GET /activities`
 - `GET /projects/{project_id}/production-state`
+- `POST /projects/{project_id}/bundles`
+- `GET /projects/{project_id}/bundles`
+- `GET /projects/{project_id}/bundles/{bundle_id}`
 - `POST /ai/jobs`
 - `GET /ai/jobs`
 

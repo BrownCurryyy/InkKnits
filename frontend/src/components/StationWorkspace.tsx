@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
+import Link from '@tiptap/extension-link';
 import StarterKit from '@tiptap/starter-kit';
 
 import { apiFetch } from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import type { AssetRecord, AIJobStatusRecord, ProjectRecord, StationRecord } from '../types';
+import type { AssetLineageRecord, AssetRecord, AIJobStatusRecord, ProjectRecord, StationRecord } from '../types';
 
 interface StationWorkspaceProps {
   station: StationRecord;
@@ -16,21 +17,17 @@ interface StationWorkspaceProps {
   onShowToast: (message: string) => void;
 }
 
-type WorkspaceMode = 'WRITING' | 'EDITING' | 'GENERATION' | 'IMAGE';
+type WorkspaceMode = 'WRITING' | 'GENERATION' | 'IMAGE';
 type TextJobType = 'REWRITE' | 'EXPAND' | 'SUMMARIZE' | 'IMPROVE_TONE' | 'CHANGE_AUDIENCE' | 'TEXT';
+const ATOMIZE_FORMATS = ['Blog Post', 'LinkedIn Post', 'Instagram Caption', 'Press Release', 'Email Campaign', 'YouTube Script', 'Article'];
 
 function getWorkspaceMode(station: StationRecord): WorkspaceMode {
-  const value = `${station.name} ${station.description ?? ''}`.toUpperCase();
-  if (value.includes('IMAGE') || value.includes('VISUAL')) return 'IMAGE';
-  if (value.includes('GENERAT')) return 'GENERATION';
-  if (value.includes('EDIT')) return 'EDITING';
-  return 'WRITING';
+  return station.station_type === 'IMAGE' ? 'IMAGE' : station.station_type === 'GENERATION' ? 'GENERATION' : 'WRITING';
 }
 
 function WorkspaceHeader({ station, mode }: { station: StationRecord; mode: WorkspaceMode }) {
   const labels: Record<WorkspaceMode, string> = {
     WRITING: 'Writing Station',
-    EDITING: 'Editing Station',
     GENERATION: 'Generation Station',
     IMAGE: 'Image Station',
   };
@@ -59,6 +56,16 @@ function AiActions({
   const [job, setJob] = useState<AIJobStatusRecord | null>(null);
   const [prompt, setPrompt] = useState('');
   const [busy, setBusy] = useState(false);
+  const [atomizeOpen, setAtomizeOpen] = useState(false);
+  const storageKey = `inkknits-atomize-formats:${asset.id}`;
+  const [selectedFormats, setSelectedFormats] = useState<string[]>(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(storageKey) ?? '[]') as unknown;
+      return Array.isArray(saved) && saved.length ? saved.filter((item): item is string => typeof item === 'string' && ATOMIZE_FORMATS.includes(item)) : ['Blog Post', 'LinkedIn Post', 'Instagram Caption'];
+    } catch {
+      return ['Blog Post', 'LinkedIn Post', 'Instagram Caption'];
+    }
+  });
 
   const submit = async (jobType: TextJobType | 'ATOMIZE', action: string, formats?: string[]) => {
     if (!canWrite) return;
@@ -80,6 +87,10 @@ function AiActions({
         },
       });
       setJob(submitted);
+      if (jobType === 'ATOMIZE') {
+        localStorage.setItem(storageKey, JSON.stringify(selectedFormats));
+        setAtomizeOpen(false);
+      }
       onShowToast(`${action} job submitted to the AI Queue.`);
     } catch {
       onShowToast('Unable to submit the AI job.');
@@ -121,10 +132,27 @@ function AiActions({
         <p className="text-sm font-bold">Master Asset</p>
         <p className="my-1 text-center text-accent">↓</p>
         <p className="text-xs text-text/70 dark:text-textDark/70">Derived content variants</p>
-        <button type="button" onClick={() => void submit('ATOMIZE', 'atomize', ['LinkedIn Post', 'Instagram Caption', 'Email Summary'])} disabled={!canWrite || busy} className="mt-3 w-full rounded-xl bg-accent px-3 py-2 text-xs font-bold text-backgroundDark disabled:opacity-50">
+        <button type="button" onClick={() => setAtomizeOpen(true)} disabled={!canWrite || busy} className="mt-3 w-full rounded-xl bg-accent px-3 py-2 text-xs font-bold text-backgroundDark disabled:opacity-50">
           Atomize into variants
         </button>
       </div>
+      {atomizeOpen ? (
+        <div className="rounded-xl border border-accent/30 bg-white/80 p-4 dark:bg-[#423838]">
+          <p className="text-sm font-bold">Choose output formats</p>
+          <div className="mt-3 space-y-2">
+            {ATOMIZE_FORMATS.map((format) => (
+              <label key={format} className="flex items-center gap-2 text-xs font-semibold">
+                <input type="checkbox" checked={selectedFormats.includes(format)} onChange={() => setSelectedFormats((current) => current.includes(format) ? current.filter((item) => item !== format) : [...current, format])} />
+                {format}
+              </label>
+            ))}
+          </div>
+          <div className="mt-4 flex gap-2">
+            <button type="button" onClick={() => setAtomizeOpen(false)} className="rounded-xl bg-background px-3 py-2 text-xs font-bold dark:bg-[#4f3d3d]">Cancel</button>
+            <button type="button" onClick={() => void submit('ATOMIZE', 'atomize', selectedFormats)} disabled={!selectedFormats.length || busy} className="rounded-xl bg-accent px-3 py-2 text-xs font-bold text-backgroundDark disabled:opacity-50">Submit atomization</button>
+          </div>
+        </div>
+      ) : null}
       {job ? <p className="text-xs text-text/60 dark:text-textDark/60">Job {job.status.toLowerCase()} · monitor in AI Queue</p> : null}
     </section>
   );
@@ -134,11 +162,43 @@ function WritingWorkspace({ station, assets, canWrite, onSelectAsset, onRefresh,
   const [selectedId, setSelectedId] = useState(assets.find((asset) => asset.asset_type !== 'IMAGE')?.id ?? assets[0]?.id ?? '');
   const asset = assets.find((item) => item.id === selectedId) ?? null;
   const [saveState, setSaveState] = useState<'Saved' | 'Saving' | 'Unsaved'>('Saved');
-  const editor = useEditor({ extensions: [StarterKit], content: asset?.content ?? '', editable: canWrite });
+  const [attachments, setAttachments] = useState<AssetRecord[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const editor = useEditor({ extensions: [StarterKit, Link.configure({ openOnClick: false })], content: asset?.content ?? '', editable: canWrite });
 
   useEffect(() => {
     if (asset && editor && editor.getHTML() !== asset.content) editor.commands.setContent(asset.content ?? '');
   }, [asset?.id]);
+
+  useEffect(() => {
+    if (!asset) return;
+    void apiFetch<AssetLineageRecord>(`/assets/${asset.id}/lineage`).then((lineage) => {
+      const attachmentIds = new Set(lineage.links.filter((link) => link.parent_asset_id === asset.id && link.relationship_type === 'ATTACHMENT').map((link) => link.child_asset_id));
+      setAttachments(lineage.children.filter((child) => attachmentIds.has(child.id)));
+    }).catch(() => setAttachments([]));
+  }, [asset?.id]);
+
+  const uploadAttachment = async (file: File) => {
+    if (!asset || !canWrite) return;
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append('organization_id', asset.organization_id);
+      form.append('station_id', asset.station_id);
+      form.append('owner_id', asset.owner_id ?? '');
+      form.append('name', file.name);
+      form.append('asset_type', 'REFERENCE');
+      form.append('file', file);
+      const uploaded = await apiFetch<AssetRecord>('/assets/upload', { method: 'POST', body: form });
+      await apiFetch(`/assets/${asset.id}/links`, { method: 'POST', body: { child_asset_id: uploaded.id, relationship_type: 'ATTACHMENT' } });
+      setAttachments((current) => [...current, uploaded]);
+      onShowToast('Attachment uploaded and linked.');
+    } catch {
+      onShowToast('Unable to upload attachment.');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const save = async () => {
     if (!asset || !editor || !canWrite) return;
@@ -175,13 +235,26 @@ function WritingWorkspace({ station, assets, canWrite, onSelectAsset, onRefresh,
               <input defaultValue={asset.title || asset.name} className="min-w-0 flex-1 bg-transparent text-lg font-bold outline-none" aria-label="Document title" />
               <span className="text-xs text-text/60 dark:text-textDark/60">{wordCount} words · {text.length} characters · {saveState}</span>
             </div>
-            <div className="mb-3 flex flex-wrap gap-2">
-              {['Bold', 'Italic', 'Bullet list'].map((label) => <button key={label} type="button" onClick={() => label === 'Bold' ? editor.chain().focus().toggleBold().run() : label === 'Italic' ? editor.chain().focus().toggleItalic().run() : editor.chain().focus().toggleBulletList().run()} className="rounded-xl bg-background px-3 py-2 text-xs font-bold dark:bg-[#4f3d3d]">{label}</button>)}
-              <button type="button" onClick={() => void save()} disabled={!canWrite} className="rounded-xl bg-accent px-3 py-2 text-xs font-bold text-backgroundDark disabled:opacity-50">Save</button>
-              <button type="button" onClick={() => onSelectAsset(asset.id)} className="rounded-xl bg-background px-3 py-2 text-xs font-bold dark:bg-[#4f3d3d]">Versions & detail</button>
+            <div className="mb-3 flex flex-wrap items-center gap-1.5 border-b border-black/5 pb-3 dark:border-white/10">
+              <span className="mr-1 text-[10px] font-bold uppercase tracking-wider text-text/40">Text style</span>
+              {['Bold', 'Italic', 'Strike', 'H1', 'H2', 'H3'].map((label) => <button key={label} type="button" onClick={() => label === 'Bold' ? editor.chain().focus().toggleBold().run() : label === 'Italic' ? editor.chain().focus().toggleItalic().run() : label === 'Strike' ? editor.chain().focus().toggleStrike().run() : editor.chain().focus().toggleHeading({ level: Number(label.slice(1)) as 1 | 2 | 3 }).run()} className="rounded-lg bg-background px-2.5 py-1.5 text-xs font-bold dark:bg-[#4f3d3d]">{label}</button>)}
+              <span className="mx-1 h-5 w-px bg-black/10 dark:bg-white/10" />
+              <span className="mr-1 text-[10px] font-bold uppercase tracking-wider text-text/40">Lists</span>
+              <button type="button" onClick={() => editor.chain().focus().toggleBulletList().run()} className="rounded-lg bg-background px-2.5 py-1.5 text-xs font-bold dark:bg-[#4f3d3d]">Bullets</button>
+              <button type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()} className="rounded-lg bg-background px-2.5 py-1.5 text-xs font-bold dark:bg-[#4f3d3d]">Numbered</button>
+              <button type="button" onClick={() => editor.chain().focus().toggleBlockquote().run()} className="rounded-lg bg-background px-2.5 py-1.5 text-xs font-bold dark:bg-[#4f3d3d]">Quote</button>
+              <span className="mx-1 h-5 w-px bg-black/10 dark:bg-white/10" />
+              <span className="mr-1 text-[10px] font-bold uppercase tracking-wider text-text/40">Insert</span>
+              <button type="button" onClick={() => { const url = window.prompt('Link URL'); if (url) editor.chain().focus().setLink({ href: url }).run(); }} className="rounded-lg bg-background px-2.5 py-1.5 text-xs font-bold dark:bg-[#4f3d3d]">Link</button>
+              <span className="mx-1 h-5 w-px bg-black/10 dark:bg-white/10" />
+              <span className="mr-1 text-[10px] font-bold uppercase tracking-wider text-text/40">History</span>
+              <button type="button" onClick={() => editor.chain().focus().undo().run()} className="rounded-lg bg-background px-2.5 py-1.5 text-xs font-bold dark:bg-[#4f3d3d]">Undo</button>
+              <button type="button" onClick={() => editor.chain().focus().redo().run()} className="rounded-lg bg-background px-2.5 py-1.5 text-xs font-bold dark:bg-[#4f3d3d]">Redo</button>
+              <button type="button" onClick={() => void save()} disabled={!canWrite} className="ml-auto rounded-lg bg-accent px-3 py-1.5 text-xs font-bold text-backgroundDark disabled:opacity-50">Save</button>
+              <button type="button" onClick={() => onSelectAsset(asset.id)} className="rounded-lg bg-background px-3 py-1.5 text-xs font-bold dark:bg-[#4f3d3d]">Versions</button>
             </div>
             <EditorContent editor={editor} className="min-h-[480px] rounded-xl border border-black/10 bg-white/50 p-7 text-[17px] leading-8 dark:border-white/10 dark:bg-[#2d2222]/45" />
-            <div className="mt-4"><AiActions asset={asset} draft={text} canWrite={canWrite} onShowToast={onShowToast} /></div>
+            <div className="mt-5 grid gap-4 lg:grid-cols-2"><AiActions asset={asset} draft={text} canWrite={canWrite} onShowToast={onShowToast} /><section className="rounded-2xl border border-black/10 bg-background/40 p-4 dark:border-white/10 dark:bg-[#3a2d2d]/60"><p className="text-xs font-bold uppercase tracking-wider text-text/60 dark:text-textDark/60">Attachments</p><label className="mt-3 flex cursor-pointer items-center justify-center rounded-xl border border-dashed border-accent/50 p-4 text-xs font-semibold text-accent hover:bg-accent/10">{uploading ? 'Uploading...' : 'Drop or choose a file'}<input type="file" className="hidden" disabled={!canWrite || uploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadAttachment(file); event.currentTarget.value = ''; }} /></label>{attachments.length ? <div className="mt-3 space-y-2">{attachments.map((item) => <button key={item.id} type="button" onClick={() => onSelectAsset(item.id)} className="flex w-full items-center justify-between rounded-lg bg-white/60 px-3 py-2 text-left text-xs font-semibold dark:bg-[#4f3d3d]"><span className="truncate">{item.name}</span><span className="ml-2 text-accent">Open</span></button>)}</div> : <p className="mt-3 text-xs text-text/50">No files attached.</p>}</section></div>
           </> : <p className="text-sm text-text/60">No writing assets are available in this station.</p>}
         </div>
       </div>
@@ -189,10 +262,10 @@ function WritingWorkspace({ station, assets, canWrite, onSelectAsset, onRefresh,
   );
 }
 
-function EditingWorkspace({ assets, onSelectAsset }: { assets: AssetRecord[]; onSelectAsset: (id: string) => void }) {
+function ViewingWorkspace({ assets, onSelectAsset }: { assets: AssetRecord[]; onSelectAsset: (id: string) => void }) {
   const [selectedId, setSelectedId] = useState(assets[0]?.id ?? '');
   const selected = assets.find((asset) => asset.id === selectedId);
-  return <div className="space-y-4"><div className="grid gap-4 lg:grid-cols-[280px_1fr]"> <div className="rounded-3xl border border-black/5 bg-white/70 p-4 dark:border-white/10 dark:bg-[#3a2d2d]/90"><p className="mb-3 text-xs font-bold uppercase tracking-wider">Asset selection</p>{assets.map((asset) => <button key={asset.id} type="button" onClick={() => setSelectedId(asset.id)} className={`mb-2 w-full rounded-xl p-3 text-left text-xs font-semibold ${asset.id === selectedId ? 'bg-accent text-backgroundDark' : 'bg-background/70 dark:bg-[#4f3d3d]'}`}>{asset.title || asset.name}</button>)}</div><div className="rounded-3xl border border-black/5 bg-white/80 p-6 dark:border-white/10 dark:bg-[#3a2d2d]/90"><p className="text-xs font-bold uppercase tracking-wider text-accent">Editing workspace</p><h3 className="mt-2 text-xl font-bold">{selected?.title || selected?.name || 'Select an asset'}</h3><p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-text/80 dark:text-textDark/80">{selected?.content || 'Select an asset to review and compare its content.'}</p>{selected ? <button type="button" onClick={() => onSelectAsset(selected.id)} className="mt-5 rounded-xl bg-accent px-4 py-2 text-xs font-bold text-backgroundDark">Open editing, versions, and activity</button> : null}</div></div></div>;
+  return <div className="space-y-4"><div className="grid gap-4 lg:grid-cols-[280px_1fr]"> <div className="rounded-3xl border border-black/5 bg-white/70 p-4 dark:border-white/10 dark:bg-[#3a2d2d]/90"><p className="mb-3 text-xs font-bold uppercase tracking-wider">Assets</p>{assets.map((asset) => <button key={asset.id} type="button" onClick={() => setSelectedId(asset.id)} className={`mb-2 w-full rounded-xl p-3 text-left text-xs font-semibold ${asset.id === selectedId ? 'bg-accent text-backgroundDark' : 'bg-background/70 dark:bg-[#4f3d3d]'}`}>{asset.title || asset.name}</button>)}</div><div className="rounded-3xl border border-black/5 bg-white/80 p-6 dark:border-white/10 dark:bg-[#3a2d2d]/90"><p className="text-xs font-bold uppercase tracking-wider text-accent">Asset workspace</p><h3 className="mt-2 text-xl font-bold">{selected?.title || selected?.name || 'Select an asset'}</h3><p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-text/80 dark:text-textDark/80">{selected?.content || 'Select an asset to inspect its detail, versions, activity, and approval context.'}</p>{selected ? <button type="button" onClick={() => onSelectAsset(selected.id)} className="mt-5 rounded-xl bg-accent px-4 py-2 text-xs font-bold text-backgroundDark">Open Asset Detail</button> : null}</div></div></div>;
 }
 
 function GenerationWorkspace({ station, allStations, canWrite, onShowToast }: { station: StationRecord; allStations: StationRecord[]; canWrite: boolean; onShowToast: (message: string) => void }) {
@@ -232,5 +305,5 @@ function ImageWorkspace({ assets, onSelectAsset }: { assets: AssetRecord[]; onSe
 
 export function StationWorkspace({ station, assets, allStations, canWrite, onSelectAsset, onRefresh, onShowToast }: StationWorkspaceProps) {
   const mode = getWorkspaceMode(station);
-  return <div className="space-y-6"><WorkspaceHeader station={station} mode={mode} />{mode === 'WRITING' ? <WritingWorkspace station={station} assets={assets} canWrite={canWrite} onSelectAsset={onSelectAsset} onRefresh={onRefresh} onShowToast={onShowToast} /> : null}{mode === 'EDITING' ? <EditingWorkspace assets={assets} onSelectAsset={onSelectAsset} /> : null}{mode === 'GENERATION' ? <GenerationWorkspace station={station} allStations={allStations} canWrite={canWrite} onShowToast={onShowToast} /> : null}{mode === 'IMAGE' ? <ImageWorkspace assets={assets} onSelectAsset={onSelectAsset} /> : null}</div>;
+  return <div className="space-y-6"><WorkspaceHeader station={station} mode={mode} />{mode === 'WRITING' ? <WritingWorkspace station={station} assets={assets} canWrite={canWrite} onSelectAsset={onSelectAsset} onRefresh={onRefresh} onShowToast={onShowToast} /> : null}{station.station_type === 'VIEWING' ? <ViewingWorkspace assets={assets} onSelectAsset={onSelectAsset} /> : null}{mode === 'GENERATION' ? <GenerationWorkspace station={station} allStations={allStations} canWrite={canWrite} onShowToast={onShowToast} /> : null}{mode === 'IMAGE' ? <ImageWorkspace assets={assets} onSelectAsset={onSelectAsset} /> : null}</div>;
 }

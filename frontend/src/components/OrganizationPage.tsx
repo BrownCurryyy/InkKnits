@@ -48,7 +48,7 @@ export function OrganizationPage() {
 
   // Drafts
   const [projectDraft, setProjectDraft] = useState({ title: '', description: '', status: 'ACTIVE' });
-  const [stationDraft, setStationDraft] = useState({ name: '', description: '', project_id: '' });
+  const [stationDraft, setStationDraft] = useState({ name: '', description: '', project_id: '', station_type: 'VIEWING' as StationRecord['station_type'] });
 
   const isAdmin = roles.some((r) => r.toUpperCase() === 'ADMIN');
 
@@ -128,8 +128,8 @@ export function OrganizationPage() {
   };
 
   const handleCreateStation = async () => {
-    if (!stationDraft.name.trim() || !stationDraft.project_id) {
-      showToast('Please specify station name and select a project.');
+    if (!stationDraft.name.trim() || !stationDraft.project_id || !stationDraft.station_type) {
+      showToast('Please specify station name, type, and project.');
       return;
     }
     try {
@@ -138,11 +138,12 @@ export function OrganizationPage() {
         body: {
           project_id: stationDraft.project_id,
           name: stationDraft.name,
+          station_type: stationDraft.station_type,
           description: stationDraft.description,
         },
       });
       setStationModalOpen(false);
-      setStationDraft({ name: '', description: '', project_id: '' });
+      setStationDraft({ name: '', description: '', project_id: '', station_type: 'VIEWING' });
       showToast('Station created successfully.');
       await loadData();
     } catch (err) {
@@ -411,6 +412,21 @@ export function OrganizationPage() {
                 void handleCreateProject();
               }}
             >
+              <label className="block text-xs font-bold">
+                <span className="mb-1 block">Station Type</span>
+                <select
+                  value={stationDraft.station_type}
+                  onChange={(e) => setStationDraft((s) => ({ ...s, station_type: e.target.value as StationRecord['station_type'] }))}
+                  className="w-full rounded-2xl border border-black/10 bg-white px-3.5 py-2.5 text-sm outline-none dark:border-white/10 dark:bg-[#4f3d3d]"
+                  required
+                >
+                  <option value="WRITING">Writing</option>
+                  <option value="GENERATION">Generation</option>
+                  <option value="VIEWING">Viewing</option>
+                  <option value="IMAGE">Image</option>
+                </select>
+              </label>
+
               <label className="block text-xs font-bold">
                 <span className="mb-1 block">Title</span>
                 <input

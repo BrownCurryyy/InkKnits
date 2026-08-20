@@ -40,6 +40,7 @@ export type StationRecord = {
   id: string;
   project_id: string;
   name: string;
+  station_type: 'WRITING' | 'GENERATION' | 'VIEWING' | 'IMAGE';
   description?: string | null;
 };
 
@@ -92,6 +93,28 @@ export type AssetVersionRecord = {
   created_at: string;
   updated_at: string;
   deleted_at?: string | null;
+};
+
+export type VersionBundleItemRecord = {
+  id: string;
+  asset_id: string;
+  version_id: string;
+  version_number: number;
+  asset_title: string;
+  asset_type: string;
+  created_by?: string | null;
+  created_at: string;
+  snapshot_preview?: string | null;
+};
+
+export type VersionBundleRecord = {
+  id: string;
+  project_id: string;
+  name: string;
+  created_by: string;
+  created_at: string;
+  is_active: boolean;
+  items: VersionBundleItemRecord[];
 };
 
 export type ActivityRecord = {

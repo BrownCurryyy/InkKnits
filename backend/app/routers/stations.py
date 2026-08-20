@@ -26,6 +26,7 @@ async def create_station(payload: StationCreate, db: Session = Depends(get_db), 
         organization_id=project.organization_id,
         project_id=payload.project_id,
         name=payload.name,
+        station_type=payload.station_type,
         description=payload.description,
     )
     created = repository.create(station)

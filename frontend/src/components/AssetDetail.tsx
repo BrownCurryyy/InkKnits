@@ -485,7 +485,6 @@ export function AssetDetail({
                     { label: 'Summarize', prompt: 'Summarize key points.', type: 'SUMMARIZE' as JobType },
                     { label: 'Tone', prompt: 'Improve writing tone to be professional.', type: 'IMPROVE_TONE' as JobType },
                     { label: 'Audience', prompt: 'Adapt content for a broader audience.', type: 'CHANGE_AUDIENCE' as JobType },
-                    { label: 'Atomize', prompt: 'Atomize content into multiple marketing formats.', type: 'ATOMIZE' as JobType },
                     { label: 'Continue', prompt: 'Continue writing the next paragraphs naturally.', type: 'TEXT' as JobType },
                   ].map((action) => (
                     <button

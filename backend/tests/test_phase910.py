@@ -19,12 +19,14 @@ from backend.models.project import Project
 from backend.models.station_member import StationMember
 from backend.models.station import Station
 from backend.models.user import User
+from backend.models.version_bundle import VersionBundle
 from backend.services.ai_scheduler import AIScheduler
 from backend.services.ai_scheduler import JobPriority
 from backend.services.approval_service import ApprovalService
 from backend.services.comfyui_service import _build_workflow
 from backend.app.routers.assets import get_asset_lineage
-from backend.app.routers.projects import get_project_lineage, get_project_production_state
+from backend.app.routers.projects import create_version_bundle, get_project_lineage, get_project_production_state, list_version_bundles
+from backend.app.schemas import VersionBundleCreate
 from backend.app.routers.auth import get_current_user
 
 
@@ -243,6 +245,37 @@ class Phase910Tests(unittest.TestCase):
             from fastapi import HTTPException
             with self.assertRaises(HTTPException):
                 __import__("asyncio").run(get_project_production_state(str(project.id), session, outsider))
+
+    def test_version_bundles_snapshot_latest_versions_and_activate_newest(self) -> None:
+        engine = create_engine("sqlite:///:memory:")
+        Base.metadata.create_all(engine)
+
+        with Session(engine) as session, patch("backend.app.routers.projects.get_user_roles", return_value=["EDITOR"]):
+            org = Organization(id=uuid4(), name="Bundle Org")
+            project = Project(id=uuid4(), organization_id=org.id, title="Bundle Project")
+            station = Station(id=uuid4(), organization_id=org.id, project_id=project.id, name="Writing")
+            user = User(id=uuid4(), organization_id=org.id, email="bundler@example.com", display_name="Bundler", password_hash="hash")
+            asset = Asset(id=uuid4(), organization_id=org.id, station_id=station.id, owner_id=user.id, name="article", title="Article", content="Draft", asset_type="TEXT")
+            session.add_all([org, project, station, user, asset, StationMember(station_id=station.id, user_id=user.id)])
+            session.commit()
+            first_version = AssetVersion(id=uuid4(), asset_id=asset.id, version_number=1, snapshot_path="article-v1.txt", created_by=user.id)
+            session.add(first_version)
+            session.commit()
+
+            first = __import__("asyncio").run(create_version_bundle(str(project.id), VersionBundleCreate(name="Launch Draft v1"), session, user))
+            self.assertTrue(first.is_active)
+            self.assertEqual(first.items[0].version_number, 1)
+
+            session.add(AssetVersion(id=uuid4(), asset_id=asset.id, version_number=2, snapshot_path="article-v2.txt", created_by=user.id))
+            session.commit()
+            second = __import__("asyncio").run(create_version_bundle(str(project.id), VersionBundleCreate(name="Launch Draft v2"), session, user))
+            bundles = __import__("asyncio").run(list_version_bundles(str(project.id), session, user))
+
+            self.assertTrue(second.is_active)
+            self.assertEqual(second.items[0].version_number, 2)
+            self.assertEqual(len(bundles), 2)
+            self.assertEqual(session.query(VersionBundle).filter(VersionBundle.is_active.is_(True)).count(), 1)
+            self.assertEqual(session.query(VersionBundle).filter(VersionBundle.name == "Launch Draft v1").one().is_active, False)
 
 
 if __name__ == "__main__":

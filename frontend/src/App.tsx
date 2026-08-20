@@ -11,6 +11,7 @@ import { OrganizationPage } from './components/OrganizationPage';
 import { ProjectPage } from './components/ProjectPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { StationPage } from './components/StationPage';
+import { VersionBundlesPage } from './components/VersionBundlesPage';
 
 export default function App() {
   return (
@@ -118,6 +119,16 @@ export default function App() {
           <ProtectedRoute>
             <AppShell>
               <ActivityPage />
+            </AppShell>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/bundles"
+        element={
+          <ProtectedRoute>
+            <AppShell>
+              <VersionBundlesPage />
             </AppShell>
           </ProtectedRoute>
         }

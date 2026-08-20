@@ -133,6 +133,12 @@ def seed_demo_data(session: Session) -> dict[str, int]:
         )
         for station_name in station_names:
             station_key = f"{project_key}:{station_name}"
+            station_type = (
+                "WRITING" if station_name == "Writing" else
+                "GENERATION" if station_name == "Generation" else
+                "IMAGE" if station_name == "Image" else
+                "VIEWING"
+            )
             stations[station_key] = get_or_create(
                 session,
                 Station,
@@ -140,6 +146,7 @@ def seed_demo_data(session: Session) -> dict[str, int]:
                 organization_id=organization_id,
                 project_id=project.id,
                 name=station_name,
+                station_type=station_type,
                 description=f"{station_name} production station for {title}",
                 status="ACTIVE",
             )

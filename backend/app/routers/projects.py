@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from pathlib import Path
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -16,6 +17,9 @@ from backend.app.schemas import (
     ProjectProductionAssetState,
     ProjectProductionStateOut,
     ProjectUpdate,
+    VersionBundleCreate,
+    VersionBundleItemOut,
+    VersionBundleOut,
 )
 from backend.database.connection import get_db
 from backend.models.project import Project
@@ -23,9 +27,67 @@ from backend.models.asset import Asset
 from backend.models.asset_link import AssetLink
 from backend.models.asset_version import AssetVersion
 from backend.models.station import Station
+from backend.models.version_bundle import VersionBundle, VersionBundleItem
 from backend.repositories.project_repository import ProjectRepository
 
 router = APIRouter(prefix="/projects", tags=["projects"], dependencies=[Depends(get_current_user)])
+
+
+def _visible_project_assets(db: Session, project: Project, current_user) -> list[Asset]:
+    station_ids = [station.id for station in db.query(Station).filter(
+        Station.project_id == project.id,
+        Station.organization_id == current_user.organization_id,
+        Station.deleted_at.is_(None),
+    ).all() if can_access_station(db, current_user, station.id)]
+    if not station_ids:
+        return []
+    return db.query(Asset).filter(
+        Asset.organization_id == current_user.organization_id,
+        Asset.station_id.in_(station_ids),
+        Asset.deleted_at.is_(None),
+    ).all()
+
+
+def _snapshot_preview(version: AssetVersion) -> str | None:
+    path = Path(version.snapshot_path)
+    if path.suffix.lower() in {".txt", ".md", ".json"} and path.is_file():
+        try:
+            return path.read_text(encoding="utf-8")[:280]
+        except (OSError, UnicodeError):
+            return None
+    if path.is_file():
+        return "Binary asset snapshot"
+    return None
+
+
+def _bundle_response(db: Session, bundle: VersionBundle) -> VersionBundleOut:
+    items: list[VersionBundleItemOut] = []
+    rows = db.query(VersionBundleItem, Asset, AssetVersion).join(
+        Asset, Asset.id == VersionBundleItem.asset_id
+    ).join(
+        AssetVersion, AssetVersion.id == VersionBundleItem.version_id
+    ).filter(VersionBundleItem.bundle_id == bundle.id).all()
+    for item, asset, version in rows:
+        items.append(VersionBundleItemOut(
+            id=item.id,
+            asset_id=asset.id,
+            version_id=version.id,
+            version_number=version.version_number,
+            asset_title=asset.title or asset.name,
+            asset_type=asset.asset_type,
+            created_by=version.created_by,
+            created_at=version.created_at,
+            snapshot_preview=_snapshot_preview(version),
+        ))
+    return VersionBundleOut(
+        id=bundle.id,
+        project_id=bundle.project_id,
+        name=bundle.name,
+        created_by=bundle.created_by,
+        created_at=bundle.created_at,
+        is_active=bundle.is_active,
+        items=items,
+    )
 
 
 @router.post("", response_model=ProjectOut, status_code=status.HTTP_201_CREATED)
@@ -64,6 +126,106 @@ async def get_project(project_id: str, db: Session = Depends(get_db), current_us
     if not project or project.deleted_at is not None or not can_access_project(db, current_user, project.id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
     return ProjectOut.model_validate(project)
+
+
+@router.post("/{project_id}/bundles", response_model=VersionBundleOut, status_code=status.HTTP_201_CREATED)
+async def create_version_bundle(
+    project_id: str,
+    payload: VersionBundleCreate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+) -> VersionBundleOut:
+    """Persist a named snapshot of the latest version for each visible project asset."""
+    require_roles(get_user_roles(db, current_user), ("MANAGER", "EDITOR", "ADMIN"))
+    try:
+        project_uuid = UUID(project_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid project_id format") from exc
+    project = ProjectRepository(db).get_by_id(project_uuid)
+    if not project or project.deleted_at is not None or not can_access_project(db, current_user, project.id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+    assets = _visible_project_assets(db, project, current_user)
+    selected_versions: list[tuple[Asset, AssetVersion]] = []
+    for asset in assets:
+        version = db.query(AssetVersion).filter(
+            AssetVersion.asset_id == asset.id,
+            AssetVersion.deleted_at.is_(None),
+        ).order_by(AssetVersion.version_number.desc()).first()
+        if version is not None:
+            selected_versions.append((asset, version))
+
+    db.query(VersionBundle).filter(
+        VersionBundle.project_id == project.id,
+        VersionBundle.organization_id == current_user.organization_id,
+        VersionBundle.is_active.is_(True),
+        VersionBundle.deleted_at.is_(None),
+    ).update({VersionBundle.is_active: False}, synchronize_session=False)
+
+    bundle = VersionBundle(
+        organization_id=current_user.organization_id,
+        project_id=project.id,
+        name=payload.name,
+        created_by=current_user.id,
+        is_active=True,
+    )
+    db.add(bundle)
+    db.flush()
+    for asset, version in selected_versions:
+        db.add(VersionBundleItem(
+            bundle_id=bundle.id,
+            asset_id=asset.id,
+            version_id=version.id,
+        ))
+    db.commit()
+    db.refresh(bundle)
+    return _bundle_response(db, bundle)
+
+
+@router.get("/{project_id}/bundles", response_model=list[VersionBundleOut])
+async def list_version_bundles(
+    project_id: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+) -> list[VersionBundleOut]:
+    try:
+        project_uuid = UUID(project_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid project_id format") from exc
+    project = ProjectRepository(db).get_by_id(project_uuid)
+    if not project or project.deleted_at is not None or not can_access_project(db, current_user, project.id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    bundles = db.query(VersionBundle).filter(
+        VersionBundle.project_id == project.id,
+        VersionBundle.organization_id == current_user.organization_id,
+        VersionBundle.deleted_at.is_(None),
+    ).order_by(VersionBundle.created_at.desc()).all()
+    return [_bundle_response(db, bundle) for bundle in bundles]
+
+
+@router.get("/{project_id}/bundles/{bundle_id}", response_model=VersionBundleOut)
+async def get_version_bundle(
+    project_id: str,
+    bundle_id: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+) -> VersionBundleOut:
+    try:
+        project_uuid = UUID(project_id)
+        bundle_uuid = UUID(bundle_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid bundle identifier") from exc
+    project = ProjectRepository(db).get_by_id(project_uuid)
+    bundle = db.get(VersionBundle, bundle_uuid)
+    if (
+        not project or project.deleted_at is not None
+        or not bundle or bundle.project_id != project.id
+        or bundle.organization_id != current_user.organization_id
+        or bundle.deleted_at is not None
+        or not can_access_project(db, current_user, project.id)
+    ):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Version bundle not found")
+    return _bundle_response(db, bundle)
 
 
 @router.get("/{project_id}/lineage", response_model=ProjectLineageOut)

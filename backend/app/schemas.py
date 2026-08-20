@@ -75,6 +75,11 @@ class AssetLinkOut(BaseModel):
     created_at: datetime
 
 
+class AssetLinkCreate(BaseModel):
+    child_asset_id: UUID
+    relationship_type: str = Field(default="ATTACHMENT", min_length=1, max_length=50)
+
+
 class AssetLineageOut(BaseModel):
     asset: AssetOut
     parents: list[AssetOut]
@@ -123,6 +128,34 @@ class ProjectProductionStateOut(BaseModel):
     project_id: UUID
     assets: list[ProjectProductionAssetState]
     links: list[AssetLinkOut] = Field(default_factory=list)
+
+
+class VersionBundleCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+
+
+class VersionBundleItemOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    asset_id: UUID
+    version_id: UUID
+    version_number: int
+    asset_title: str
+    asset_type: str
+    created_by: UUID | None = None
+    created_at: datetime
+    snapshot_preview: str | None = None
+
+
+class VersionBundleOut(BaseModel):
+    id: UUID
+    project_id: UUID
+    name: str
+    created_by: UUID
+    created_at: datetime
+    is_active: bool
+    items: list[VersionBundleItemOut] = Field(default_factory=list)
 
 
 class ActivityCreate(BaseModel):
@@ -262,6 +295,7 @@ class ApprovalTaskOut(BaseModel):
 class StationCreate(BaseModel):
     project_id: UUID
     name: str = Field(..., min_length=1, max_length=255)
+    station_type: Literal["WRITING", "GENERATION", "VIEWING", "IMAGE"]
     description: str | None = None
 
 
@@ -271,6 +305,7 @@ class StationOut(BaseModel):
     id: UUID
     project_id: UUID
     name: str
+    station_type: Literal["WRITING", "GENERATION", "VIEWING", "IMAGE"]
     description: str | None = None
 
 

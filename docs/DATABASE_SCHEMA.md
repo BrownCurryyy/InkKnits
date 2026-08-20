@@ -54,6 +54,8 @@ Organization
 | ai_jobs | AI generation queue |
 | approval_tasks | Review workflow |
 | activities | Immutable audit logs |
+| version_bundles | Named project version snapshots |
+| version_bundle_items | Asset/version selections inside a bundle |
 
 ---
 
@@ -282,6 +284,19 @@ Stations
 ---
 
 # stations
+
+Purpose
+
+Represents a functional production destination inside a project.
+
+`station_type` is required and must be one of:
+
+- `WRITING`
+- `GENERATION`
+- `VIEWING`
+- `IMAGE`
+
+The `20260820_station_type` migration backfills existing stations once using name matching: Writing -> `WRITING`, Generation -> `GENERATION`, Image/Visual -> `IMAGE`, and all other stations -> `VIEWING`.
 
 Purpose
 

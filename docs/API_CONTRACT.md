@@ -81,7 +81,21 @@ Response shape:
 Important:
 - This is a computed current-state view, not Asset Version History.
 - It resolves the latest version per visible asset via project -> station -> asset -> asset_versions.
-- No persistent bundle snapshot row is created unless a separate product requirement justifies one.
+- This endpoint remains a live-computed production-state view and does not create bundle snapshots. Use the Version Bundles endpoints below for named persistent snapshots.
+
+### POST /projects/{project_id}/bundles
+Create a named persistent version bundle snapshot.
+
+Request body:
+- name: string
+
+The endpoint selects the latest non-deleted version for each visible asset in the project, stores those exact version IDs, and marks the new bundle as the current active bundle for that project.
+
+### GET /projects/{project_id}/bundles
+List historical and current named version bundles for the project.
+
+### GET /projects/{project_id}/bundles/{bundle_id}
+Fetch one named version bundle and its asset/version selections.
 
 ### PUT /projects/{project_id}
 Update a project.
@@ -99,6 +113,15 @@ List stations.
 
 ### GET /stations/{station_id}
 Get a station.
+
+Station responses include `station_type`: `WRITING`, `GENERATION`, `VIEWING`, or `IMAGE`.
+Station creation requires `station_type`.
+
+### POST /stations/{station_id}/members
+Assign an organization member to a station.
+
+Request body:
+- user_id: UUID
 
 ## Assets
 
@@ -127,6 +150,15 @@ Get a single asset.
 
 ### GET /assets/{asset_id}/download
 Download a stored asset as base64 content.
+
+### POST /assets/{asset_id}/links
+Create a scoped parent-child asset link.
+
+Request body:
+- child_asset_id: UUID
+- relationship_type: string; Writing Station attachments use `ATTACHMENT`
+
+The authenticated user must be able to access both assets. Existing identical links are returned without duplication.
 
 ### PUT /assets/{asset_id}
 Update core asset fields.

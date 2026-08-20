@@ -16,6 +16,7 @@ class Station(Base):
     organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id"), nullable=False)
     project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
+    station_type: Mapped[str] = mapped_column(String(20), nullable=False, default="VIEWING")
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="ACTIVE")
     created_at: Mapped[DateTime] = mapped_column(
