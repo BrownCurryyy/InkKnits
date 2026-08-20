@@ -9,6 +9,7 @@ import type {
   ProjectRecord,
   StationRecord,
   UserRecord,
+  OrganizationRosterMemberRecord,
 } from '../types';
 
 function getPermissionMessage(error: unknown, fallback: string) {
@@ -35,6 +36,7 @@ export function OrganizationPage() {
   const [organizations, setOrganizations] = useState<OrganizationRecord[]>([]);
   const [selectedOrgId, setSelectedOrgId] = useState<string>('');
   const [members, setMembers] = useState<UserRecord[]>([]);
+  const [roster, setRoster] = useState<OrganizationRosterMemberRecord[]>([]);
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [stations, setStations] = useState<StationRecord[]>([]);
 
@@ -45,10 +47,12 @@ export function OrganizationPage() {
   // Modals state
   const [isProjectModalOpen, setProjectModalOpen] = useState(false);
   const [isStationModalOpen, setStationModalOpen] = useState(false);
+  const [isMemberModalOpen, setMemberModalOpen] = useState(false);
 
   // Drafts
   const [projectDraft, setProjectDraft] = useState({ title: '', description: '', status: 'ACTIVE' });
   const [stationDraft, setStationDraft] = useState({ name: '', description: '', project_id: '', station_type: 'VIEWING' as StationRecord['station_type'] });
+  const [memberDraft, setMemberDraft] = useState({ email: '', display_name: '', password: '', role: 'VIEWER' as 'ADMIN' | 'EDITOR' | 'REVIEWER' | 'VIEWER' });
 
   const isAdmin = roles.some((r) => r.toUpperCase() === 'ADMIN');
 
@@ -71,13 +75,15 @@ export function OrganizationPage() {
       setSelectedOrgId(targetOrgId);
 
       if (targetOrgId) {
-        const [mems, projs, stas] = await Promise.all([
+        const [mems, rosterData, projs, stas] = await Promise.all([
           apiFetch<UserRecord[]>(`/organizations/${targetOrgId}/members`).catch(() => []),
+          apiFetch<OrganizationRosterMemberRecord[]>(`/organizations/${targetOrgId}/roster`).catch(() => []),
           apiFetch<ProjectRecord[]>('/projects').catch(() => []),
           apiFetch<StationRecord[]>('/stations').catch(() => []),
         ]);
 
         setMembers(mems);
+        setRoster(rosterData);
         setProjects(projs.filter((p) => p.organization_id === targetOrgId));
         setStations(stas);
       }
@@ -148,6 +154,26 @@ export function OrganizationPage() {
       await loadData();
     } catch (err) {
       showToast(getPermissionMessage(err, 'Unable to create station.'));
+    }
+  };
+
+  const handleCreateMember = async () => {
+    if (!selectedOrgId || !memberDraft.email.trim() || !memberDraft.display_name.trim() || memberDraft.password.length < 8) {
+      showToast('Enter an email, display name, and password of at least 8 characters.');
+      return;
+    }
+    try {
+      await apiFetch('/auth/register', {
+        method: 'POST',
+        skipAuth: false,
+        body: { ...memberDraft, organization_id: selectedOrgId },
+      });
+      setMemberModalOpen(false);
+      setMemberDraft({ email: '', display_name: '', password: '', role: 'VIEWER' });
+      await loadData();
+      showToast('Member created and added to the organization.');
+    } catch (err) {
+      showToast(getPermissionMessage(err, 'Unable to create member.'));
     }
   };
 
@@ -267,13 +293,16 @@ export function OrganizationPage() {
                 ROLE defines capabilities; STATION defines functional work areas.
               </p>
             </div>
+            {isAdmin ? <button type="button" onClick={() => setMemberModalOpen(true)} className="mb-4 rounded-xl bg-accent px-4 py-2 text-xs font-bold text-backgroundDark">Add Member</button> : null}
             <div className="rounded-2xl bg-accent/15 px-3 py-1.5 text-xs font-bold text-accent">
               Direct user invitation is managed via the Auth/RBAC contract.
             </div>
           </div>
 
           <div className="space-y-3">
-            {members.map((m) => (
+            {(roster.length ? roster : members.map((user) => ({ user, role: 'VIEWER' as const, station_names: [] }))).map((entry) => {
+              const m = entry.user;
+              return (
               <div
                 key={m.id}
                 className="flex flex-col gap-3 rounded-2xl border border-black/5 bg-background/30 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-white/5 dark:bg-[#4f3d3d]/40"
@@ -293,15 +322,14 @@ export function OrganizationPage() {
                     <span className="block text-[10px] font-bold uppercase tracking-wider text-text/60 dark:text-textDark/60">
                       SYSTEM ROLE
                     </span>
-                    <span className="rounded-full bg-accent/20 px-2.5 py-0.5 text-xs font-bold text-accent">
-                      {m.status === 'ACTIVE' ? 'ACTIVE MEMBER' : m.status}
-                    </span>
+                    <span className="rounded-full bg-accent/20 px-2.5 py-0.5 text-xs font-bold text-accent">{entry.role}</span>
+                    <div className="mt-1 flex max-w-xs flex-wrap justify-end gap-1">{entry.station_names.map((stationName) => <span key={stationName} className="rounded bg-background px-1.5 py-0.5 text-[10px] font-semibold dark:bg-[#554949]">{stationName}</span>)}</div>
                   </div>
 
                   {isAdmin ? (
                     <select
                       onChange={(e) => void handleUpdateRole(m.id, e.target.value)}
-                      defaultValue="EDITOR"
+                      defaultValue={entry.role}
                       className="rounded-xl border border-black/10 bg-white px-2.5 py-1 text-xs font-bold text-text outline-none dark:border-white/10 dark:bg-[#4f3d3d] dark:text-textDark"
                     >
                       <option value="ADMIN">ADMIN</option>
@@ -311,7 +339,8 @@ export function OrganizationPage() {
                   ) : null}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ) : null}
@@ -356,6 +385,7 @@ export function OrganizationPage() {
                 <p className="mt-2 text-xs text-text/70 dark:text-textDark/70">{p.description || 'No description'}</p>
                 <div className="mt-4 flex items-center justify-between border-t border-black/5 pt-3 text-[11px] text-accent font-bold">
                   <span>View Project State →</span>
+                  {isAdmin ? <button type="button" onClick={(event) => { event.stopPropagation(); if (window.confirm(`Delete ${p.title}?`)) void apiFetch(`/projects/${p.id}`, { method: 'DELETE' }).then(() => loadData()); }} className="text-statusError">Delete</button> : null}
                 </div>
               </div>
             ))}
@@ -419,21 +449,6 @@ export function OrganizationPage() {
                 void handleCreateProject();
               }}
             >
-              <label className="block text-xs font-bold">
-                <span className="mb-1 block">Station Type</span>
-                <select
-                  value={stationDraft.station_type}
-                  onChange={(e) => setStationDraft((s) => ({ ...s, station_type: e.target.value as StationRecord['station_type'] }))}
-                  className="w-full rounded-2xl border border-black/10 bg-white px-3.5 py-2.5 text-sm outline-none dark:border-white/10 dark:bg-[#4f3d3d]"
-                  required
-                >
-                  <option value="WRITING">Writing</option>
-                  <option value="GENERATION">Generation</option>
-                  <option value="VIEWING">Viewing</option>
-                  <option value="IMAGE">Image</option>
-                </select>
-              </label>
-
               <label className="block text-xs font-bold">
                 <span className="mb-1 block">Title</span>
                 <input
@@ -538,6 +553,21 @@ export function OrganizationPage() {
                   Create
                 </button>
               </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {isMemberModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#423838]/60 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-background p-6 text-text shadow-cozy dark:bg-[#2d2222] dark:text-textDark">
+            <h3 className="mb-4 text-xl font-bold">Add Member</h3>
+            <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); void handleCreateMember(); }}>
+              <input type="email" required placeholder="Email" value={memberDraft.email} onChange={(event) => setMemberDraft((draft) => ({ ...draft, email: event.target.value }))} className="w-full rounded-xl border bg-white px-3 py-2.5 text-sm dark:bg-[#4f3d3d]" />
+              <input required placeholder="Display name" value={memberDraft.display_name} onChange={(event) => setMemberDraft((draft) => ({ ...draft, display_name: event.target.value }))} className="w-full rounded-xl border bg-white px-3 py-2.5 text-sm dark:bg-[#4f3d3d]" />
+              <input type="password" required minLength={8} placeholder="Temporary password" value={memberDraft.password} onChange={(event) => setMemberDraft((draft) => ({ ...draft, password: event.target.value }))} className="w-full rounded-xl border bg-white px-3 py-2.5 text-sm dark:bg-[#4f3d3d]" />
+              <select value={memberDraft.role} onChange={(event) => setMemberDraft((draft) => ({ ...draft, role: event.target.value as typeof draft.role }))} className="w-full rounded-xl border bg-white px-3 py-2.5 text-sm dark:bg-[#4f3d3d]"><option>VIEWER</option><option>EDITOR</option><option>REVIEWER</option><option>ADMIN</option></select>
+              <div className="flex justify-end gap-2"><button type="button" onClick={() => setMemberModalOpen(false)} className="rounded-xl bg-background px-4 py-2 text-xs font-bold dark:bg-[#554949]">Cancel</button><button type="submit" className="rounded-xl bg-accent px-4 py-2 text-xs font-bold text-backgroundDark">Create member</button></div>
             </form>
           </div>
         </div>

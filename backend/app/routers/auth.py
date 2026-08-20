@@ -16,6 +16,7 @@ from backend.app.auth import (
     is_token_revoked,
     revoke_token,
     verify_password,
+    require_roles,
 )
 from backend.app.schemas import AuthLogin, AuthRegister, TokenOut, UserOut, RefreshTokenRequest
 from backend.database.connection import get_db
@@ -50,15 +51,31 @@ def get_current_user(
     return user
 
 
+def get_optional_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    db: Session = Depends(get_db),
+) -> User | None:
+    if credentials is None:
+        return None
+    try:
+        return get_current_user(credentials, db)
+    except HTTPException:
+        return None
+
+
 @router.post("/register", response_model=TokenOut, status_code=status.HTTP_201_CREATED)
-async def register(payload: AuthRegister, db: Session = Depends(get_db)) -> TokenOut:
+async def register(payload: AuthRegister, db: Session = Depends(get_db), current_user: User | None = Depends(get_optional_current_user)) -> TokenOut:
     organization_repository = OrganizationRepository(db)
     organization = organization_repository.get_by_id(str(payload.organization_id))
     if not organization:
         raise HTTPException(status_code=404, detail="Organization not found")
 
     existing_user_count = db.query(User).filter(User.organization_id == payload.organization_id).count()
-    role_name = "ADMIN" if existing_user_count == 0 else "VIEWER"
+    if existing_user_count > 0:
+        if current_user is None or current_user.organization_id != payload.organization_id:
+            raise HTTPException(status_code=403, detail="Administrator authorization required")
+        require_roles(get_user_roles(db, current_user), ("ADMIN",))
+    role_name = payload.role if existing_user_count > 0 else "ADMIN"
 
     user = User(
         organization_id=payload.organization_id,

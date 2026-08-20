@@ -3,10 +3,13 @@ from sqlalchemy.orm import Session
 
 from backend.app.routers.auth import get_current_user
 from backend.app.auth import get_user_roles, require_roles
-from backend.app.schemas import OrganizationCreate, OrganizationOut, OrganizationMemberAdd, UserOut, UserRoleUpdate
+from backend.app.schemas import OrganizationCreate, OrganizationOut, OrganizationMemberAdd, OrganizationRosterMemberOut, UserOut, UserRoleUpdate
 from backend.database.connection import get_db
 from backend.models.organization import Organization
 from backend.models.user import User
+from backend.models.rbac import Role, UserRole
+from backend.models.station import Station
+from backend.models.station_member import StationMember
 from backend.repositories.organization_repository import OrganizationRepository
 
 router = APIRouter(prefix="/organizations", tags=["organizations"], dependencies=[Depends(get_current_user)])
@@ -58,6 +61,19 @@ async def list_members(organization_id: str, db: Session = Depends(get_db), curr
         .all()
     )
     return [UserOut.model_validate(member) for member in members]
+
+
+@router.get("/{organization_id}/roster", response_model=list[OrganizationRosterMemberOut])
+async def organization_roster(organization_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[OrganizationRosterMemberOut]:
+    if str(current_user.organization_id) != organization_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
+    members = db.query(User).filter(User.organization_id == organization_id, User.status == "ACTIVE", User.deleted_at.is_(None)).order_by(User.display_name).all()
+    result: list[OrganizationRosterMemberOut] = []
+    for member in members:
+        role = db.query(Role.name).join(UserRole, UserRole.role_id == Role.id).filter(UserRole.user_id == member.id, Role.organization_id == member.organization_id, Role.name.in_(("ADMIN", "EDITOR", "REVIEWER", "VIEWER"))).order_by(Role.name).first()
+        station_names = [name for (name,) in db.query(Station.name).join(StationMember, StationMember.station_id == Station.id).filter(StationMember.user_id == member.id, Station.organization_id == organization_id, Station.deleted_at.is_(None)).order_by(Station.name).all()]
+        result.append(OrganizationRosterMemberOut(user=UserOut.model_validate(member), role=role[0] if role else "VIEWER", station_names=station_names))
+    return result
 
 
 @router.post("/{organization_id}/members", status_code=status.HTTP_201_CREATED)

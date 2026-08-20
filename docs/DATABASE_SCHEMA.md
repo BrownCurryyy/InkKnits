@@ -295,6 +295,7 @@ Represents a functional production destination inside a project.
 - `GENERATION`
 - `VIEWING`
 - `IMAGE`
+- `APPROVAL`
 
 The `20260820_station_type` migration backfills existing stations once using name matching: Writing -> `WRITING`, Generation -> `GENERATION`, Image/Visual -> `IMAGE`, and all other stations -> `VIEWING`.
 

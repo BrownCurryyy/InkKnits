@@ -48,10 +48,8 @@ export function AssetWorkspace() {
   const [isApprovalModalOpen, setApprovalModalOpen] = useState(false);
 
   const [editDraft, setEditDraft] = useState({
-    name: '',
     title: '',
-    content: '',
-    asset_type: 'TEXT' as 'TEXT' | 'IMAGE' | 'GENERIC',
+    description: '',
   });
   const [editMetadataDraft, setEditMetadataDraft] = useState('{}');
 
@@ -63,7 +61,7 @@ export function AssetWorkspace() {
   const [isSubmittingApproval, setIsSubmittingApproval] = useState(false);
 
   const canWrite = roles.some((role) => ['ADMIN', 'EDITOR'].includes(role.toUpperCase()));
-  const canRequestApproval = roles.some((role) => ['ADMIN', 'MANAGER'].includes(role.toUpperCase()));
+  const canRequestApproval = roles.includes('ADMIN');
 
   useEffect(() => {
     if (!toast) return;
@@ -78,10 +76,8 @@ export function AssetWorkspace() {
       const data = await apiFetch<AssetRecord>(`/assets/${id}`);
       setAsset(data);
       setEditDraft({
-        name: data.name,
         title: data.title ?? data.name,
-        content: data.content ?? '',
-        asset_type: (data.asset_type || 'TEXT').toUpperCase() as 'TEXT' | 'IMAGE' | 'GENERIC',
+        description: data.description ?? '',
       });
       setEditMetadataDraft(JSON.stringify(data.raw_metadata ?? {}, null, 2));
     } catch (err) {
@@ -160,28 +156,10 @@ export function AssetWorkspace() {
     if (!assetId || !asset) return;
 
     try {
-      await apiFetch(`/assets/${assetId}`, {
-        method: 'PUT',
-        body: {
-          name: editDraft.name,
-          title: editDraft.title || editDraft.name,
-          content: editDraft.content,
-          asset_type: editDraft.asset_type,
-        },
+      await apiFetch(`/assets/${assetId}/properties`, {
+        method: 'PATCH',
+        body: { title: editDraft.title, description: editDraft.description },
       });
-
-      if (editMetadataDraft.trim()) {
-        try {
-          const parsedMetadata = JSON.parse(editMetadataDraft) as Record<string, unknown>;
-          await apiFetch(`/assets/${assetId}/metadata`, {
-            method: 'PATCH',
-            body: { raw_metadata: parsedMetadata },
-          });
-        } catch {
-          showToast('Content updated, but metadata JSON was invalid.');
-          return;
-        }
-      }
 
       setEditModalOpen(false);
       await loadAssetDetail(assetId);
@@ -335,35 +313,6 @@ export function AssetWorkspace() {
                 void submitAssetEdit();
               }}
             >
-              <div className="grid gap-4 md:grid-cols-2">
-                <label className="block text-xs font-bold">
-                  <span className="mb-1.5 block">Name</span>
-                  <input
-                    value={editDraft.name}
-                    onChange={(e) => setEditDraft((c) => ({ ...c, name: e.target.value }))}
-                    className="w-full rounded-2xl border border-black/10 bg-white px-3.5 py-2.5 text-sm outline-none dark:border-white/10 dark:bg-[#4f3d3d]"
-                    required
-                  />
-                </label>
-                <label className="block text-xs font-bold">
-                  <span className="mb-1.5 block">Asset Type</span>
-                  <select
-                    value={editDraft.asset_type}
-                    onChange={(e) =>
-                      setEditDraft((c) => ({
-                        ...c,
-                        asset_type: e.target.value as 'TEXT' | 'IMAGE' | 'GENERIC',
-                      }))
-                    }
-                    className="w-full rounded-2xl border border-black/10 bg-white px-3.5 py-2.5 text-sm outline-none dark:border-white/10 dark:bg-[#4f3d3d]"
-                  >
-                    <option value="TEXT">TEXT</option>
-                    <option value="IMAGE">IMAGE</option>
-                    <option value="GENERIC">GENERIC</option>
-                  </select>
-                </label>
-              </div>
-
               <label className="block text-xs font-bold">
                 <span className="mb-1.5 block">Title</span>
                 <input
@@ -372,27 +321,7 @@ export function AssetWorkspace() {
                   className="w-full rounded-2xl border border-black/10 bg-white px-3.5 py-2.5 text-sm outline-none dark:border-white/10 dark:bg-[#4f3d3d]"
                 />
               </label>
-
-              <label className="block text-xs font-bold">
-                <span className="mb-1.5 block">Content</span>
-                <textarea
-                  value={editDraft.content}
-                  onChange={(e) => setEditDraft((c) => ({ ...c, content: e.target.value }))}
-                  rows={6}
-                  className="w-full rounded-2xl border border-black/10 bg-white px-3.5 py-2.5 text-sm outline-none dark:border-white/10 dark:bg-[#4f3d3d]"
-                />
-              </label>
-
-              <label className="block text-xs font-bold">
-                <span className="mb-1.5 block">Metadata JSON (optional)</span>
-                <textarea
-                  value={editMetadataDraft}
-                  onChange={(e) => setEditMetadataDraft(e.target.value)}
-                  rows={4}
-                  className="w-full rounded-2xl border border-black/10 bg-white px-3.5 py-2.5 font-mono text-xs outline-none dark:border-white/10 dark:bg-[#4f3d3d]"
-                  placeholder='{"status":"READY"}'
-                />
-              </label>
+              <label className="block text-xs font-bold"><span className="mb-1.5 block">Description</span><textarea value={editDraft.description} onChange={(e) => setEditDraft((c) => ({ ...c, description: e.target.value }))} rows={4} className="w-full rounded-2xl border border-black/10 bg-white px-3.5 py-2.5 text-sm outline-none dark:border-white/10 dark:bg-[#4f3d3d]" /></label>
 
               <div className="flex justify-end gap-3 pt-2">
                 <button

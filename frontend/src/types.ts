@@ -11,6 +11,12 @@ export type UserRecord = {
   status: string;
 };
 
+export type OrganizationRosterMemberRecord = {
+  user: UserRecord;
+  role: 'ADMIN' | 'EDITOR' | 'REVIEWER' | 'VIEWER';
+  station_names: string[];
+};
+
 export type JwtPayload = {
   sub?: string;
   email?: string;
@@ -40,7 +46,7 @@ export type StationRecord = {
   id: string;
   project_id: string;
   name: string;
-  station_type: 'WRITING' | 'GENERATION' | 'VIEWING' | 'IMAGE';
+  station_type: 'WRITING' | 'GENERATION' | 'VIEWING' | 'IMAGE' | 'APPROVAL';
   description?: string | null;
 };
 
@@ -60,6 +66,7 @@ export type AssetRecord = {
   owner_id?: string | null;
   name: string;
   title?: string | null;
+  description?: string | null;
   content?: string | null;
   asset_type: string;
   storage_path?: string | null;

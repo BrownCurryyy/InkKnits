@@ -54,7 +54,7 @@ export function ApprovalsQueue() {
   const [error, setError] = useState('');
   const [toast, setToast] = useState<string | null>(null);
   const [commentDraft, setCommentDraft] = useState('');
-  const canReview = roles.some((role) => ['ADMIN', 'EDITOR', 'REVIEWER'].includes(role.toUpperCase()));
+  const canReview = roles.some((role) => ['ADMIN', 'REVIEWER'].includes(role.toUpperCase()));
 
   useEffect(() => {
     if (!toast) return;

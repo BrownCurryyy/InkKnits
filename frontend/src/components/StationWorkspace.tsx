@@ -5,7 +5,7 @@ import StarterKit from '@tiptap/starter-kit';
 
 import { apiFetch } from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import type { AssetLineageRecord, AssetRecord, AIJobStatusRecord, ProjectRecord, StationRecord } from '../types';
+import type { ActivityRecord, ApprovalTaskRecord, AssetLineageRecord, AssetRecord, AIJobStatusRecord, ProjectRecord, StationRecord } from '../types';
 
 interface StationWorkspaceProps {
   station: StationRecord;
@@ -15,14 +15,15 @@ interface StationWorkspaceProps {
   onSelectAsset: (id: string) => void;
   onRefresh: () => Promise<void>;
   onShowToast: (message: string) => void;
+  onDeleteAsset: (id: string) => void;
 }
 
-type WorkspaceMode = 'WRITING' | 'GENERATION' | 'IMAGE';
+type WorkspaceMode = StationRecord['station_type'];
 type TextJobType = 'REWRITE' | 'EXPAND' | 'SUMMARIZE' | 'IMPROVE_TONE' | 'CHANGE_AUDIENCE' | 'TEXT';
 const ATOMIZE_FORMATS = ['Blog Post', 'LinkedIn Post', 'Instagram Caption', 'Press Release', 'Email Campaign', 'YouTube Script', 'Article'];
 
 function getWorkspaceMode(station: StationRecord): WorkspaceMode {
-  return station.station_type === 'IMAGE' ? 'IMAGE' : station.station_type === 'GENERATION' ? 'GENERATION' : 'WRITING';
+  return station.station_type;
 }
 
 function WorkspaceHeader({ station, mode }: { station: StationRecord; mode: WorkspaceMode }) {
@@ -30,6 +31,8 @@ function WorkspaceHeader({ station, mode }: { station: StationRecord; mode: Work
     WRITING: 'Writing Station',
     GENERATION: 'Generation Station',
     IMAGE: 'Image Station',
+    VIEWING: 'Viewing Station',
+    APPROVAL: 'Approval Station',
   };
   return (
     <div className="border-b border-black/10 pb-6 dark:border-white/10">
@@ -179,7 +182,7 @@ function AiActions({
   );
 }
 
-function WritingWorkspace({ station, assets, canWrite, onSelectAsset, onRefresh, onShowToast }: Omit<StationWorkspaceProps, 'allStations'>) {
+function WritingWorkspace({ station, assets, canWrite, onSelectAsset, onRefresh, onShowToast, onDeleteAsset }: Omit<StationWorkspaceProps, 'allStations'>) {
   const [selectedId, setSelectedId] = useState(assets.find((asset) => asset.asset_type !== 'IMAGE')?.id ?? assets[0]?.id ?? '');
   const asset = assets.find((item) => item.id === selectedId) ?? null;
   const [saveState, setSaveState] = useState<'Saved' | 'Saving' | 'Unsaved'>('Saved');
@@ -259,7 +262,7 @@ function WritingWorkspace({ station, assets, canWrite, onSelectAsset, onRefresh,
       <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
         <div className="border-r border-black/10 p-1 pr-4 dark:border-white/10">
           <p className="mb-3 text-xs font-bold uppercase tracking-wider text-text/60 dark:text-textDark/60">Documents</p>
-          {assets.filter((item) => item.asset_type !== 'IMAGE').map((item) => <button key={item.id} type="button" onClick={() => setSelectedId(item.id)} className={`mb-2 w-full rounded-xl p-3 text-left text-xs font-semibold ${item.id === selectedId ? 'bg-accent text-backgroundDark' : 'bg-background/70 dark:bg-[#4f3d3d]'}`}>{item.title || item.name}</button>)}
+          {assets.filter((item) => item.asset_type !== 'IMAGE').map((item) => <div key={item.id} className="mb-2 flex items-center gap-1"><button type="button" onClick={() => setSelectedId(item.id)} className={`min-w-0 flex-1 rounded-xl p-3 text-left text-xs font-semibold ${item.id === selectedId ? 'bg-accent text-backgroundDark' : 'bg-background/70 dark:bg-[#4f3d3d]'}`}>{item.title || item.name}</button>{canWrite ? <button type="button" onClick={() => onDeleteAsset(item.id)} className="rounded-lg bg-statusError/15 px-2 py-2 text-[10px] font-bold text-statusError" aria-label={`Delete ${item.title || item.name}`}>Delete</button> : null}</div>)}
         </div>
         <div className="min-w-0 rounded-2xl border border-black/10 bg-white/75 p-6 shadow-cozy dark:border-white/10 dark:bg-[#3a2d2d]/80">
           {asset && editor ? <>
@@ -300,6 +303,39 @@ function ViewingWorkspace({ assets, onSelectAsset }: { assets: AssetRecord[]; on
   return <div className="space-y-4"><div className="grid gap-4 lg:grid-cols-[280px_1fr]"> <div className="rounded-3xl border border-black/5 bg-white/70 p-4 dark:border-white/10 dark:bg-[#3a2d2d]/90"><p className="mb-3 text-xs font-bold uppercase tracking-wider">Assets</p>{assets.map((asset) => <button key={asset.id} type="button" onClick={() => setSelectedId(asset.id)} className={`mb-2 w-full rounded-xl p-3 text-left text-xs font-semibold ${asset.id === selectedId ? 'bg-accent text-backgroundDark' : 'bg-background/70 dark:bg-[#4f3d3d]'}`}>{asset.title || asset.name}</button>)}</div><div className="rounded-3xl border border-black/5 bg-white/80 p-6 dark:border-white/10 dark:bg-[#3a2d2d]/90"><p className="text-xs font-bold uppercase tracking-wider text-accent">Asset workspace</p><h3 className="mt-2 text-xl font-bold">{selected?.title || selected?.name || 'Select an asset'}</h3><p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-text/80 dark:text-textDark/80">{selected?.content || 'Select an asset to inspect its detail, versions, activity, and approval context.'}</p>{selected ? <button type="button" onClick={() => onSelectAsset(selected.id)} className="mt-5 rounded-xl bg-accent px-4 py-2 text-xs font-bold text-backgroundDark">Open Asset Detail</button> : null}</div></div></div>;
 }
 
+function ApprovalWorkspace({ assets, onShowToast, onSelectAsset }: { assets: AssetRecord[]; onShowToast: (message: string) => void; onSelectAsset: (id: string) => void }) {
+  const [tasks, setTasks] = useState<ApprovalTaskRecord[]>([]);
+  const [comments, setComments] = useState<Record<string, string>>({});
+
+  const loadTasks = async () => {
+    try {
+      const allTasks = await apiFetch<ApprovalTaskRecord[]>('/approvals/tasks');
+      const assetIds = new Set(assets.map((asset) => asset.id));
+      setTasks(allTasks.filter((task) => assetIds.has(task.asset_id)));
+      setComments(Object.fromEntries(allTasks.filter((task) => assetIds.has(task.asset_id)).map((task) => [task.id, task.comments ?? ''])));
+    } catch {
+      onShowToast('Unable to load approval tasks.');
+    }
+  };
+
+  useEffect(() => { void loadTasks(); }, [assets]);
+
+  const action = async (taskId: string, operation: 'approve' | 'reject' | 'comment') => {
+    try {
+      await apiFetch(`/approvals/tasks/${taskId}/${operation}`, {
+        method: operation === 'comment' ? 'POST' : 'POST',
+        body: operation === 'comment' ? { comments: comments[taskId] ?? '' } : undefined,
+      });
+      await loadTasks();
+      onShowToast(operation === 'comment' ? 'Comment saved.' : `Asset ${operation}d.`);
+    } catch (error) {
+      onShowToast(error instanceof Error ? error.message : `Unable to ${operation} asset.`);
+    }
+  };
+
+  return <div className="space-y-4">{assets.map((asset) => { const task = tasks.find((item) => item.asset_id === asset.id); return <section key={asset.id} className="rounded-2xl border border-black/10 bg-white/70 p-5 dark:border-white/10 dark:bg-[#3a2d2d]/80"><button type="button" onClick={() => onSelectAsset(asset.id)} className="text-left"><p className="text-xs font-bold uppercase tracking-wider text-accent">{asset.asset_type}</p><h3 className="mt-1 text-lg font-bold">{asset.title || asset.name}</h3><p className="mt-2 line-clamp-3 text-sm text-text/65 dark:text-textDark/65">{asset.content || 'No preview available.'}</p></button>{task ? <div className="mt-4 border-t border-black/10 pt-4 dark:border-white/10"><p className="text-xs font-bold uppercase tracking-wider text-text/55">Review comment</p><textarea value={comments[task.id] ?? ''} onChange={(event) => setComments((current) => ({ ...current, [task.id]: event.target.value }))} className="mt-2 min-h-20 w-full rounded-xl border border-black/10 bg-white/70 p-3 text-sm dark:border-white/10 dark:bg-[#4f3d3d]" placeholder="Add review notes" /><div className="mt-2 flex flex-wrap gap-2"><button type="button" onClick={() => void action(task.id, 'comment')} className="rounded-xl bg-background px-3 py-2 text-xs font-bold dark:bg-[#4f3d3d]">Save comment</button><button type="button" onClick={() => void action(task.id, 'approve')} disabled={task.status !== 'PENDING'} className="rounded-xl bg-statusSuccess/25 px-3 py-2 text-xs font-bold text-statusSuccess disabled:opacity-50">Approve</button><button type="button" onClick={() => void action(task.id, 'reject')} disabled={task.status !== 'PENDING'} className="rounded-xl bg-statusError/15 px-3 py-2 text-xs font-bold text-statusError disabled:opacity-50">Reject</button><span className="rounded-xl bg-background px-3 py-2 text-xs font-bold dark:bg-[#4f3d3d]">{task.status}</span></div></div> : <p className="mt-4 text-xs text-text/55">No approval task assigned for this asset.</p>}</section>; })}</div>;
+}
+
 function GenerationWorkspace({ station, allStations, canWrite, onShowToast }: { station: StationRecord; allStations: StationRecord[]; canWrite: boolean; onShowToast: (message: string) => void }) {
   const { user } = useAuth();
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
@@ -335,7 +371,13 @@ function ImageWorkspace({ assets, onSelectAsset }: { assets: AssetRecord[]; onSe
   return <div className="space-y-4"><div className="rounded-3xl border border-black/5 bg-white/70 p-5 dark:border-white/10 dark:bg-[#3a2d2d]/90"><p className="text-xs font-bold uppercase tracking-wider text-accent">Image library</p><p className="mt-2 text-sm text-text/70 dark:text-textDark/70">Browse image assets in project context. Creation belongs in the Generation Station.</p></div><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{assets.filter((asset) => asset.asset_type === 'IMAGE').map((asset) => <button key={asset.id} type="button" onClick={() => onSelectAsset(asset.id)} className="rounded-3xl border border-black/5 bg-white/80 p-5 text-left shadow-sm dark:border-white/10 dark:bg-[#3a2d2d]/90"><span className="text-xs font-bold uppercase text-accent">IMAGE</span><h3 className="mt-2 font-bold">{asset.title || asset.name}</h3><p className="mt-2 text-xs text-text/60">Open for versions, activity, and project context.</p></button>)}</div></div>;
 }
 
-export function StationWorkspace({ station, assets, allStations, canWrite, onSelectAsset, onRefresh, onShowToast }: StationWorkspaceProps) {
+export function StationWorkspace({ station, assets, allStations, canWrite, onSelectAsset, onRefresh, onShowToast, onDeleteAsset }: StationWorkspaceProps) {
   const mode = getWorkspaceMode(station);
-  return <div className="space-y-6"><WorkspaceHeader station={station} mode={mode} />{mode === 'WRITING' ? <WritingWorkspace station={station} assets={assets} canWrite={canWrite} onSelectAsset={onSelectAsset} onRefresh={onRefresh} onShowToast={onShowToast} /> : null}{station.station_type === 'VIEWING' ? <ViewingWorkspace assets={assets} onSelectAsset={onSelectAsset} /> : null}{mode === 'GENERATION' ? <GenerationWorkspace station={station} allStations={allStations} canWrite={canWrite} onShowToast={onShowToast} /> : null}{mode === 'IMAGE' ? <ImageWorkspace assets={assets} onSelectAsset={onSelectAsset} /> : null}</div>;
+  switch (mode) {
+    case 'WRITING': return <div className="space-y-6"><WorkspaceHeader station={station} mode={mode} /><WritingWorkspace station={station} assets={assets} canWrite={canWrite} onSelectAsset={onSelectAsset} onRefresh={onRefresh} onShowToast={onShowToast} onDeleteAsset={onDeleteAsset} /></div>;
+    case 'GENERATION': return <div className="space-y-6"><WorkspaceHeader station={station} mode={mode} /><GenerationWorkspace station={station} allStations={allStations} canWrite={canWrite} onShowToast={onShowToast} /></div>;
+    case 'IMAGE': return <div className="space-y-6"><WorkspaceHeader station={station} mode={mode} /><ImageWorkspace assets={assets} onSelectAsset={onSelectAsset} /></div>;
+    case 'VIEWING': return <div className="space-y-6"><WorkspaceHeader station={station} mode={mode} /><ViewingWorkspace assets={assets} onSelectAsset={onSelectAsset} /></div>;
+    case 'APPROVAL': return <div className="space-y-6"><WorkspaceHeader station={station} mode={mode} /><ApprovalWorkspace assets={assets} onShowToast={onShowToast} onSelectAsset={onSelectAsset} /></div>;
+  }
 }

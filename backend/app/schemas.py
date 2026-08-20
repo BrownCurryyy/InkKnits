@@ -59,6 +59,7 @@ class AssetOut(BaseModel):
     owner_id: UUID | None = None
     name: str
     title: str | None = None
+    description: str | None = None
     content: str | None = None
     asset_type: str
     storage_path: str | None = None
@@ -187,6 +188,7 @@ class AuthRegister(BaseModel):
     password: str = Field(..., min_length=8)
     display_name: str = Field(..., min_length=1, max_length=100)
     organization_id: UUID
+    role: Literal["ADMIN", "EDITOR", "REVIEWER", "VIEWER"] = "VIEWER"
 
 
 class AuthLogin(BaseModel):
@@ -211,6 +213,12 @@ class UserOut(BaseModel):
     email: EmailStr
     display_name: str
     status: str
+
+
+class OrganizationRosterMemberOut(BaseModel):
+    user: UserOut
+    role: Literal["ADMIN", "EDITOR", "REVIEWER", "VIEWER"]
+    station_names: list[str] = Field(default_factory=list)
 
 
 class RoleCreate(BaseModel):
@@ -295,7 +303,7 @@ class ApprovalTaskOut(BaseModel):
 class StationCreate(BaseModel):
     project_id: UUID
     name: str = Field(..., min_length=1, max_length=255)
-    station_type: Literal["WRITING", "GENERATION", "VIEWING", "IMAGE"]
+    station_type: Literal["WRITING", "GENERATION", "VIEWING", "IMAGE", "APPROVAL"]
     description: str | None = None
 
 
@@ -305,7 +313,7 @@ class StationOut(BaseModel):
     id: UUID
     project_id: UUID
     name: str
-    station_type: Literal["WRITING", "GENERATION", "VIEWING", "IMAGE"]
+    station_type: Literal["WRITING", "GENERATION", "VIEWING", "IMAGE", "APPROVAL"]
     description: str | None = None
 
 
@@ -333,6 +341,11 @@ class AssetUpdate(BaseModel):
     title: str | None = None
     content: str | None = None
     asset_type: str | None = None
+
+
+class AssetPropertiesUpdate(BaseModel):
+    title: str | None = None
+    description: str | None = None
 
 
 class AssetMetadataUpdate(BaseModel):

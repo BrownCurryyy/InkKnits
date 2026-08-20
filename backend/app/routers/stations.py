@@ -15,7 +15,7 @@ router = APIRouter(prefix="/stations", tags=["stations"], dependencies=[Depends(
 
 @router.post("", response_model=StationOut, status_code=status.HTTP_201_CREATED)
 async def create_station(payload: StationCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)) -> StationOut:
-    require_roles(get_user_roles(db, current_user), ("ADMIN", "MANAGER"))
+    require_roles(get_user_roles(db, current_user), ("ADMIN",))
     from backend.models.project import Project
 
     project = db.get(Project, payload.project_id)
@@ -56,7 +56,7 @@ async def get_station(station_id: str, db: Session = Depends(get_db), current_us
 
 @router.post("/{station_id}/members", status_code=status.HTTP_201_CREATED)
 async def assign_member(station_id: str, payload: OrganizationMemberAdd, db: Session = Depends(get_db), current_user=Depends(get_current_user)) -> dict:
-    require_roles(get_user_roles(db, current_user), ("ADMIN", "MANAGER"))
+    require_roles(get_user_roles(db, current_user), ("ADMIN",))
     station = db.get(Station, station_id)
     if not station or station.organization_id != current_user.organization_id:
         raise HTTPException(status_code=404, detail="Station not found")

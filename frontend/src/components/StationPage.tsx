@@ -69,6 +69,17 @@ export function StationPage() {
     }
   };
 
+  const deleteAsset = async (assetId: string) => {
+    if (!window.confirm('Delete this asset? It will be archived.')) return;
+    try {
+      await apiFetch(`/assets/${assetId}`, { method: 'DELETE' });
+      await loadData();
+      setToast('Asset deleted.');
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : 'Unable to delete asset.');
+    }
+  };
+
   useEffect(() => {
     void loadData();
   }, [stationId]);
@@ -104,8 +115,9 @@ export function StationPage() {
         onSelectAsset={(id) => navigate(`/assets/${id}`)}
         onRefresh={loadData}
         onShowToast={setToast}
+        onDeleteAsset={(id) => void deleteAsset(id)}
       />
-      {roles.some((role) => ['ADMIN', 'MANAGER'].includes(role.toUpperCase())) ? (
+      {roles.includes('ADMIN') ? (
         <div className="mt-5 flex justify-end">
           <button type="button" onClick={() => void openMemberPanel()} className="rounded-xl bg-accent px-4 py-2 text-xs font-bold text-backgroundDark">
             Add member

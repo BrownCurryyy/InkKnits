@@ -96,7 +96,7 @@ def _bundle_response(db: Session, bundle: VersionBundle) -> VersionBundleOut:
 
 @router.post("", response_model=ProjectOut, status_code=status.HTTP_201_CREATED)
 async def create_project(payload: ProjectCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)) -> ProjectOut:
-    require_roles(get_user_roles(db, current_user), ("ADMIN", "MANAGER"))
+    require_roles(get_user_roles(db, current_user), ("ADMIN",))
     if payload.organization_id != current_user.organization_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Organization access denied")
     repository = ProjectRepository(db)
@@ -156,7 +156,7 @@ async def create_version_bundle(
     current_user=Depends(get_current_user),
 ) -> VersionBundleOut:
     """Compatibility endpoint: synchronize and return the project's one bundle."""
-    require_roles(get_user_roles(db, current_user), ("MANAGER", "EDITOR", "ADMIN"))
+    require_roles(get_user_roles(db, current_user), ("ADMIN", "EDITOR"))
     try:
         project_uuid = UUID(project_id)
     except ValueError as exc:
@@ -328,7 +328,7 @@ async def get_project_production_state(
 
 @router.put("/{project_id}", response_model=ProjectOut)
 async def update_project(project_id: str, payload: ProjectUpdate, db: Session = Depends(get_db), current_user=Depends(get_current_user)) -> ProjectOut:
-    require_roles(get_user_roles(db, current_user), ("ADMIN", "MANAGER"))
+    require_roles(get_user_roles(db, current_user), ("ADMIN",))
     repository = ProjectRepository(db)
     project = repository.get_by_id(project_id)
     if not project or project.organization_id != current_user.organization_id or not can_access_project(db, current_user, project.id):
@@ -350,7 +350,7 @@ async def update_project(project_id: str, payload: ProjectUpdate, db: Session = 
 
 @router.patch("/{project_id}/archive", response_model=ProjectOut)
 async def archive_project(project_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)) -> ProjectOut:
-    require_roles(get_user_roles(db, current_user), ("ADMIN", "MANAGER"))
+    require_roles(get_user_roles(db, current_user), ("ADMIN",))
     repository = ProjectRepository(db)
     project = repository.get_by_id(project_id)
     if not project or project.organization_id != current_user.organization_id or not can_access_project(db, current_user, project.id):
@@ -364,7 +364,7 @@ async def archive_project(project_id: str, db: Session = Depends(get_db), curren
 
 @router.delete("/{project_id}", status_code=status.HTTP_200_OK)
 async def delete_project(project_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)) -> dict:
-    require_roles(get_user_roles(db, current_user), ("ADMIN", "MANAGER"))
+    require_roles(get_user_roles(db, current_user), ("ADMIN",))
     repository = ProjectRepository(db)
     project = repository.get_by_id(project_id)
     if not project or project.organization_id != current_user.organization_id or not can_access_project(db, current_user, project.id):

@@ -49,9 +49,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [user]);
 
   const normalizedRoles = roles.map((role) => role.toUpperCase());
-  const canManageOrganization = normalizedRoles.some((role) => ['ADMIN', 'MANAGER'].includes(role));
-  const canReview = normalizedRoles.some((role) => ['ADMIN', 'MANAGER', 'REVIEWER'].includes(role));
-  const rolePriority = ['ADMIN', 'MANAGER', 'EDITOR', 'REVIEWER', 'PUBLISHER', 'VIEWER'];
+  const canManageOrganization = normalizedRoles.includes('ADMIN');
+  const canReview = normalizedRoles.some((role) => ['ADMIN', 'REVIEWER'].includes(role));
+  const rolePriority = ['ADMIN', 'EDITOR', 'REVIEWER', 'VIEWER'];
   const highestRole = rolePriority.find((role) => normalizedRoles.includes(role)) ?? 'VIEWER';
   const projectGroups = useMemo(
     () => projects.map((project) => ({

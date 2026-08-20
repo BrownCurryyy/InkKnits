@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.routers.auth import get_current_user
 from backend.app.auth import can_access_asset, can_access_station, get_user_roles, require_roles
-from backend.app.schemas import AssetCreate, AssetLineageOut, AssetLinkCreate, AssetLinkOut, AssetOut, AssetUpdate, AssetMetadataUpdate
+from backend.app.schemas import AssetCreate, AssetLineageOut, AssetLinkCreate, AssetLinkOut, AssetOut, AssetUpdate, AssetMetadataUpdate, AssetPropertiesUpdate
 from backend.database.connection import get_db
 from backend.models.asset import Asset
 from backend.models.user import User
@@ -283,6 +283,28 @@ async def update_asset(
     db.refresh(asset)
     VersionService.create_snapshot(db, asset, user_id=current_user.id)
     ActivityService.log(db, "ASSET_UPDATED", f"Asset '{asset.name}' updated", organization_id=asset.organization_id, asset_id=asset.id, user_id=current_user.id)
+    return AssetOut.model_validate(asset)
+
+
+@router.patch("/{asset_id}/properties", response_model=AssetOut)
+async def update_asset_properties(
+    asset_id: str,
+    payload: AssetPropertiesUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> AssetOut:
+    """Update only the human-facing title and description fields."""
+    require_roles(get_user_roles(db, current_user), ("EDITOR", "ADMIN"))
+    asset = AssetRepository(db).get_by_id(asset_id)
+    if not can_access_asset(db, current_user, asset):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
+    if payload.title is not None:
+        asset.title = payload.title
+    if payload.description is not None:
+        asset.description = payload.description
+    asset.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(asset)
     return AssetOut.model_validate(asset)
 
 

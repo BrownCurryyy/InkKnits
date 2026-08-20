@@ -138,6 +138,16 @@ export function ProjectPage() {
     }
   };
 
+  const deleteProject = async () => {
+    if (!project || !window.confirm(`Delete ${project.title}?`)) return;
+    try {
+      await apiFetch(`/projects/${project.id}`, { method: 'DELETE' });
+      navigate('/projects');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to delete project');
+    }
+  };
+
   useEffect(() => {
     void loadAllProjects();
   }, []);
@@ -177,7 +187,7 @@ export function ProjectPage() {
           </div>
 
           {/* Project Selector */}
-          {projects.length > 1 ? (
+          <div className="flex items-center gap-2">{roles.includes('ADMIN') && project ? <button type="button" onClick={() => void deleteProject()} className="rounded-xl bg-statusError/15 px-3 py-2 text-xs font-bold text-statusError">Delete project</button> : null}{projects.length > 1 ? (
             <div className="flex items-center gap-2">
               <span className="text-xs text-text/60 dark:text-textDark/60">Switch Project:</span>
               <select
@@ -195,7 +205,7 @@ export function ProjectPage() {
                 ))}
               </select>
             </div>
-          ) : null}
+          ) : null}</div>
         </div>
 
         {project?.description ? (

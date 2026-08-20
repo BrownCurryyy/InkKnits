@@ -38,7 +38,7 @@ export default function App() {
       <Route
         path="/organization"
         element={
-          <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}>
+          <ProtectedRoute allowedRoles={['ADMIN']}>
             <AppShell>
               <OrganizationPage />
             </AppShell>

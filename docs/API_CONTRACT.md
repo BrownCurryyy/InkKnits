@@ -114,7 +114,7 @@ List stations.
 ### GET /stations/{station_id}
 Get a station.
 
-Station responses include `station_type`: `WRITING`, `GENERATION`, `VIEWING`, or `IMAGE`.
+Station responses include `station_type`: `WRITING`, `GENERATION`, `VIEWING`, `IMAGE`, or `APPROVAL`.
 Station creation requires `station_type`.
 
 ### POST /stations/{station_id}/members

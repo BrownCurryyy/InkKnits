@@ -105,14 +105,12 @@ def seed_demo_data(session: Session) -> dict[str, int]:
     )
 
     roles = {name: ensure_role(session, organization_id, name) for name in (
-        "ADMIN", "MANAGER", "EDITOR", "REVIEWER", "PUBLISHER", "VIEWER"
+        "ADMIN", "EDITOR", "REVIEWER", "VIEWER"
     )}
     users = {
         "admin": ensure_user(session, organization_id, "admin", "admin@example.com", "Demo Admin", roles["ADMIN"]),
-        "manager": ensure_user(session, organization_id, "manager", "manager@example.com", "Demo Manager", roles["MANAGER"]),
         "editor": ensure_user(session, organization_id, "editor", "editor@example.com", "Demo Editor", roles["EDITOR"]),
         "reviewer": ensure_user(session, organization_id, "reviewer", "reviewer@example.com", "Demo Reviewer", roles["REVIEWER"]),
-        "publisher": ensure_user(session, organization_id, "publisher", "publisher@example.com", "Demo Publisher", roles["PUBLISHER"]),
         "viewer": ensure_user(session, organization_id, "viewer", "viewer@example.com", "Demo Viewer", roles["VIEWER"]),
     }
 
@@ -154,16 +152,14 @@ def seed_demo_data(session: Session) -> dict[str, int]:
 
     assignments = {
         "admin": tuple(stations),
-        "manager": ("world-cup:Writing", "world-cup:Generation", "product-launch:Writing"),
         "editor": ("world-cup:Writing", "product-launch:Writing", "editorial:Writing"),
         "reviewer": ("world-cup:Writing",),
-        "publisher": ("world-cup:Writing",),
         "viewer": ("world-cup:Writing",),
     }
     for user_key, station_keys in assignments.items():
         for station_key in station_keys:
             ensure_station_member(session, stations[station_key].id, users[user_key].id)
-    for user_key in ("manager", "editor", "reviewer", "publisher", "viewer"):
+    for user_key in ("editor", "reviewer", "viewer"):
         for project_key in project_specs:
             project = session.get(Project, stable_id("project", project_key))
             if not session.get(ProjectMember, {"project_id": project.id, "user_id": users[user_key].id}):
@@ -171,11 +167,11 @@ def seed_demo_data(session: Session) -> dict[str, int]:
 
     asset_specs = (
         ("world-cup-master", "world-cup:Writing", "World Cup Master Article", "TEXT", "The campaign master article for the demo organization.", "editor"),
-        ("world-cup-generation", "world-cup:Generation", "World Cup Generation Brief", "GENERIC", "Prompt and production brief for generated campaign material.", "manager"),
-        ("world-cup-image", "world-cup:Image", "World Cup Hero Image", "IMAGE", None, "manager"),
+        ("world-cup-generation", "world-cup:Generation", "World Cup Generation Brief", "GENERIC", "Prompt and production brief for generated campaign material.", "admin"),
+        ("world-cup-image", "world-cup:Image", "World Cup Hero Image", "IMAGE", None, "admin"),
         ("world-cup-approval", "world-cup:Writing", "World Cup Approval Copy", "TEXT", "Copy ready for reviewer approval.", "editor"),
         ("product-launch-article", "product-launch:Writing", "Product Launch Article", "TEXT", "Launch article draft for the product campaign.", "editor"),
-        ("product-launch-image", "product-launch:Image", "Product Launch Visual", "IMAGE", None, "manager"),
+        ("product-launch-image", "product-launch:Image", "Product Launch Visual", "IMAGE", None, "admin"),
         ("editorial-feature", "editorial:Writing", "Editorial Feature", "TEXT", "Feature story draft for the editorial campaign.", "editor"),
     )
     assets: dict[str, Asset] = {}
@@ -199,8 +195,8 @@ def seed_demo_data(session: Session) -> dict[str, int]:
             VersionService.create_snapshot(session, asset, user_id=asset.owner_id)
 
     approval_specs = (
-        ("world-cup-review", "world-cup-approval", "PENDING", "reviewer", "manager"),
-        ("product-launch-review", "product-launch-article", "APPROVED", "reviewer", "manager"),
+        ("world-cup-review", "world-cup-approval", "PENDING", "reviewer", "admin"),
+        ("product-launch-review", "product-launch-article", "APPROVED", "reviewer", "admin"),
     )
     for task_key, asset_key, task_status, assignee_key, assigner_key in approval_specs:
         task = get_or_create(
@@ -240,8 +236,7 @@ def seed() -> dict[str, int]:
     print("Seeded InkKnits Demo Organization")
     print(f"Development-only password: {DEVELOPMENT_PASSWORD}")
     for email in (
-        "admin@example.com", "manager@example.com", "editor@example.com",
-        "reviewer@example.com", "publisher@example.com", "viewer@example.com",
+        "admin@example.com", "editor@example.com", "reviewer@example.com", "viewer@example.com",
     ):
         print(f" - {email}")
     print(f"Counts: {counts}")
