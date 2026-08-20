@@ -14,6 +14,7 @@ from backend.models.rbac import Role, UserRole
 from backend.models.project import Project
 from backend.models.station import Station
 from backend.models.station_member import StationMember
+from backend.models.project_member import ProjectMember
 from backend.models.token_revocation import TokenRevocation
 from backend.models.user import User
 
@@ -167,6 +168,11 @@ def can_access_project(db: Any, user: User, project_id: UUID) -> bool:
             Project.deleted_at.is_(None),
         ).first() is not None
 
+    if db.query(ProjectMember.project_id).filter(
+        ProjectMember.project_id == project_id,
+        ProjectMember.user_id == user.id,
+    ).first() is not None:
+        return True
     return db.query(StationMember.station_id).join(
         Station, Station.id == StationMember.station_id
     ).filter(

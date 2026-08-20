@@ -273,9 +273,10 @@ class Phase910Tests(unittest.TestCase):
 
             self.assertTrue(second.is_active)
             self.assertEqual(second.items[0].version_number, 2)
-            self.assertEqual(len(bundles), 2)
+            self.assertEqual(len(bundles), 1)
             self.assertEqual(session.query(VersionBundle).filter(VersionBundle.is_active.is_(True)).count(), 1)
-            self.assertEqual(session.query(VersionBundle).filter(VersionBundle.name == "Launch Draft v1").one().is_active, False)
+            self.assertEqual(session.query(VersionBundle).count(), 1)
+            self.assertEqual(session.query(VersionBundle).filter(VersionBundle.name == "Production State").one().is_active, True)
 
 
 if __name__ == "__main__":

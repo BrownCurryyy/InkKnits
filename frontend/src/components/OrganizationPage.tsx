@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { apiFetch } from '../api/client';
@@ -152,6 +152,13 @@ export function OrganizationPage() {
   };
 
   const currentOrg = organizations.find((o) => o.id === selectedOrgId) ?? null;
+  const stationsByProject = useMemo(
+    () => projects.map((project) => ({
+      project,
+      stations: stations.filter((station) => station.project_id === project.id),
+    })),
+    [projects, stations],
+  );
 
   if (loading) {
     return <CozySkeleton rows={5} />;
@@ -164,7 +171,7 @@ export function OrganizationPage() {
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/20 text-2xl font-bold text-accent">
-              🏢
+              ORG
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -217,7 +224,7 @@ export function OrganizationPage() {
 
       {error ? (
         <div className="rounded-2xl border border-statusError/60 bg-statusError/20 p-4 text-sm font-semibold text-text dark:text-textDark shadow-cozy">
-          ⚠️ {error}
+          {error}
         </div>
       ) : null}
 
@@ -261,7 +268,7 @@ export function OrganizationPage() {
               </p>
             </div>
             <div className="rounded-2xl bg-accent/15 px-3 py-1.5 text-xs font-bold text-accent">
-              ℹ️ Direct user invitation API is managed via Auth/RBAC backend contracts.
+              Direct user invitation is managed via the Auth/RBAC contract.
             </div>
           </div>
 
@@ -378,23 +385,23 @@ export function OrganizationPage() {
             ) : null}
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {stations.map((st) => (
-              <div
-                key={st.id}
-                onClick={() => navigate(`/stations/${st.id}`)}
-                className="group cursor-pointer rounded-2xl border border-black/5 bg-background/40 p-5 transition hover:-translate-y-1 hover:border-accent/40 hover:bg-background/80 dark:border-white/10 dark:bg-[#4f3d3d]/70"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-accent/20 text-lg font-bold text-accent">
-                    {st.name}
-                  </span>
-                  <div>
-                    <h4 className="font-bold text-text dark:text-textDark group-hover:text-accent">{st.name}</h4>
-                    <p className="text-xs text-text/60 dark:text-textDark/60">{st.description || 'Station'}</p>
-                  </div>
+          <div className="space-y-5">
+            {stationsByProject.map(({ project, stations: projectStations }) => (
+              <section key={project.id} className="rounded-2xl border border-black/10 bg-background/25 p-4 dark:border-white/10 dark:bg-[#4f3d3d]/30">
+                <div className="mb-3 flex items-center justify-between border-b border-black/10 pb-3 dark:border-white/10">
+                  <div><h4 className="font-bold">{project.title}</h4><p className="text-xs text-text/55 dark:text-textDark/55">{projectStations.length} production stations</p></div>
+                  <button type="button" onClick={() => navigate(`/projects/${project.id}`)} className="text-xs font-bold text-accent">Open project</button>
                 </div>
-              </div>
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {projectStations.map((station) => (
+                    <button key={station.id} type="button" onClick={() => navigate(`/stations/${station.id}`)} className="rounded-xl border border-black/10 bg-white/55 p-4 text-left transition hover:border-accent dark:border-white/10 dark:bg-[#423838]/55">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-accent">{station.station_type}</span>
+                      <h5 className="mt-1 font-bold">{station.name}</h5>
+                      <p className="mt-1 text-xs text-text/60 dark:text-textDark/60">{station.description || 'Production station'}</p>
+                    </button>
+                  ))}
+                </div>
+              </section>
             ))}
           </div>
         </div>

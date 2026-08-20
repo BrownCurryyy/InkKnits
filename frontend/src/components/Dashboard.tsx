@@ -357,7 +357,7 @@ export function Dashboard() {
                 >
                   <div className="flex items-center gap-3">
                     <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent/20 text-xs font-bold text-accent">
-                      {asset.asset_type === 'IMAGE' ? '🎨' : asset.asset_type === 'TEXT' ? '📝' : '📄'}
+                      {asset.asset_type.slice(0, 1)}
                     </span>
                     <div>
                       <h4 className="text-sm font-bold text-text dark:text-textDark group-hover:text-accent">

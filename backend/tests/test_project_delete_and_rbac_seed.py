@@ -74,8 +74,8 @@ def test_demo_seed_is_deterministic_and_idempotent() -> None:
             "roles": 6,
             "users": 6,
             "projects": 3,
-            "stations": 10,
-            "assets": 8,
+                "stations": 6,
+                "assets": 7,
             "approvals": 2,
             "ai_jobs": 0,
         }
@@ -83,10 +83,10 @@ def test_demo_seed_is_deterministic_and_idempotent() -> None:
         assert session.query(Role).count() == 6
         assert session.query(User).count() == 6
         assert session.query(Project).count() == 3
-        assert session.query(Station).count() == 10
-        assert session.query(StationMember).count() == 20
-        assert session.query(Asset).count() == 8
-        assert session.query(AssetVersion).count() == 8
+        assert session.query(Station).count() == 6
+        assert session.query(StationMember).count() == 15
+        assert session.query(Asset).count() == 7
+        assert session.query(AssetVersion).count() == 7
         assert session.query(ApprovalTask).count() == 2
         assert {user.email for user in session.query(User).all()} == {
             "admin@example.com",

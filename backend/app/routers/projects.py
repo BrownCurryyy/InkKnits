@@ -20,6 +20,7 @@ from backend.app.schemas import (
     VersionBundleCreate,
     VersionBundleItemOut,
     VersionBundleOut,
+    ProjectMemberAdd,
 )
 from backend.database.connection import get_db
 from backend.models.project import Project
@@ -28,7 +29,10 @@ from backend.models.asset_link import AssetLink
 from backend.models.asset_version import AssetVersion
 from backend.models.station import Station
 from backend.models.version_bundle import VersionBundle, VersionBundleItem
+from backend.models.project_member import ProjectMember
+from backend.models.user import User
 from backend.repositories.project_repository import ProjectRepository
+from backend.services.version_service import VersionService
 
 router = APIRouter(prefix="/projects", tags=["projects"], dependencies=[Depends(get_current_user)])
 
@@ -104,6 +108,9 @@ async def create_project(payload: ProjectCreate, db: Session = Depends(get_db), 
         deadline=payload.deadline,
     )
     created = repository.create(project)
+    VersionService.sync_project_bundle(db, created.id, user_id=current_user.id)
+    db.commit()
+    db.refresh(created)
     return ProjectOut.model_validate(created)
 
 
@@ -128,6 +135,19 @@ async def get_project(project_id: str, db: Session = Depends(get_db), current_us
     return ProjectOut.model_validate(project)
 
 
+@router.post("/{project_id}/members", status_code=status.HTTP_201_CREATED)
+async def add_project_member(project_id: str, payload: ProjectMemberAdd, db: Session = Depends(get_db), current_user=Depends(get_current_user)) -> dict:
+    require_roles(get_user_roles(db, current_user), ("ADMIN",))
+    project = ProjectRepository(db).get_by_id(project_id)
+    member = db.get(User, payload.user_id)
+    if not project or project.organization_id != current_user.organization_id or not member or member.organization_id != current_user.organization_id:
+        raise HTTPException(status_code=404, detail="Project or member not found")
+    if not db.query(ProjectMember).filter(ProjectMember.project_id == project.id, ProjectMember.user_id == member.id).first():
+        db.add(ProjectMember(project_id=project.id, user_id=member.id))
+        db.commit()
+    return {"message": "User assigned to project"}
+
+
 @router.post("/{project_id}/bundles", response_model=VersionBundleOut, status_code=status.HTTP_201_CREATED)
 async def create_version_bundle(
     project_id: str,
@@ -135,7 +155,7 @@ async def create_version_bundle(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ) -> VersionBundleOut:
-    """Persist a named snapshot of the latest version for each visible project asset."""
+    """Compatibility endpoint: synchronize and return the project's one bundle."""
     require_roles(get_user_roles(db, current_user), ("MANAGER", "EDITOR", "ADMIN"))
     try:
         project_uuid = UUID(project_id)
@@ -145,38 +165,7 @@ async def create_version_bundle(
     if not project or project.deleted_at is not None or not can_access_project(db, current_user, project.id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
 
-    assets = _visible_project_assets(db, project, current_user)
-    selected_versions: list[tuple[Asset, AssetVersion]] = []
-    for asset in assets:
-        version = db.query(AssetVersion).filter(
-            AssetVersion.asset_id == asset.id,
-            AssetVersion.deleted_at.is_(None),
-        ).order_by(AssetVersion.version_number.desc()).first()
-        if version is not None:
-            selected_versions.append((asset, version))
-
-    db.query(VersionBundle).filter(
-        VersionBundle.project_id == project.id,
-        VersionBundle.organization_id == current_user.organization_id,
-        VersionBundle.is_active.is_(True),
-        VersionBundle.deleted_at.is_(None),
-    ).update({VersionBundle.is_active: False}, synchronize_session=False)
-
-    bundle = VersionBundle(
-        organization_id=current_user.organization_id,
-        project_id=project.id,
-        name=payload.name,
-        created_by=current_user.id,
-        is_active=True,
-    )
-    db.add(bundle)
-    db.flush()
-    for asset, version in selected_versions:
-        db.add(VersionBundleItem(
-            bundle_id=bundle.id,
-            asset_id=asset.id,
-            version_id=version.id,
-        ))
+    bundle = VersionService.sync_project_bundle(db, project.id, user_id=current_user.id)
     db.commit()
     db.refresh(bundle)
     return _bundle_response(db, bundle)
@@ -199,8 +188,12 @@ async def list_version_bundles(
         VersionBundle.project_id == project.id,
         VersionBundle.organization_id == current_user.organization_id,
         VersionBundle.deleted_at.is_(None),
-    ).order_by(VersionBundle.created_at.desc()).all()
-    return [_bundle_response(db, bundle) for bundle in bundles]
+    ).order_by(VersionBundle.created_at.asc()).all()
+    if not bundles:
+        bundle = VersionService.sync_project_bundle(db, project.id, user_id=current_user.id)
+        db.commit()
+        bundles = [bundle]
+    return [_bundle_response(db, bundles[0])]
 
 
 @router.get("/{project_id}/bundles/{bundle_id}", response_model=VersionBundleOut)

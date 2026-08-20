@@ -2,9 +2,9 @@ import { CozyEmptyState } from './UIStates';
 import type { AssetRecord, StationRecord } from '../types';
 
 const assetTypeConfig: Record<string, { label: string; icon: string; style: string }> = {
-  TEXT: { label: 'TEXT', icon: '📝', style: 'bg-accent/20 text-accent border-accent/30' },
-  IMAGE: { label: 'IMAGE', icon: '🎨', style: 'bg-statusSuccess/20 text-statusSuccess border-statusSuccess/30' },
-  GENERIC: { label: 'GENERIC', icon: '📄', style: 'bg-statusPending/20 text-statusPending border-statusPending/30' },
+  TEXT: { label: 'TEXT', icon: 'T', style: 'bg-accent/20 text-accent border-accent/30' },
+  IMAGE: { label: 'IMAGE', icon: 'I', style: 'bg-statusSuccess/20 text-statusSuccess border-statusSuccess/30' },
+  GENERIC: { label: 'GENERIC', icon: 'G', style: 'bg-statusPending/20 text-statusPending border-statusPending/30' },
 };
 
 function formatDate(value?: string) {

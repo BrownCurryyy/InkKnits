@@ -141,7 +141,7 @@ async def approve_task(
     require_roles(get_user_roles(db, current_user), ("MANAGER", "REVIEWER", "ADMIN"))
     """Approve the asset linked to this approval task."""
     task_uuid = parse_uuid(task_id, "task_id")
-    task, _ = get_scoped_task(task_uuid, db, current_user)
+    task, asset = get_scoped_task(task_uuid, db, current_user)
     if task.assigned_to != current_user.id and not {role.upper() for role in get_user_roles(db, current_user)}.intersection({"ADMIN", "MANAGER"}):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Approval assignment required")
     if task.status != "PENDING":

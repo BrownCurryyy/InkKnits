@@ -320,6 +320,10 @@ class ProjectUpdate(BaseModel):
     deadline: datetime | None = None
 
 
+class ProjectMemberAdd(BaseModel):
+    user_id: UUID
+
+
 class OrganizationMemberAdd(BaseModel):
     user_id: UUID
 

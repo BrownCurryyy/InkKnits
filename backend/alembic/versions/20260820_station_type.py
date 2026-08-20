@@ -10,7 +10,10 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column("stations", sa.Column("station_type", sa.String(length=20), nullable=True))
+    inspector = sa.inspect(op.get_bind())
+    station_columns = {column["name"] for column in inspector.get_columns("stations")}
+    if "station_type" not in station_columns:
+        op.add_column("stations", sa.Column("station_type", sa.String(length=20), nullable=True))
     op.execute(
         """
         UPDATE stations

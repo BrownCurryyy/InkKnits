@@ -95,27 +95,6 @@ export type AssetVersionRecord = {
   deleted_at?: string | null;
 };
 
-export type VersionBundleItemRecord = {
-  id: string;
-  asset_id: string;
-  version_id: string;
-  version_number: number;
-  asset_title: string;
-  asset_type: string;
-  created_by?: string | null;
-  created_at: string;
-  snapshot_preview?: string | null;
-};
-
-export type VersionBundleRecord = {
-  id: string;
-  project_id: string;
-  name: string;
-  created_by: string;
-  created_at: string;
-  is_active: boolean;
-  items: VersionBundleItemRecord[];
-};
 
 export type ActivityRecord = {
   id: string;
@@ -160,4 +139,26 @@ export type AIJobStatusRecord = {
   created_at?: string;
   started_at?: string | null;
   completed_at?: string | null;
+};
+
+export type VersionBundleItemRecord = {
+  id: string;
+  asset_id: string;
+  version_id: string;
+  version_number: number;
+  asset_title: string;
+  asset_type: string;
+  created_by?: string | null;
+  created_at: string;
+  snapshot_preview?: string | null;
+};
+
+export type VersionBundleRecord = {
+  id: string;
+  project_id: string;
+  name: string;
+  created_by: string;
+  created_at: string;
+  is_active: boolean;
+  items: VersionBundleItemRecord[];
 };

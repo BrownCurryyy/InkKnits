@@ -11,8 +11,11 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.create_table(
-        "version_bundles",
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    if not inspector.has_table("version_bundles"):
+        op.create_table(
+            "version_bundles",
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("organization_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("project_id", postgresql.UUID(as_uuid=True), nullable=False),
@@ -25,9 +28,10 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["project_id"], ["projects.id"]),
         sa.ForeignKeyConstraint(["created_by"], ["users.id"]),
         sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_table(
-        "version_bundle_items",
+        )
+    if not inspector.has_table("version_bundle_items"):
+        op.create_table(
+            "version_bundle_items",
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("bundle_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("asset_id", postgresql.UUID(as_uuid=True), nullable=False),
@@ -37,7 +41,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["asset_id"], ["assets.id"]),
         sa.ForeignKeyConstraint(["version_id"], ["asset_versions.id"]),
         sa.PrimaryKeyConstraint("id"),
-    )
+        )
 
 
 def downgrade() -> None:

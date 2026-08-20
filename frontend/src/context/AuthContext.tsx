@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
-import { apiFetch, writeStoredTokens } from '../api/client';
+import { apiFetch, API_BASE_URL, writeStoredTokens } from '../api/client';
 import type { AuthTokens, JwtPayload, UserRecord } from '../types';
 
 const TOKEN_STORAGE_KEY = 'inkknits_tokens';
@@ -110,7 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'}/auth/refresh`, {
+    const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refresh_token: stored.refreshToken }),

@@ -10,7 +10,9 @@ import type {
   ProjectRecord,
   StationRecord,
   UserRecord,
+  VersionBundleRecord,
 } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 function formatDate(value?: string) {
   if (!value) return '—';
@@ -25,13 +27,14 @@ function formatDate(value?: string) {
 
 interface AssetBundleItem {
   asset: AssetRecord;
-  latestVersion?: AssetVersionRecord;
-  parentAssetId?: string;
+  currentVersion?: AssetVersionRecord;
+  versions: AssetVersionRecord[];
 }
 
 export function ProjectPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+  const { roles } = useAuth();
 
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>(projectId || '');
@@ -41,6 +44,8 @@ export function ProjectPage() {
   const [bundleItems, setBundleItems] = useState<AssetBundleItem[]>([]);
   const [members, setMembers] = useState<UserRecord[]>([]);
   const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
+  const [memberPickerOpen, setMemberPickerOpen] = useState(false);
+  const [memberId, setMemberId] = useState('');
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -75,30 +80,33 @@ export function ProjectPage() {
       const projStations = allStations.filter((s) => s.project_id === id);
       setStations(projStations);
 
-      // Fetch Assets for project stations
-      const stationIds = new Set(projStations.map((s) => s.id));
+      // Fetch the complete project asset set and its live production-state selection.
       const allAssets = await apiFetch<AssetRecord[]>('/assets');
+      const stationIds = new Set(projStations.map((s) => s.id));
       const projAssets = allAssets.filter((a) => stationIds.has(a.station_id));
       setAssets(projAssets);
 
-      // Build Version Bundle / Production State
+      const productionState = await apiFetch<{ assets: Array<{ asset: AssetRecord; current_version: AssetVersionRecord }> }>(`/projects/${id}/production-state`).catch(() => ({ assets: [] }));
+      const bundleResponse = await apiFetch<VersionBundleRecord[]>(`/projects/${id}/bundles`).catch(() => []);
+      const bundleItems = bundleResponse[0]?.items ?? [];
+      const bundledVersions = new Map(bundleItems.map((item) => [item.asset_id, item]));
+      const currentVersions = new Map(productionState.assets.map((item) => [item.asset.id, item.current_version]));
+      bundleItems.forEach((item) => {
+        const current = currentVersions.get(item.asset_id);
+        if (current && current.id !== item.version_id) currentVersions.set(item.asset_id, { ...current, id: item.version_id, version_number: item.version_number, created_at: item.created_at, created_by: item.created_by });
+      });
+
+      // Build the visual project bundle: every asset branch plus full history.
       const items: AssetBundleItem[] = await Promise.all(
         projAssets.map(async (asset) => {
-          let latestVersion: AssetVersionRecord | undefined;
+          let versions: AssetVersionRecord[] = [];
           try {
             const vers = await apiFetch<AssetVersionRecord[]>(`/versions/${asset.id}`);
-            const sorted = [...vers].sort((a, b) => b.version_number - a.version_number);
-            latestVersion = sorted[0];
+            versions = [...vers].sort((a, b) => a.version_number - b.version_number);
           } catch {
-            latestVersion = undefined;
+            versions = [];
           }
-
-          const parentAssetId =
-            asset.raw_metadata && typeof asset.raw_metadata.parent_asset_id === 'string'
-              ? asset.raw_metadata.parent_asset_id
-              : undefined;
-
-          return { asset, latestVersion, parentAssetId };
+          return { asset, currentVersion: currentVersions.get(asset.id) ?? (bundledVersions.get(asset.id) ? versions.find((version) => version.id === bundledVersions.get(asset.id)?.version_id) : undefined), versions };
         }),
       );
       setBundleItems(items);
@@ -116,6 +124,17 @@ export function ProjectPage() {
       setError('Unable to load project production state');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const addProjectMember = async () => {
+    if (!project || !memberId) return;
+    try {
+      await apiFetch(`/projects/${project.id}/members`, { method: 'POST', body: { user_id: memberId } });
+      setMemberPickerOpen(false);
+      setMemberId('');
+    } catch {
+      setError('Unable to add project member');
     }
   };
 
@@ -253,7 +272,7 @@ export function ProjectPage() {
         )}
       </div>
 
-      {/* PROJECT VERSION BUNDLE / PRODUCTION STATE LINEAGE VISUALIZATION */}
+      {/* PROJECT VERSION BUNDLE / PRODUCTION STATE VISUALIZATION */}
       <div className="rounded-2xl border border-accent/45 bg-white/55 p-6 shadow-cozy dark:border-accent/35 dark:bg-[#3a2d2d]/75">
         <div className="mb-4 flex items-center justify-between border-b border-black/5 pb-3 dark:border-white/10">
           <div>
@@ -266,7 +285,7 @@ export function ProjectPage() {
               </span>
             </div>
             <h3 className="mt-0.5 text-lg font-bold text-text dark:text-textDark">
-              Project Assets & Active Version Lineage
+                Project Assets & Current Production Versions
             </h3>
           </div>
         </div>
@@ -281,9 +300,9 @@ export function ProjectPage() {
             <div className="absolute left-[11px] top-3 h-[calc(100%-24px)] w-0.5 rounded-full bg-accent/40" />
 
             <div className="space-y-4">
-              {bundleItems.map(({ asset, latestVersion, parentAssetId }) => {
-                const versionNum = latestVersion?.version_number ?? 1;
-                const lastUpdated = latestVersion?.created_at || asset.updated_at || asset.created_at;
+              {bundleItems.map(({ asset, currentVersion, versions }) => {
+                const versionNum = currentVersion?.version_number;
+                const lastUpdated = currentVersion?.created_at || asset.updated_at || asset.created_at;
 
                 return (
                   <div key={asset.id} className="relative flex items-start gap-4">
@@ -297,25 +316,31 @@ export function ProjectPage() {
                     >
                       <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-accent/20 text-base font-bold text-accent">
-                          {asset.asset_type === 'IMAGE' ? '🎨' : asset.asset_type === 'TEXT' ? '📝' : '📄'}
+                          {asset.asset_type.slice(0, 1)}
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
                             <h4 className="font-bold text-text dark:text-textDark group-hover:text-accent">
                               {asset.title || asset.name}
                             </h4>
-                            <span className="rounded-lg bg-accent/20 px-2 py-0.5 text-xs font-bold text-accent">
-                              v{versionNum} (Active)
+                            <span className="rounded-lg bg-statusSuccess/20 px-2 py-0.5 text-xs font-bold text-statusSuccess">
+                              {versionNum ? `v${versionNum} CURRENT` : 'NO VERSION'}
                             </span>
-                            {parentAssetId ? (
-                              <span className="rounded-lg bg-statusPending/20 px-2 py-0.5 text-[10px] font-semibold text-statusPending">
-                                🔗 Derived child
-                              </span>
-                            ) : null}
                           </div>
                           <p className="mt-0.5 text-xs text-text/60 dark:text-textDark/60">
-                            {asset.name} · {asset.asset_type}
+                            {asset.asset_type} · {versions.length} version{versions.length === 1 ? '' : 's'}
                           </p>
+                          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                            {versions.map((version) => (
+                              <span
+                                key={version.id}
+                                title={`Created ${formatDate(version.created_at)} by ${version.created_by || 'system'}`}
+                                className={`rounded-lg border px-2 py-1 text-[11px] font-bold ${currentVersion?.id === version.id ? 'border-statusSuccess bg-statusSuccess/20 text-statusSuccess' : 'border-black/10 bg-background/50 text-text/55 dark:border-white/10 dark:bg-[#423838] dark:text-textDark/55'}`}
+                              >
+                                v{version.version_number}{currentVersion?.id === version.id ? ' CURRENT' : ''}
+                              </span>
+                            ))}
+                          </div>
                         </div>
                       </div>
 
@@ -323,7 +348,7 @@ export function ProjectPage() {
                         <div className="text-right text-[11px] text-text/60 dark:text-textDark/60">
                           <div>
                             Updated by:{' '}
-                            <span className="font-bold">{latestVersion?.created_by || 'system'}</span>
+                              <span className="font-bold">{currentVersion?.created_by || 'system'}</span>
                           </div>
                           <div>{formatDate(lastUpdated)}</div>
                         </div>
@@ -348,7 +373,7 @@ export function ProjectPage() {
       <div className="rounded-3xl border border-black/5 bg-white/80 p-6 shadow-cozy backdrop-blur-md dark:border-white/10 dark:bg-[#3a2d2d]/90">
         <div className="mb-4 flex items-center justify-between border-b border-black/5 pb-3 dark:border-white/10">
           <h3 className="text-base font-bold text-text dark:text-textDark">Project Team Members</h3>
-          <span className="text-xs text-text/60 dark:text-textDark/60">{members.length} members</span>
+          <div className="flex items-center gap-2"><span className="text-xs text-text/60 dark:text-textDark/60">{members.length} members</span>{roles.some((role) => role.toUpperCase() === 'ADMIN') ? <button type="button" onClick={() => setMemberPickerOpen(true)} className="rounded-xl bg-accent px-3 py-1.5 text-xs font-bold text-backgroundDark">Add member</button> : null}</div>
         </div>
 
         <div className="flex flex-wrap gap-3">
@@ -365,6 +390,8 @@ export function ProjectPage() {
           ))}
         </div>
       </div>
+
+      {memberPickerOpen ? <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#423838]/60 p-4"><div className="w-full max-w-md rounded-2xl bg-background p-6 shadow-cozy dark:bg-[#2d2222]"><h3 className="text-lg font-bold">Add project member</h3><select value={memberId} onChange={(event) => setMemberId(event.target.value)} className="mt-4 w-full rounded-xl border bg-white p-2.5 text-sm dark:bg-[#4f3d3d]"><option value="">Select member...</option>{members.map((member) => <option key={member.id} value={member.id}>{member.display_name} · {member.email}</option>)}</select><div className="mt-5 flex justify-end gap-2"><button type="button" onClick={() => setMemberPickerOpen(false)} className="rounded-xl bg-background px-3 py-2 text-xs font-bold dark:bg-[#4f3d3d]">Cancel</button><button type="button" onClick={() => void addProjectMember()} disabled={!memberId} className="rounded-xl bg-accent px-3 py-2 text-xs font-bold text-backgroundDark disabled:opacity-50">Add member</button></div></div></div> : null}
     </div>
   );
 }

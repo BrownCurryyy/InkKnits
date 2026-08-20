@@ -55,6 +55,7 @@ interface AssetDetailProps {
   onOpenAsset: (id: string) => void;
   selectedVersionId: string;
   canWrite: boolean;
+  canRequestApproval: boolean;
   onClose: () => void;
   onOpenEditModal: () => void;
   onOpenApprovalModal: () => void;
@@ -74,6 +75,7 @@ export function AssetDetail({
   onOpenAsset,
   selectedVersionId,
   canWrite,
+  canRequestApproval,
   onClose,
   onOpenEditModal,
   onOpenApprovalModal,
@@ -282,7 +284,7 @@ export function AssetDetail({
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/20 text-2xl">
-              {asset.asset_type === 'IMAGE' ? '🎨' : asset.asset_type === 'TEXT' ? '✍️' : '📄'}
+              {asset.asset_type.slice(0, 1)}
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -302,19 +304,19 @@ export function AssetDetail({
           <div className="flex flex-wrap items-center gap-2">
             {canWrite ? (
               <>
-                <button
+                {canRequestApproval ? <button
                   type="button"
                   onClick={onOpenEditModal}
                   className="rounded-2xl bg-accent/20 px-4 py-2 text-xs font-bold text-accent transition hover:bg-accent/30 active:scale-95"
                 >
                   ✏️ Quick Edit
-                </button>
+                </button> : null}
                 <button
                   type="button"
                   onClick={onOpenApprovalModal}
                   className="rounded-2xl bg-[#d4a373] px-4 py-2 text-xs font-bold text-backgroundDark transition hover:opacity-90 active:scale-95 shadow-sm"
                 >
-                  📋 Request Approval
+                  Request approval
                 </button>
                 <button
                   type="button"
@@ -376,7 +378,7 @@ export function AssetDetail({
                     Writing Surface
                   </span>
                   <span className="rounded-full bg-background px-2.5 py-1 text-xs font-semibold text-text/80 dark:bg-[#4f3d3d] dark:text-textDark">
-                    📝 {wordCount} words · {charCount} chars
+                    {wordCount} words · {charCount} chars
                   </span>
                 </div>
 
@@ -389,7 +391,7 @@ export function AssetDetail({
                   )}
                   {saveState === 'saving' && (
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/20 px-3 py-1 text-xs font-bold text-accent animate-pulse border border-accent/30">
-                      ✨ Saving draft...
+                      Saving draft...
                     </span>
                   )}
                   {saveState === 'dirty' && (
@@ -440,7 +442,7 @@ export function AssetDetail({
                   />
                 ) : (
                   <div className="text-center">
-                    <span className="mb-2 block text-4xl">🎨</span>
+                    <span className="mb-2 block text-4xl">IMAGE</span>
                     <p className="font-semibold text-text dark:text-textDark">{asset.name}</p>
                     <p className="mt-1 text-xs text-text/60 dark:text-textDark/60">
                       Use the contextual AI Assistant on the right to generate or refine visuals.
@@ -459,7 +461,7 @@ export function AssetDetail({
             <div className="mb-3 flex items-center justify-between border-b border-black/5 pb-2 dark:border-white/5">
               <div className="flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-accent text-backgroundDark shadow-sm font-bold text-sm">
-                  ✨
+                  AI
                 </div>
                 <div>
                   <h4 className="font-bold text-sm text-text dark:text-textDark">
@@ -525,7 +527,7 @@ export function AssetDetail({
                   disabled={isGenerating || !aiPrompt.trim()}
                   className="inline-flex items-center gap-1.5 rounded-xl bg-accent px-4 py-2 text-xs font-bold text-backgroundDark shadow-md transition hover:opacity-90 active:scale-95 disabled:opacity-50"
                 >
-                  {isGenerating ? '⏳ Working…' : '✨ Send Request'}
+                  {isGenerating ? 'Working…' : 'Send request'}
                 </button>
               </div>
             </div>

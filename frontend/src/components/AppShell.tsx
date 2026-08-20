@@ -72,7 +72,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       items: [
         ...(canReview ? [{ label: 'Approvals', path: '/approvals' }] : []),
         { label: 'AI Queue', path: '/ai' },
-        { label: 'Version Bundles', path: '/bundles' },
+        { label: 'Version Tracking', path: '/bundles' },
         { label: 'Activity', path: '/activity' },
       ],
     },

@@ -201,6 +201,27 @@ async def get_job(
     )
 
 
+@router.post("/jobs/{task_id}/cancel", response_model=AIJobStatus)
+async def cancel_job(
+    task_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> AIJobStatus:
+    """Suspend/cancel a queued job; running external calls finish but cannot publish results."""
+    persisted = db.get(PersistedAIJob, task_id)
+    if persisted is None or not _job_is_visible(persisted, db, current_user):
+        raise HTTPException(status_code=404, detail="AI job not found")
+    if not scheduler.cancel(str(task_id)):
+        raise HTTPException(status_code=409, detail="AI job is no longer cancellable")
+    persisted.status = "CANCELLED"
+    persisted.completed_at = datetime.now(timezone.utc)
+    db.commit()
+    job = scheduler.get_job(str(task_id))
+    if job is not None:
+        return AIJobStatus(task_id=task_id, **{key: value for key, value in job.to_dict().items() if key != "task_id"})
+    return AIJobStatus(task_id=task_id, job_type=persisted.job_type, priority=persisted.priority, status=persisted.status, queue_position=persisted.queue_position, created_at=persisted.created_at, completed_at=persisted.completed_at)
+
+
 @router.get("/jobs", response_model=list[AIJobQueueOut])
 async def list_jobs(
     db: Session = Depends(get_db),

@@ -63,6 +63,7 @@ export function AssetWorkspace() {
   const [isSubmittingApproval, setIsSubmittingApproval] = useState(false);
 
   const canWrite = roles.some((role) => ['ADMIN', 'EDITOR'].includes(role.toUpperCase()));
+  const canRequestApproval = roles.some((role) => ['ADMIN', 'MANAGER'].includes(role.toUpperCase()));
 
   useEffect(() => {
     if (!toast) return;
@@ -293,6 +294,7 @@ export function AssetWorkspace() {
         onOpenAsset={(id) => navigate(`/assets/${id}`)}
         selectedVersionId={selectedVersionId}
         canWrite={canWrite}
+        canRequestApproval={canRequestApproval}
         onClose={() => navigate(`/stations/${asset.station_id}`)}
         onOpenEditModal={() => setEditModalOpen(true)}
         onOpenApprovalModal={() => void openApprovalModal()}

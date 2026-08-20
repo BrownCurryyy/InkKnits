@@ -77,6 +77,16 @@ export function AIJobConsole() {
     }
   };
 
+  const suspendJob = async (jobId: string) => {
+    try {
+      await apiFetch(`/ai/jobs/${jobId}/cancel`, { method: 'POST' });
+      await pollJobStatus(jobId);
+      setToast('Job suspended.');
+    } catch (err) {
+      setToast(err instanceof Error ? err.message : 'Unable to suspend job.');
+    }
+  };
+
   useEffect(() => {
     void loadJobs();
   }, []);
@@ -261,6 +271,11 @@ export function AIJobConsole() {
                   <p className="mt-1 font-semibold">{selectedJob.result_available ? 'Available' : 'Pending'}</p>
                 </div>
               </div>
+              {['QUEUED', 'RUNNING'].includes(selectedJob.status) ? (
+                <button type="button" onClick={() => void suspendJob(selectedJob.task_id)} className="rounded-xl border border-statusError/40 bg-statusError/10 px-3 py-2 text-xs font-bold text-statusError">
+                  Suspend job
+                </button>
+              ) : null}
 
               {selectedJob.prompt ? (
                 <div>

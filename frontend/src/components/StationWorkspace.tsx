@@ -47,11 +47,13 @@ function AiActions({
   draft,
   canWrite,
   onShowToast,
+  onGeneratedContent,
 }: {
   asset: AssetRecord;
   draft: string;
   canWrite: boolean;
   onShowToast: (message: string) => void;
+  onGeneratedContent?: (content: string) => void;
 }) {
   const [job, setJob] = useState<AIJobStatusRecord | null>(null);
   const [prompt, setPrompt] = useState('');
@@ -66,6 +68,25 @@ function AiActions({
       return ['Blog Post', 'LinkedIn Post', 'Instagram Caption'];
     }
   });
+
+  useEffect(() => {
+    if (!job?.task_id || ['COMPLETED', 'FAILED', 'CANCELLED'].includes(job.status)) return;
+    const timer = window.setInterval(async () => {
+      try {
+        const updated = await apiFetch<AIJobStatusRecord>(`/ai/jobs/${job.task_id}`);
+        setJob(updated);
+        if (updated.status === 'COMPLETED' && updated.result && typeof updated.result !== 'string' && typeof updated.result.content === 'string') {
+          onGeneratedContent?.(updated.result.content);
+          window.dispatchEvent(new CustomEvent('inkknits-ai-text', { detail: updated.result.content }));
+          onShowToast('AI text generated and added to the editor.');
+        }
+        if (['COMPLETED', 'FAILED', 'CANCELLED'].includes(updated.status)) window.clearInterval(timer);
+      } catch {
+        window.clearInterval(timer);
+      }
+    }, 1500);
+    return () => window.clearInterval(timer);
+  }, [job?.task_id]);
 
   const submit = async (jobType: TextJobType | 'ATOMIZE', action: string, formats?: string[]) => {
     if (!canWrite) return;
@@ -215,6 +236,17 @@ function WritingWorkspace({ station, assets, canWrite, onSelectAsset, onRefresh,
 
   const text = editor?.getText() ?? '';
   const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
+
+  useEffect(() => {
+    const handleGeneratedText = (event: Event) => {
+      const content = (event as CustomEvent<string>).detail;
+      if (!content || !editor) return;
+      editor.commands.insertContent(content);
+      void save();
+    };
+    window.addEventListener('inkknits-ai-text', handleGeneratedText);
+    return () => window.removeEventListener('inkknits-ai-text', handleGeneratedText);
+  }, [editor, asset?.id]);
 
   useEffect(() => {
     if (!editor || !asset || !canWrite || !editor.isFocused) return;

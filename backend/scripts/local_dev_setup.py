@@ -33,6 +33,7 @@ from backend.models.project import Project
 from backend.models.rbac import Role, UserRole
 from backend.models.station import Station
 from backend.models.station_member import StationMember
+from backend.models.project_member import ProjectMember
 from backend.models.user import User
 from backend.services.version_service import VersionService
 
@@ -116,9 +117,9 @@ def seed_demo_data(session: Session) -> dict[str, int]:
     }
 
     project_specs = {
-        "world-cup": ("World Cup Campaign", ("Writing", "Editing", "Generation", "Image", "Approval")),
-        "product-launch": ("Product Launch", ("Writing", "Editing", "Image")),
-        "editorial": ("Editorial Campaign", ("Writing", "Editing")),
+        "world-cup": ("World Cup Campaign", ("Writing", "Generation", "Image")),
+        "product-launch": ("Product Launch", ("Writing", "Image")),
+        "editorial": ("Editorial Campaign", ("Writing",)),
     }
     stations: dict[str, Station] = {}
     for project_key, (title, station_names) in project_specs.items():
@@ -153,22 +154,26 @@ def seed_demo_data(session: Session) -> dict[str, int]:
 
     assignments = {
         "admin": tuple(stations),
-        "manager": ("world-cup:Writing", "world-cup:Editing", "world-cup:Approval", "product-launch:Writing"),
+        "manager": ("world-cup:Writing", "world-cup:Generation", "product-launch:Writing"),
         "editor": ("world-cup:Writing", "product-launch:Writing", "editorial:Writing"),
-        "reviewer": ("world-cup:Approval",),
-        "publisher": ("world-cup:Approval",),
+        "reviewer": ("world-cup:Writing",),
+        "publisher": ("world-cup:Writing",),
         "viewer": ("world-cup:Writing",),
     }
     for user_key, station_keys in assignments.items():
         for station_key in station_keys:
             ensure_station_member(session, stations[station_key].id, users[user_key].id)
+    for user_key in ("manager", "editor", "reviewer", "publisher", "viewer"):
+        for project_key in project_specs:
+            project = session.get(Project, stable_id("project", project_key))
+            if not session.get(ProjectMember, {"project_id": project.id, "user_id": users[user_key].id}):
+                session.add(ProjectMember(project_id=project.id, user_id=users[user_key].id))
 
     asset_specs = (
         ("world-cup-master", "world-cup:Writing", "World Cup Master Article", "TEXT", "The campaign master article for the demo organization.", "editor"),
-        ("world-cup-editing", "world-cup:Editing", "World Cup Editing Notes", "TEXT", "Editorial notes and revision guidance for the campaign.", "manager"),
         ("world-cup-generation", "world-cup:Generation", "World Cup Generation Brief", "GENERIC", "Prompt and production brief for generated campaign material.", "manager"),
         ("world-cup-image", "world-cup:Image", "World Cup Hero Image", "IMAGE", None, "manager"),
-        ("world-cup-approval", "world-cup:Approval", "World Cup Approval Copy", "TEXT", "Copy ready for reviewer approval.", "editor"),
+        ("world-cup-approval", "world-cup:Writing", "World Cup Approval Copy", "TEXT", "Copy ready for reviewer approval.", "editor"),
         ("product-launch-article", "product-launch:Writing", "Product Launch Article", "TEXT", "Launch article draft for the product campaign.", "editor"),
         ("product-launch-image", "product-launch:Image", "Product Launch Visual", "IMAGE", None, "manager"),
         ("editorial-feature", "editorial:Writing", "Editorial Feature", "TEXT", "Feature story draft for the editorial campaign.", "editor"),

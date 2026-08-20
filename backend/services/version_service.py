@@ -8,9 +8,53 @@ from sqlalchemy.orm import Session
 from backend.models.asset import Asset
 from backend.models.asset_version import AssetVersion
 from backend.models.station import Station
+from backend.models.version_bundle import VersionBundle, VersionBundleItem
 from backend.services.storage import STORAGE_ROOT
 
 class VersionService:
+    @staticmethod
+    def sync_project_bundle(db: Session, project_id: UUID, user_id: UUID | None = None) -> VersionBundle:
+        """Keep one project's production bundle synchronized with latest versions."""
+        from backend.models.project import Project
+
+        project = db.get(Project, project_id)
+        if project is None:
+            raise ValueError(f"Project {project_id} not found")
+        bundles = db.query(VersionBundle).filter(
+            VersionBundle.project_id == project_id,
+            VersionBundle.deleted_at.is_(None),
+        ).order_by(VersionBundle.created_at.asc()).all()
+        bundle = bundles[0] if bundles else VersionBundle(
+            organization_id=project.organization_id,
+            project_id=project.id,
+            name="Production State",
+            created_by=user_id or project.created_by if hasattr(project, "created_by") else user_id,
+            is_active=True,
+        )
+        if bundle.id is None:
+            if bundle.created_by is None:
+                raise ValueError("A production bundle requires a creator")
+            db.add(bundle)
+            db.flush()
+        for duplicate in bundles[1:]:
+            duplicate.deleted_at = datetime.now(timezone.utc)
+            duplicate.is_active = False
+        bundle.is_active = True
+        db.query(VersionBundleItem).filter(VersionBundleItem.bundle_id == bundle.id).delete(synchronize_session=False)
+        assets = db.query(Asset).join(Station, Station.id == Asset.station_id).filter(
+            Station.project_id == project_id,
+            Asset.deleted_at.is_(None),
+        ).all()
+        for project_asset in assets:
+            latest = db.query(AssetVersion).filter(
+                AssetVersion.asset_id == project_asset.id,
+                AssetVersion.deleted_at.is_(None),
+            ).order_by(AssetVersion.version_number.desc()).first()
+            if latest:
+                db.add(VersionBundleItem(bundle_id=bundle.id, asset_id=project_asset.id, version_id=latest.id))
+        db.flush()
+        return bundle
+
     @staticmethod
     def get_snapshot_directory(organization_id: UUID, project_id: UUID) -> Path:
         """Generates a structured path for storing snapshots."""
@@ -72,6 +116,8 @@ class VersionService:
         )
 
         db.add(version)
+        db.commit()
+        VersionService.sync_project_bundle(db, project_id, user_id=user_id)
         db.commit()
         db.refresh(version)
         return version
