@@ -1,9 +1,9 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { apiFetch } from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import type { StationRecord } from '../types';
+import type { ProjectRecord, StationRecord } from '../types';
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, logout, roles } = useAuth();
@@ -11,6 +11,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
 
   const [stations, setStations] = useState<StationRecord[]>([]);
+  const [projects, setProjects] = useState<ProjectRecord[]>([]);
+  const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
   const [isDark, setIsDark] = useState(() => {
     const stored = localStorage.getItem('inkknits-theme');
     return stored ? stored === 'dark' : true;
@@ -23,30 +25,47 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!user) return;
-    const fetchStations = async () => {
+    const fetchWorkspace = async () => {
       try {
-        const data = await apiFetch<StationRecord[]>('/stations');
-        setStations(data);
+        const [projectData, stationData] = await Promise.all([
+          apiFetch<ProjectRecord[]>('/projects'),
+          apiFetch<StationRecord[]>('/stations'),
+        ]);
+        setProjects(projectData);
+        setStations(stationData);
+        setExpandedProjects((current) => {
+          const next = { ...current };
+          projectData.forEach((project) => {
+            if (next[project.id] === undefined) next[project.id] = false;
+          });
+          return next;
+        });
       } catch {
+        setProjects([]);
         setStations([]);
       }
     };
-    void fetchStations();
+    void fetchWorkspace();
   }, [user]);
 
   const normalizedRoles = roles.map((role) => role.toUpperCase());
   const canManageOrganization = normalizedRoles.some((role) => ['ADMIN', 'MANAGER'].includes(role));
   const canReview = normalizedRoles.some((role) => ['ADMIN', 'MANAGER', 'REVIEWER'].includes(role));
+  const rolePriority = ['ADMIN', 'MANAGER', 'EDITOR', 'REVIEWER', 'PUBLISHER', 'VIEWER'];
+  const highestRole = rolePriority.find((role) => normalizedRoles.includes(role)) ?? 'VIEWER';
+  const projectGroups = useMemo(
+    () => projects.map((project) => ({
+      project,
+      stations: stations.filter((station) => station.project_id === project.id),
+    })),
+    [projects, stations],
+  );
   const sidebarSections = [
     { label: 'Home', items: [{ label: 'Home', path: '/' }] },
     { label: 'Projects', items: [{ label: 'My Projects', path: '/projects' }] },
     {
       label: 'Organization',
       items: canManageOrganization ? [{ label: 'Organization', path: '/organization' }] : [],
-    },
-    {
-      label: 'Stations',
-      items: stations.map((station) => ({ label: station.name, path: `/stations/${station.id}` })),
     },
     {
       label: 'Workflow',
@@ -87,6 +106,43 @@ export function AppShell({ children }: { children: ReactNode }) {
                   );
                 })}
               </div>
+              {section.label === 'Projects' ? (
+                <div className="mt-3 space-y-2 border-l border-black/10 pl-3 dark:border-white/10">
+                  {projectGroups.map(({ project, stations: projectStations }) => {
+                    const expanded = expandedProjects[project.id] ?? false;
+                    return (
+                      <div key={project.id}>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedProjects((current) => ({ ...current, [project.id]: !expanded }))}
+                          className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-xs font-bold text-text/75 hover:bg-black/5 dark:text-textDark/75 dark:hover:bg-white/5"
+                        >
+                          <span className="truncate">{project.title}</span>
+                          <span aria-hidden="true" className="ml-2 text-text/45">{expanded ? '−' : '+'}</span>
+                        </button>
+                        {expanded ? (
+                          <div className="mt-1 space-y-0.5 pl-2">
+                            {projectStations.map((station) => {
+                              const path = `/stations/${station.id}`;
+                              const isActive = location.pathname.startsWith(path);
+                              return (
+                                <button
+                                  key={station.id}
+                                  type="button"
+                                  onClick={() => navigate(path)}
+                                  className={`w-full rounded-lg px-2.5 py-2 text-left text-xs transition ${isActive ? 'bg-accent/20 font-bold text-text dark:bg-accent dark:text-backgroundDark' : 'text-text/60 hover:bg-black/5 dark:text-textDark/65 dark:hover:bg-white/5'}`}
+                                >
+                                  {station.name}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
             </div>
           ) : null)}
         </nav>
@@ -121,7 +177,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 {isDark ? '☀️ Light' : '🌙 Dark'}
               </button>
               <span className="rounded-full bg-accent/20 px-3 py-1 text-xs font-semibold text-accent dark:text-textDark">
-                {roles.join(', ') || 'VIEWER'}
+                {highestRole}
               </span>
               <div className="hidden items-center gap-3 rounded-xl bg-white/70 px-3 py-1.5 shadow-sm dark:bg-[#4f3d3d] sm:flex">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-backgroundDark text-xs font-bold text-textDark dark:bg-background dark:text-text">

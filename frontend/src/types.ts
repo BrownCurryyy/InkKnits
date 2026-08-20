@@ -67,6 +67,21 @@ export type AssetRecord = {
   updated_at?: string;
 };
 
+export type AssetLinkRecord = {
+  id: string;
+  parent_asset_id: string;
+  child_asset_id: string;
+  relationship_type: string;
+  created_at: string;
+};
+
+export type AssetLineageRecord = {
+  asset: AssetRecord;
+  parents: AssetRecord[];
+  children: AssetRecord[];
+  links: AssetLinkRecord[];
+};
+
 export type AssetVersionRecord = {
   id: string;
   asset_id: string;

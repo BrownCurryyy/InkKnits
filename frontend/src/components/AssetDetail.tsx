@@ -7,6 +7,7 @@ import type {
   AIJobStatusRecord,
   AssetRecord,
   AssetVersionRecord,
+  AssetLineageRecord,
 } from '../types';
 
 type JobType =
@@ -50,6 +51,8 @@ interface AssetDetailProps {
   asset: AssetRecord;
   versions: AssetVersionRecord[];
   activityFeed: ActivityRecord[];
+  lineage: AssetLineageRecord | null;
+  onOpenAsset: (id: string) => void;
   selectedVersionId: string;
   canWrite: boolean;
   onClose: () => void;
@@ -67,6 +70,8 @@ export function AssetDetail({
   asset,
   versions,
   activityFeed,
+  lineage,
+  onOpenAsset,
   selectedVersionId,
   canWrite,
   onClose,
@@ -263,6 +268,15 @@ export function AssetDetail({
 
   return (
     <div className="space-y-6">
+      {lineage?.parents[0] ? (
+        <button
+          type="button"
+          onClick={() => onOpenAsset(lineage.parents[0].id)}
+          className="text-xs font-semibold text-accent hover:underline"
+        >
+          Generated from {lineage.parents[0].title || lineage.parents[0].name}
+        </button>
+      ) : null}
       {/* Top Header Card */}
       <div className="rounded-3xl border border-black/5 bg-white/80 p-6 shadow-cozy backdrop-blur-md dark:border-white/10 dark:bg-[#3a2d2d]/90">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -321,6 +335,32 @@ export function AssetDetail({
           </div>
         </div>
       </div>
+
+      {lineage?.children.length ? (
+        <section className="rounded-2xl border border-accent/30 bg-accent/5 p-5 dark:bg-[#3a2d2d]/60">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-accent">Lineage</p>
+              <h4 className="mt-1 text-lg font-bold text-text dark:text-textDark">Generated variants</h4>
+            </div>
+            <span className="text-xs text-text/55 dark:text-textDark/55">{lineage.children.length} child assets</span>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {lineage.children.map((child) => (
+              <button
+                key={child.id}
+                type="button"
+                onClick={() => onOpenAsset(child.id)}
+                className="rounded-xl border border-black/10 bg-white/65 p-3 text-left transition hover:border-accent hover:bg-white dark:border-white/10 dark:bg-[#423838]/65"
+              >
+                <span className="text-[10px] font-bold uppercase tracking-wider text-accent">{child.asset_type}</span>
+                <p className="mt-1 text-sm font-bold text-text dark:text-textDark">{child.title || child.name}</p>
+                <p className="mt-2 text-xs text-text/55 dark:text-textDark/55">Open child asset →</p>
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {/* Main Grid: Left side Writing Surface / Image Display, Right Side Sidebar */}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">

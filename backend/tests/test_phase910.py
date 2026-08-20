@@ -22,6 +22,7 @@ from backend.models.user import User
 from backend.services.ai_scheduler import AIScheduler
 from backend.services.ai_scheduler import JobPriority
 from backend.services.approval_service import ApprovalService
+from backend.services.comfyui_service import _build_workflow
 from backend.app.routers.assets import get_asset_lineage
 from backend.app.routers.projects import get_project_lineage, get_project_production_state
 from backend.app.routers.auth import get_current_user
@@ -66,6 +67,14 @@ class Phase910Tests(unittest.TestCase):
         self.assertLess(text_job.priority, image_job.priority)
         self.assertEqual(text_job.priority, int(JobPriority.TEXT_GENERATE))
         self.assertEqual(image_job.priority, int(JobPriority.IMAGE_GENERATE))
+
+    def test_comfyui_workflow_uses_final4_checkpoint_when_model_is_null(self) -> None:
+        workflow = _build_workflow("a studio portrait", model_filename=None)
+
+        self.assertEqual(
+            workflow["4"]["inputs"]["ckpt_name"],
+            "epicrealism_naturalSinRC1VAE.safetensors",
+        )
 
     def test_scheduler_persists_result_and_error(self) -> None:
         engine = create_engine("sqlite:///:memory:")

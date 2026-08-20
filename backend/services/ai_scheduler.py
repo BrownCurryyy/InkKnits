@@ -305,7 +305,9 @@ class AIScheduler:
         save_path = save_dir / f"{asset_id}.png"
 
         # Step 3: ComfyUI generation
-        model = payload.get("model", "epiCRealism.safetensors")
+        # Optional API model values may be present as JSON null; do not let
+        # that overwrite the checkpoint declared by the canonical workflow.
+        model = payload.get("model") or "epicrealism_naturalSinRC1VAE.safetensors"
         width = payload.get("width", 512)
         height = payload.get("height", 512)
 

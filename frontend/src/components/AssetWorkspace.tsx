@@ -9,6 +9,7 @@ import type {
   ActivityRecord,
   AssetRecord,
   AssetVersionRecord,
+  AssetLineageRecord,
   UserRecord,
 } from '../types';
 
@@ -36,6 +37,7 @@ export function AssetWorkspace() {
   const [asset, setAsset] = useState<AssetRecord | null>(null);
   const [versions, setVersions] = useState<AssetVersionRecord[]>([]);
   const [activityFeed, setActivityFeed] = useState<ActivityRecord[]>([]);
+  const [lineage, setLineage] = useState<AssetLineageRecord | null>(null);
   const [selectedVersionId, setSelectedVersionId] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -109,6 +111,14 @@ export function AssetWorkspace() {
     }
   };
 
+  const loadLineage = async (id: string) => {
+    try {
+      setLineage(await apiFetch<AssetLineageRecord>(`/assets/${id}/lineage`));
+    } catch {
+      setLineage(null);
+    }
+  };
+
   useEffect(() => {
     if (!assetId) return;
 
@@ -118,6 +128,7 @@ export function AssetWorkspace() {
       await loadAssetDetail(assetId);
       await loadVersions(assetId);
       await loadActivities(assetId);
+      await loadLineage(assetId);
       setLoading(false);
     };
 
@@ -278,6 +289,8 @@ export function AssetWorkspace() {
         asset={asset}
         versions={versions}
         activityFeed={activityFeed}
+        lineage={lineage}
+        onOpenAsset={(id) => navigate(`/assets/${id}`)}
         selectedVersionId={selectedVersionId}
         canWrite={canWrite}
         onClose={() => navigate(`/stations/${asset.station_id}`)}

@@ -28,6 +28,7 @@ from copy import deepcopy
 from pathlib import Path
 
 COMFYUI_BASE_URL = os.getenv("COMFYUI_BASE_URL", "http://127.0.0.1:8188").rstrip("/")
+DEFAULT_CHECKPOINT = "epicrealism_naturalSinRC1VAE.safetensors"
 WORKFLOW_PATH = Path(os.getenv(
     "COMFYUI_WORKFLOW_PATH",
     Path(__file__).resolve().parents[1] / "final4.json",
@@ -54,7 +55,7 @@ NEGATIVE_PROMPT = (
 
 def _build_workflow(
     enriched_prompt: str,
-    model_filename: str = "epicrealism_naturalSinRC1VAE.safetensors",
+    model_filename: str | None = DEFAULT_CHECKPOINT,
     width: int = 512,
     height: int = 512,
     seed: int | None = None,
@@ -72,7 +73,7 @@ def _build_workflow(
     if not required_nodes.issubset(workflow):
         raise RuntimeError(f"Workflow is missing required nodes: {sorted(required_nodes - set(workflow))}")
 
-    workflow["4"]["inputs"]["ckpt_name"] = model_filename
+    workflow["4"]["inputs"]["ckpt_name"] = model_filename or DEFAULT_CHECKPOINT
     workflow["5"]["inputs"]["width"] = width
     workflow["5"]["inputs"]["height"] = height
     workflow["6"]["inputs"]["text"] = f"{enriched_prompt}, {QUALITY_SUFFIX}"
@@ -134,7 +135,7 @@ class ComfyUIService:
     def generate_image(
         enriched_prompt: str,
         save_path: Path,
-        model_filename: str = "epicrealism_naturalSinRC1VAE.safetensors",
+        model_filename: str | None = DEFAULT_CHECKPOINT,
         width: int = 512,
         height: int = 512,
         seed: int | None = None,
