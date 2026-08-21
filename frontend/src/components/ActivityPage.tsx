@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { apiFetch } from '../api/client';
 import { CozyEmptyState, CozySkeleton } from './UIStates';
-import type { ActivityRecord, AssetRecord, ProjectRecord } from '../types';
+import type { ActivityRecord, AssetRecord, ProjectRecord, StationRecord } from '../types';
 
 const activityBadgeStyles: Record<string, string> = {
   ASSET_CREATED: 'bg-statusSuccess/20 text-statusSuccess border-statusSuccess/30',
@@ -18,6 +18,7 @@ export function ActivityPage() {
   const [activities, setActivities] = useState<ActivityRecord[]>([]);
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [assets, setAssets] = useState<AssetRecord[]>([]);
+  const [stations, setStations] = useState<StationRecord[]>([]);
   const [projectFilter, setProjectFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -25,14 +26,16 @@ export function ActivityPage() {
   const loadActivity = async () => {
     try {
       setError('');
-      const [activityData, projectData, assetData] = await Promise.all([
+      const [activityData, projectData, assetData, stationData] = await Promise.all([
         apiFetch<ActivityRecord[]>('/activities'),
         apiFetch<ProjectRecord[]>('/projects'),
         apiFetch<AssetRecord[]>('/assets'),
+        apiFetch<StationRecord[]>('/stations'),
       ]);
       setActivities(activityData);
       setProjects(projectData);
       setAssets(assetData);
+      setStations(stationData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load activity.');
     } finally {
@@ -44,7 +47,11 @@ export function ActivityPage() {
 
   const projectNames = useMemo(() => new Map(projects.map((project) => [project.id, project.title])), [projects]);
   const assetNames = useMemo(() => new Map(assets.map((asset) => [asset.id, asset.title || asset.name])), [assets]);
-  const visibleActivities = activities.filter((item) => projectFilter === 'ALL' || item.project_id === projectFilter);
+  const assetProjectIds = useMemo(() => {
+    const stationProjects = new Map(stations.map((station) => [station.id, station.project_id]));
+    return new Map(assets.map((asset) => [asset.id, stationProjects.get(asset.station_id)]));
+  }, [assets, stations]);
+  const visibleActivities = activities.filter((item) => projectFilter === 'ALL' || item.project_id === projectFilter || (item.project_id == null && item.asset_id != null && assetProjectIds.get(item.asset_id) === projectFilter));
 
   if (loading) return <CozySkeleton rows={5} />;
 

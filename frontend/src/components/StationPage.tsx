@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import Link from '@tiptap/extension-link';
 import { useNavigate, useParams } from 'react-router-dom';
+import type { ReactNode } from 'react';
 
 import { apiFetch } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -31,13 +33,19 @@ export function StationPage() {
   const [saveState, setSaveState] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const editor = useEditor({ extensions: [StarterKit], content: '' });
+  const editor = useEditor({ extensions: [StarterKit, Link.configure({ openOnClick: false })], content: '' });
   const writingAssets = assets.filter((asset) => TEXT_TYPES.has(asset.asset_type.toUpperCase()) || Boolean(asset.content));
   const selectedAsset = writingAssets.find((asset) => asset.id === selectedId) ?? null;
   const currentVersion = versions[versions.length - 1];
 
-  const loadAssets = async (id: string) => {
-    const stationAssets = await apiFetch<AssetRecord[]>(`/stations/${id}/assets`);
+  const loadAssets = async (id: string, stationData?: StationRecord) => {
+    const stationsForProject = stationData?.station_type === 'WRITING'
+      ? [stationData]
+      : (await apiFetch<StationRecord[]>('/stations')).filter((item) => item.project_id === stationData?.project_id);
+    const stationIds = new Set(stationsForProject.map((item) => item.id));
+    const stationAssets = stationData?.station_type === 'WRITING'
+      ? await apiFetch<AssetRecord[]>(`/stations/${id}/assets`)
+      : (await apiFetch<AssetRecord[]>('/assets')).filter((asset) => stationIds.has(asset.station_id));
     const visibleAssets = await Promise.all(stationAssets.map((asset) => apiFetch<AssetRecord>(`/assets/${asset.id}`)));
     const entries = await Promise.all(visibleAssets.map(async (asset) => {
       const [assetLineage, assetVersions] = await Promise.all([
@@ -61,7 +69,7 @@ export function StationPage() {
       apiFetch<StationRecord[]>('/stations'),
     ]).then(async ([stationData]) => {
       setStation(stationData);
-      await loadAssets(stationId);
+      await loadAssets(stationId, stationData);
     }).catch(() => setError('Unable to load this station.')).finally(() => setLoading(false));
   }, [stationId]);
 
@@ -87,15 +95,21 @@ export function StationPage() {
       const created = await apiFetch<AssetRecord>('/assets', { method: 'POST', body: { organization_id: user.organization_id, station_id: station.id, name: newTitle.trim(), title: newTitle.trim(), content: '', asset_type: 'TEXT' } });
       await loadAssets(station.id);
       setSelectedId(created.id);
-      setNewTitle('');
+      setNewTitle(created.title || created.name);
     } catch (err) { setError(err instanceof Error ? err.message : 'Unable to create text asset.'); }
   };
 
   const saveAsset = async () => {
     if (!selectedAsset || !editor || !canWrite) return;
+    const nextContent = editor.getHTML();
+    const nextTitle = newTitle.trim() || selectedAsset.name;
+    if (nextContent === (selectedAsset.content || '') && nextTitle === (selectedAsset.title || selectedAsset.name)) {
+      setSaveState('No changes');
+      return;
+    }
     try {
       setSaveState('Saving');
-      const updated = await apiFetch<AssetRecord>(`/assets/${selectedAsset.id}`, { method: 'PUT', body: { name: selectedAsset.name, title: newTitle.trim() || selectedAsset.name, content: editor.getHTML(), asset_type: selectedAsset.asset_type } });
+      const updated = await apiFetch<AssetRecord>(`/assets/${selectedAsset.id}`, { method: 'PUT', body: { name: selectedAsset.name, title: nextTitle, content: nextContent, asset_type: selectedAsset.asset_type } });
       setAssets((current) => current.map((asset) => asset.id === updated.id ? updated : asset));
       const nextVersions = await apiFetch<AssetVersionRecord[]>(`/versions/${updated.id}`);
       setVersions(nextVersions.sort((a, b) => a.version_number - b.version_number));
@@ -139,12 +153,14 @@ export function StationPage() {
   if (station.station_type === 'IMAGE') return <ImageStation station={station} assets={assets} lineage={lineage} currentVersions={currentVersions} />;
   if (station.station_type === 'GENERATION') return <GenerationStation station={station} />;
 
+  const editorToolbar = <div className="mt-4 flex flex-wrap gap-1 border-b border-black/10 pb-3 dark:border-white/10">{[['B', 'toggleBold'], ['I', 'toggleItalic'], ['H1', 'toggleHeading'], ['•', 'toggleBulletList'], ['1.', 'toggleOrderedList']].map(([label, command]) => <button key={label} type="button" title={label} onClick={() => { if (command === 'toggleHeading') editor?.chain().focus().toggleHeading({ level: 1 }).run(); else editor?.chain().focus()[command as 'toggleBold' | 'toggleItalic' | 'toggleBulletList' | 'toggleOrderedList']().run(); }} className="rounded-lg border border-black/10 px-2.5 py-1.5 text-xs font-bold dark:border-white/10">{label}</button>)}<button type="button" title="Undo" onClick={() => editor?.chain().focus().undo().run()} className="rounded-lg border border-black/10 px-2.5 py-1.5 text-xs font-bold dark:border-white/10">↶</button><button type="button" title="Redo" onClick={() => editor?.chain().focus().redo().run()} className="rounded-lg border border-black/10 px-2.5 py-1.5 text-xs font-bold dark:border-white/10">↷</button></div>;
+
   return <div className="space-y-5">
     <header className="flex flex-wrap items-start justify-between gap-3 border-b border-black/10 pb-5 dark:border-white/10"><div><button type="button" onClick={() => navigate(`/projects/${station.project_id}`)} className="text-xs font-bold text-accent">← Project</button><p className="mt-4 text-[11px] font-bold uppercase tracking-[0.18em] text-accent">Writing Station</p><h1 className="mt-1 text-3xl font-bold">{station.name}</h1></div><span className="rounded-full bg-accent/15 px-3 py-1.5 text-xs font-bold uppercase text-accent">{station.station_type}</span></header>
     {error ? <div className="rounded-2xl border border-statusError/60 bg-statusError/20 p-3 text-sm">{error}</div> : null}
     <div className="grid gap-5 xl:grid-cols-[220px_minmax(0,1fr)_280px]">
       <aside className="rounded-2xl border border-black/10 bg-white/60 p-4 dark:border-white/10 dark:bg-[#3a2d2d]/70"><div className="flex items-center justify-between"><h2 className="font-bold">Documents</h2><span className="text-xs text-text/55">{writingAssets.length}</span></div><div className="mt-4 space-y-2">{writingAssets.map((asset) => { const parents = lineage[asset.id]?.parents ?? []; const children = lineage[asset.id]?.children ?? []; return <button key={asset.id} type="button" onClick={() => setSelectedId(asset.id)} className={`w-full border-l-2 p-2 text-left text-xs ${selectedId === asset.id ? 'border-accent bg-accent/15 font-bold' : 'border-transparent hover:bg-black/5 dark:hover:bg-white/5'} ${parents.length ? 'ml-4 w-[calc(100%-1rem)]' : ''}`}><span className="block truncate">{parents.length ? '↳ ' : ''}{asset.title || asset.name}</span><span className="mt-1 block text-[10px] text-text/55">{children.length ? 'PARENT · ' : parents.length ? 'CHILD · ' : ''}v{currentVersions[asset.id] || '—'} CURRENT</span></button>; })}</div><div className="mt-5 border-t border-black/10 pt-4 dark:border-white/10"><input value={newTitle} onChange={(event) => setNewTitle(event.target.value)} placeholder="New text asset title" className="w-full rounded-xl border border-black/10 bg-background px-3 py-2 text-xs dark:border-white/10 dark:bg-[#4f3d3d]" /><button type="button" disabled={!canWrite || !newTitle.trim()} onClick={() => void createTextAsset()} className="mt-2 w-full rounded-xl bg-accent px-3 py-2 text-xs font-bold text-backgroundDark disabled:opacity-50">Create Text Asset</button></div></aside>
-      <main className="rounded-2xl border border-black/10 bg-white/70 p-5 dark:border-white/10 dark:bg-[#3a2d2d]/80"><div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/10 pb-4 dark:border-white/10"><input value={newTitle} onChange={(event) => setNewTitle(event.target.value)} disabled={!selectedAsset} className="min-w-0 flex-1 bg-transparent text-xl font-bold outline-none" placeholder="Untitled document" /><div className="flex items-center gap-2 text-xs"><span className="rounded-full bg-statusSuccess/20 px-2 py-1 font-bold text-statusSuccess">{currentVersion ? `v${currentVersion.version_number} CURRENT` : 'No version'}</span><span className="text-text/55">{saveState}</span></div></div><div className="writing-editor mt-5 min-h-[420px]"><EditorContent editor={editor} /></div><div className="mt-4 flex flex-wrap justify-between gap-2 border-t border-black/10 pt-4 dark:border-white/10"><button type="button" disabled={!canWrite || !selectedAsset} onClick={() => void deleteAsset()} className="text-xs font-bold text-statusError disabled:opacity-50">Delete Asset</button><button type="button" disabled={!canWrite || !selectedAsset} onClick={() => void saveAsset()} className="rounded-xl bg-accent px-4 py-2 text-xs font-bold text-backgroundDark disabled:opacity-50">Save</button></div></main>
+      <main className="rounded-2xl border border-black/10 bg-white/70 p-5 dark:border-white/10 dark:bg-[#3a2d2d]/80"><div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/10 pb-4 dark:border-white/10"><input value={newTitle} onChange={(event) => setNewTitle(event.target.value)} disabled={!selectedAsset} className="min-w-0 flex-1 bg-transparent text-xl font-bold outline-none" placeholder="Untitled document" /><div className="flex items-center gap-2 text-xs"><span className="rounded-full bg-statusSuccess/20 px-2 py-1 font-bold text-statusSuccess">{currentVersion ? `v${currentVersion.version_number} CURRENT` : 'No version'}</span><span className="text-text/55">{saveState}</span></div></div>{editorToolbar}<div className="writing-editor mt-5 min-h-[420px]"><EditorContent editor={editor} /></div><div className="mt-4 flex flex-wrap justify-between gap-2 border-t border-black/10 pt-4 dark:border-white/10"><button type="button" disabled={!canWrite || !selectedAsset} onClick={() => void deleteAsset()} className="text-xs font-bold text-statusError disabled:opacity-50">Delete Asset</button><button type="button" disabled={!canWrite || !selectedAsset} onClick={() => void saveAsset()} className="rounded-xl bg-accent px-4 py-2 text-xs font-bold text-backgroundDark disabled:opacity-50">Save</button></div></main>
       <aside className="space-y-5"><section className="rounded-2xl border border-black/10 bg-white/60 p-4 dark:border-white/10 dark:bg-[#3a2d2d]/70"><h2 className="font-bold">AI Assistant</h2><p className="mt-1 text-xs text-text/60 dark:text-textDark/60">Select text in the editor, then choose an action.</p><div className="mt-3 grid grid-cols-2 gap-2">{[['Improve', 'IMPROVE_TONE'], ['Expand', 'EXPAND'], ['Summarize', 'SUMMARIZE'], ['Tone', 'IMPROVE_TONE'], ['Audience', 'CHANGE_AUDIENCE'], ['Continue', 'TEXT']].map(([label, type]) => <button key={label} type="button" disabled={!canWrite || !selectedText.trim()} onClick={() => void submitAI(type)} className="rounded-xl border border-black/10 px-2 py-2 text-xs font-bold disabled:opacity-40 dark:border-white/10">{label}</button>)}</div>{jobStatus ? <p className="mt-3 text-xs text-accent">Job: {jobStatus}</p> : null}{aiResult ? <div className="mt-3 rounded-xl bg-background/70 p-3 text-xs"><p className="max-h-40 overflow-auto whitespace-pre-wrap">{aiResult}</p><div className="mt-3 flex gap-2"><button type="button" onClick={() => editor?.chain().focus().insertContent(aiResult).run()} className="rounded-lg bg-accent px-2 py-1 font-bold text-backgroundDark">Insert</button><button type="button" onClick={() => editor?.chain().focus().insertContentAt(editor.state.doc.content.size, `\n${aiResult}`).run()} className="rounded-lg border border-black/10 px-2 py-1 font-bold dark:border-white/10">Append</button><button type="button" onClick={() => void navigator.clipboard.writeText(aiResult)} className="rounded-lg border border-black/10 px-2 py-1 font-bold dark:border-white/10">Copy</button></div></div> : null}</section><section className="rounded-2xl border border-black/10 bg-white/60 p-4 dark:border-white/10 dark:bg-[#3a2d2d]/70"><h2 className="font-bold">Content Atomization</h2><p className="mt-1 text-xs text-text/60 dark:text-textDark/60">Current parent: {selectedAsset?.title || 'Select a document'}</p><p className="mt-2 text-xs text-text/55">↓ generated child assets</p><div className="mt-3 flex flex-wrap gap-1">{(lineage[selectedId]?.children ?? []).map((child) => <span key={child.id} className="rounded-lg bg-accent/15 px-2 py-1 text-[10px] font-bold">{child.title || child.name}</span>)}</div><button type="button" disabled={!canWrite || !selectedAsset} onClick={() => void submitAI('ATOMIZE')} className="mt-4 w-full rounded-xl bg-accent px-3 py-2 text-xs font-bold text-backgroundDark disabled:opacity-50">Atomize into LinkedIn, Instagram, Email</button></section></aside>
     </div>
   </div>;
@@ -157,10 +173,27 @@ function ViewingStation({ station, assets, lineage, currentVersions }: ReadOnlyS
 }
 
 function ImageStation({ station, assets, lineage, currentVersions }: ReadOnlyStationProps) {
-  const imageAssets = assets.filter((asset) => asset.asset_type.toUpperCase() === 'IMAGE');
+  const { user, roles } = useAuth();
+  const canUpload = roles.some((role) => ['EDITOR', 'ADMIN'].includes(role.toUpperCase()));
+  const [imageAssets, setImageAssets] = useState(assets.filter((asset) => asset.asset_type.toUpperCase() === 'IMAGE'));
   const [selectedId, setSelectedId] = useState(imageAssets[0]?.id ?? '');
   const selected = imageAssets.find((asset) => asset.id === selectedId) ?? null;
-  return <ReadOnlyStationLayout station={station} assets={imageAssets} lineage={lineage} currentVersions={currentVersions} selectedId={selectedId} onSelect={setSelectedId} title="Image Station" description="Preview image assets from this project." selected={selected} currentVersion={selected ? currentVersions[selected.id] : undefined} />;
+  const upload = async (file: File) => {
+    if (!user || !canUpload) return;
+    const body = new FormData();
+    body.append('organization_id', user.organization_id);
+    body.append('station_id', station.id);
+    body.append('name', file.name);
+    body.append('asset_type', 'IMAGE');
+    body.append('file', file);
+    try {
+      const created = await apiFetch<AssetRecord>('/assets/upload', { method: 'POST', body });
+      setImageAssets((current) => [...current, created]);
+      setSelectedId(created.id);
+    } catch { return; }
+  };
+  const uploadControl = canUpload ? <label className="cursor-pointer rounded-xl bg-accent px-3 py-2 text-xs font-bold text-backgroundDark">Upload image<input type="file" accept="image/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); }} /></label> : null;
+  return <ReadOnlyStationLayout station={station} assets={imageAssets} lineage={lineage} currentVersions={currentVersions} selectedId={selectedId} onSelect={setSelectedId} title="Image Station" description="Preview image assets from this project." selected={selected} currentVersion={selected ? currentVersions[selected.id] : undefined} headerAction={uploadControl} />;
 }
 
 interface ReadOnlyStationProps {
@@ -177,11 +210,12 @@ interface ReadOnlyStationLayoutProps extends ReadOnlyStationProps {
   onSelect: (id: string) => void;
   selected: AssetRecord | null;
   currentVersion?: number;
+  headerAction?: ReactNode;
 }
 
-function ReadOnlyStationLayout({ station, assets, lineage, currentVersions, title, description, selectedId, onSelect, selected, currentVersion }: ReadOnlyStationLayoutProps) {
+function ReadOnlyStationLayout({ station, assets, lineage, currentVersions, title, description, selectedId, onSelect, selected, currentVersion, headerAction }: ReadOnlyStationLayoutProps) {
   return <div className="space-y-5">
-    <header className="flex flex-wrap items-start justify-between gap-3 border-b border-black/10 pb-5 dark:border-white/10"><div><p className="text-[11px] font-bold uppercase tracking-[0.18em] text-accent">{title}</p><h1 className="mt-2 text-3xl font-bold">{station.name}</h1><p className="mt-2 text-sm text-text/65 dark:text-textDark/65">{description}</p></div><span className="rounded-full bg-accent/15 px-3 py-1.5 text-xs font-bold uppercase text-accent">{station.station_type}</span></header>
+    <header className="flex flex-wrap items-start justify-between gap-3 border-b border-black/10 pb-5 dark:border-white/10"><div><p className="text-[11px] font-bold uppercase tracking-[0.18em] text-accent">{title}</p><h1 className="mt-2 text-3xl font-bold">{station.name}</h1><p className="mt-2 text-sm text-text/65 dark:text-textDark/65">{description}</p></div><div className="flex items-center gap-2">{headerAction}<span className="rounded-full bg-accent/15 px-3 py-1.5 text-xs font-bold uppercase text-accent">{station.station_type}</span></div></header>
     <div className="grid gap-5 lg:grid-cols-[240px_minmax(0,1fr)]">
       <aside className="rounded-2xl border border-black/10 bg-white/60 p-4 dark:border-white/10 dark:bg-[#3a2d2d]/70"><div className="flex items-center justify-between"><h2 className="font-bold">Assets</h2><span className="text-xs text-text/55">{assets.length}</span></div><div className="mt-4 space-y-2">{assets.map((asset) => { const parents = lineage[asset.id]?.parents ?? []; return <button key={asset.id} type="button" onClick={() => onSelect(asset.id)} className={`w-full border-l-2 p-2 text-left text-xs ${selectedId === asset.id ? 'border-accent bg-accent/15 font-bold' : 'border-transparent hover:bg-black/5 dark:hover:bg-white/5'} ${parents.length ? 'ml-4 w-[calc(100%-1rem)]' : ''}`}><span className="block truncate">{parents.length ? '↳ ' : ''}{asset.title || asset.name}</span><span className="mt-1 block text-[10px] text-text/55">{parents.length ? 'CHILD · ' : ''}v{currentVersions[asset.id] || '—'} CURRENT</span></button>; })}</div></aside>
       <main className="rounded-2xl border border-black/10 bg-white/70 p-6 dark:border-white/10 dark:bg-[#3a2d2d]/80">{selected ? <ReadOnlyAsset asset={selected} lineage={lineage[selected.id]} currentVersion={currentVersion} imageOnly={station.station_type === 'IMAGE'} /> : <p className="py-16 text-center text-sm text-text/60 dark:text-textDark/60">No assets are available in this station.</p>}</main>
