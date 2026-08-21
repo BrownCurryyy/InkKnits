@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.routers.auth import get_current_user
 from backend.app.auth import can_access_project, can_access_station, get_user_roles, require_roles
-from backend.app.schemas import StationCreate, StationOut
+from backend.app.schemas import StationOut
 from backend.database.connection import get_db
 from backend.models.station import Station
 from backend.repositories.station_repository import StationRepository
@@ -11,26 +11,6 @@ from backend.models.station_member import StationMember
 from backend.app.schemas import OrganizationMemberAdd
 
 router = APIRouter(prefix="/stations", tags=["stations"], dependencies=[Depends(get_current_user)])
-
-
-@router.post("", response_model=StationOut, status_code=status.HTTP_201_CREATED)
-async def create_station(payload: StationCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)) -> StationOut:
-    require_roles(get_user_roles(db, current_user), ("ADMIN",))
-    from backend.models.project import Project
-
-    project = db.get(Project, payload.project_id)
-    if not project or project.organization_id != current_user.organization_id or not can_access_project(db, current_user, project.id):
-        raise HTTPException(status_code=404, detail="Project not found")
-    repository = StationRepository(db)
-    station = Station(
-        organization_id=project.organization_id,
-        project_id=payload.project_id,
-        name=payload.name,
-        station_type=payload.station_type,
-        description=payload.description,
-    )
-    created = repository.create(station)
-    return StationOut.model_validate(created)
 
 
 @router.get("", response_model=list[StationOut])
@@ -94,32 +74,3 @@ async def filter_assets(station_id: str, db: Session = Depends(get_db), current_
     ]
 
 
-@router.get("/{station_id}/dashboard")
-async def station_dashboard(station_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)) -> dict:
-    """Return station metadata with live counts of assets, members, and pending approvals."""
-    from backend.models.asset import Asset
-    from backend.models.station_member import StationMember
-    from backend.models.approval_task import ApprovalTask
-
-    repository = StationRepository(db)
-    station = repository.get_by_id(station_id)
-    if not station or not can_access_station(db, current_user, station.id):
-        raise HTTPException(status_code=404, detail="Station not found")
-
-    total_assets = db.query(Asset).filter(Asset.station_id == station_id, Asset.deleted_at.is_(None)).count()
-    active_members = db.query(StationMember).filter(StationMember.station_id == station_id).count()
-    pending_approvals = (
-        db.query(ApprovalTask)
-        .join(Asset, ApprovalTask.asset_id == Asset.id)
-        .filter(Asset.station_id == station_id, ApprovalTask.status == "PENDING")
-        .count()
-    )
-
-    return {
-        "station": StationOut.model_validate(station).model_dump(),
-        "metrics": {
-            "total_assets": total_assets,
-            "active_members": active_members,
-            "pending_approvals": pending_approvals,
-        },
-    }

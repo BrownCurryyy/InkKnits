@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 import { apiFetch } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -43,7 +42,6 @@ function getPermissionMessage(error: unknown, fallback: string) {
 
 export function ApprovalsQueue() {
   const { user, roles } = useAuth();
-  const navigate = useNavigate();
 
   const [tasks, setTasks] = useState<ApprovalTaskFull[]>([]);
   const [selectedTaskId, setSelectedTaskId] = useState<string>('');
@@ -140,17 +138,6 @@ export function ApprovalsQueue() {
       showToast('Task rejected.');
     } catch (err) {
       showToast(getPermissionMessage(err, 'Unable to reject task.'));
-    }
-  };
-
-  const escalateTask = async (taskId: string) => {
-    try {
-      await apiFetch(`/approvals/tasks/${taskId}/escalate`, { method: 'POST' });
-      await loadTasks();
-      await loadTaskDetail(taskId);
-      showToast('Task escalated.');
-    } catch (err) {
-      showToast(getPermissionMessage(err, 'Unable to escalate task.'));
     }
   };
 
@@ -288,13 +275,9 @@ export function ApprovalsQueue() {
                   {selectedTask.assetTitle}
                 </p>
                 {selectedTask.asset_id ? (
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/assets/${selectedTask.asset_id}`)}
-                    className="mt-2.5 inline-flex items-center gap-1 rounded-xl bg-accent/20 px-3 py-1.5 text-xs font-bold text-accent transition hover:bg-accent hover:text-backgroundDark"
-                  >
-                    Open Asset in Workspace →
-                  </button>
+                  <p className="mt-2.5 text-xs font-bold text-accent">
+                    Asset {selectedTask.asset_id.slice(0, 8)}
+                  </p>
                 ) : null}
               </div>
               <button
@@ -384,13 +367,6 @@ export function ApprovalsQueue() {
                       className="flex-1 rounded-lg bg-statusError/20 px-3 py-2 text-sm font-medium text-text dark:text-textDark"
                     >
                       Reject
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void escalateTask(selectedTask.id)}
-                      className="flex-1 rounded-lg bg-statusEscalated/20 px-3 py-2 text-sm font-medium text-statusEscalated"
-                    >
-                      Escalate
                     </button>
                   </div>
                 </div>

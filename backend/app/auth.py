@@ -25,6 +25,7 @@ SECRET_KEY = os.getenv(
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 REFRESH_TOKEN_EXPIRE_DAYS = 7
+CANONICAL_ROLES = ("ADMIN", "MANAGER", "EDITOR", "REVIEWER", "PUBLISHER", "VIEWER")
 
 
 def hash_password(password: str) -> str:
@@ -129,7 +130,7 @@ def has_required_roles(user_roles: list[str] | None, required_roles: tuple[str, 
         return True
 
     normalized_user_roles = {role.upper() for role in (user_roles or [])}
-    normalized_required_roles = {"ADMIN" if role.upper() == "MANAGER" else "EDITOR" if role.upper() == "PUBLISHER" else role.upper() for role in required_roles}
+    normalized_required_roles = {role.upper() for role in required_roles}
     return bool(normalized_required_roles & normalized_user_roles) or "ADMIN" in normalized_user_roles
 
 

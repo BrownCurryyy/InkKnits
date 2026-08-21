@@ -39,7 +39,7 @@ def test_core_models_populate_timestamps_on_flush() -> None:
 
         organization = Organization(id=org_id, name="Test Org")
         project = Project(id=project_id, organization_id=org_id, title="Test Project")
-        station = Station(id=station_id, organization_id=org_id, project_id=project_id, name="Test Station")
+        station = Station(id=station_id, organization_id=org_id, project_id=project_id, name="Test Station", station_type="VIEWING")
         user = User(id=user_id, organization_id=org_id, email="user@example.com", display_name="Tester", password_hash="hash")
         role = Role(id=role_id, organization_id=org_id, name="Viewer")
         asset = Asset(id=asset_id, organization_id=org_id, station_id=station_id, name="Test Asset")

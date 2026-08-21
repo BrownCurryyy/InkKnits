@@ -92,6 +92,11 @@ export function AIJobConsole() {
   }, []);
 
   useEffect(() => {
+    const interval = window.setInterval(() => { void loadJobs(); }, 3000);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
     if (!selectedJobId) {
       setSelectedJob(null);
       return;
@@ -196,6 +201,7 @@ export function AIJobConsole() {
                       <h4 className="font-bold text-text dark:text-textDark">
                         {jobTypeLabels[job.job_type] || job.job_type}
                       </h4>
+                      <p className="mt-1 font-mono text-[10px] text-text/45 dark:text-textDark/45">{job.task_id}</p>
                       <p className="mt-1 text-xs text-text/60 dark:text-textDark/60 line-clamp-1">
                         {job.prompt ? job.prompt : 'No prompt details'}
                       </p>
@@ -216,6 +222,7 @@ export function AIJobConsole() {
                   <p className="mt-2 text-[11px] text-text/50 dark:text-textDark/50">
                     {job.project_id ? `Project ${job.project_id.slice(0, 8)}` : 'No project context'}
                     {job.asset_id ? ` · Asset ${job.asset_id.slice(0, 8)}` : ''}
+                    {job.created_by ? ` · User ${job.created_by.slice(0, 8)}` : ''}
                   </p>
                 </button>
               ))}
@@ -270,6 +277,16 @@ export function AIJobConsole() {
                   <p className="font-bold text-text/60 dark:text-textDark/60">Result</p>
                   <p className="mt-1 font-semibold">{selectedJob.result_available ? 'Available' : 'Pending'}</p>
                 </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><p className="font-bold text-text/60 dark:text-textDark/60">Queue position</p><p className="mt-1 font-semibold">{selectedJob.queue_position ?? 'Running'}</p></div>
+                <div><p className="font-bold text-text/60 dark:text-textDark/60">Requester</p><p className="mt-1 font-mono text-[10px]">{selectedJob.created_by?.slice(0, 12) || 'Unknown'}</p></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-[11px]">
+                <div><p className="font-bold text-text/60 dark:text-textDark/60">Created</p><p className="mt-1">{formatJobDate(selectedJob.created_at)}</p></div>
+                <div><p className="font-bold text-text/60 dark:text-textDark/60">Started</p><p className="mt-1">{formatJobDate(selectedJob.started_at)}</p></div>
+                <div><p className="font-bold text-text/60 dark:text-textDark/60">Completed</p><p className="mt-1">{formatJobDate(selectedJob.completed_at)}</p></div>
+                <div><p className="font-bold text-text/60 dark:text-textDark/60">Duration</p><p className="mt-1">{formatJobDuration(selectedJob)}</p></div>
               </div>
               {['QUEUED', 'RUNNING'].includes(selectedJob.status) ? (
                 <button type="button" onClick={() => void suspendJob(selectedJob.task_id)} className="rounded-xl border border-statusError/40 bg-statusError/10 px-3 py-2 text-xs font-bold text-statusError">
@@ -328,4 +345,14 @@ export function AIJobConsole() {
       ) : null}
     </div>
   );
+}
+
+function formatJobDate(value?: string | null) {
+  return value ? new Date(value).toLocaleString() : 'Pending';
+}
+
+function formatJobDuration(job: AIJobStatusRecord) {
+  if (!job.started_at) return 'Pending';
+  const end = job.completed_at ? new Date(job.completed_at).getTime() : Date.now();
+  return `${Math.max(0, Math.round((end - new Date(job.started_at).getTime()) / 1000))}s`;
 }

@@ -49,9 +49,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [user]);
 
   const normalizedRoles = roles.map((role) => role.toUpperCase());
-  const canManageOrganization = normalizedRoles.includes('ADMIN');
-  const canReview = normalizedRoles.some((role) => ['ADMIN', 'REVIEWER'].includes(role));
-  const rolePriority = ['ADMIN', 'EDITOR', 'REVIEWER', 'VIEWER'];
+  const canManageOrganization = normalizedRoles.some((role) => ['ADMIN', 'MANAGER'].includes(role));
+  const canReview = normalizedRoles.some((role) => ['ADMIN', 'MANAGER', 'REVIEWER'].includes(role));
+  const rolePriority = ['ADMIN', 'MANAGER', 'EDITOR', 'REVIEWER', 'PUBLISHER', 'VIEWER'];
   const highestRole = rolePriority.find((role) => normalizedRoles.includes(role)) ?? 'VIEWER';
   const projectGroups = useMemo(
     () => projects.map((project) => ({
@@ -60,9 +60,10 @@ export function AppShell({ children }: { children: ReactNode }) {
     })),
     [projects, stations],
   );
+
   const sidebarSections = [
     { label: 'Home', items: [{ label: 'Home', path: '/' }] },
-    { label: 'Projects', items: [{ label: 'My Projects', path: '/projects' }] },
+    { label: 'Projects', items: [{ label: 'Projects', path: '/projects' }] },
     {
       label: 'Organization',
       items: canManageOrganization ? [{ label: 'Organization', path: '/organization' }] : [],
@@ -72,8 +73,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       items: [
         ...(canReview ? [{ label: 'Approvals', path: '/approvals' }] : []),
         { label: 'AI Queue', path: '/ai' },
-        { label: 'Version Tracking', path: '/bundles' },
         { label: 'Activity', path: '/activity' },
+        { label: 'Version Tracking', path: '/version-tracking' },
       ],
     },
   ];
@@ -107,6 +108,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   );
                 })}
               </div>
+
               {section.label === 'Projects' ? (
                 <div className="mt-3 space-y-2 border-l border-black/10 pl-3 dark:border-white/10">
                   {projectGroups.map(({ project, stations: projectStations }) => {
@@ -152,14 +154,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       <header className="border-b border-black/5 bg-[#fff8dc]/80 backdrop-blur-sm dark:border-white/10 dark:bg-[#423838]/80 lg:ml-72">
         <div className="mx-auto max-w-[1440px] px-6 lg:px-10">
           <div className="flex items-center justify-between py-3">
-            {/* Logo */}
             <div
               onClick={() => navigate('/')}
               className="flex cursor-pointer items-center gap-3 transition hover:opacity-90"
             >
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent font-bold text-backgroundDark shadow-sm">
-                I
-              </div>
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent font-bold text-backgroundDark shadow-sm">I</div>
               <div>
                 <div className="text-lg font-bold text-text dark:text-textDark">InkKnits</div>
                 <div className="text-xs text-text/70 dark:text-textDark/70">
@@ -168,7 +167,6 @@ export function AppShell({ children }: { children: ReactNode }) {
               </div>
             </div>
 
-            {/* User Controls */}
             <div className="flex items-center gap-2.5">
               <button
                 type="button"
@@ -199,7 +197,6 @@ export function AppShell({ children }: { children: ReactNode }) {
               </button>
             </div>
           </div>
-
         </div>
       </header>
 

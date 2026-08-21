@@ -10,6 +10,8 @@ from backend.models.user import User
 from backend.models.rbac import Role, UserRole
 from backend.models.station import Station
 from backend.models.station_member import StationMember
+from backend.models.project import Project
+from backend.models.project_member import ProjectMember
 from backend.repositories.organization_repository import OrganizationRepository
 
 router = APIRouter(prefix="/organizations", tags=["organizations"], dependencies=[Depends(get_current_user)])
@@ -65,14 +67,18 @@ async def list_members(organization_id: str, db: Session = Depends(get_db), curr
 
 @router.get("/{organization_id}/roster", response_model=list[OrganizationRosterMemberOut])
 async def organization_roster(organization_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[OrganizationRosterMemberOut]:
+    require_roles(get_user_roles(db, current_user), ("ADMIN",))
     if str(current_user.organization_id) != organization_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
     members = db.query(User).filter(User.organization_id == organization_id, User.status == "ACTIVE", User.deleted_at.is_(None)).order_by(User.display_name).all()
     result: list[OrganizationRosterMemberOut] = []
     for member in members:
-        role = db.query(Role.name).join(UserRole, UserRole.role_id == Role.id).filter(UserRole.user_id == member.id, Role.organization_id == member.organization_id, Role.name.in_(("ADMIN", "EDITOR", "REVIEWER", "VIEWER"))).order_by(Role.name).first()
+        role = db.query(Role.name).join(UserRole, UserRole.role_id == Role.id).filter(UserRole.user_id == member.id, Role.organization_id == member.organization_id, Role.name.in_(("ADMIN", "MANAGER", "EDITOR", "REVIEWER", "PUBLISHER", "VIEWER"))).order_by(Role.name).first()
+        project_names = [name for (name,) in db.query(Project.title).join(ProjectMember, ProjectMember.project_id == Project.id).filter(ProjectMember.user_id == member.id, Project.organization_id == organization_id, Project.deleted_at.is_(None)).order_by(Project.title).all()]
+        station_project_names = [name for (name,) in db.query(Project.title).join(Station, Station.project_id == Project.id).join(StationMember, StationMember.station_id == Station.id).filter(StationMember.user_id == member.id, Project.organization_id == organization_id, Project.deleted_at.is_(None), Station.deleted_at.is_(None)).all()]
+        project_names = sorted(set(project_names + station_project_names))
         station_names = [name for (name,) in db.query(Station.name).join(StationMember, StationMember.station_id == Station.id).filter(StationMember.user_id == member.id, Station.organization_id == organization_id, Station.deleted_at.is_(None)).order_by(Station.name).all()]
-        result.append(OrganizationRosterMemberOut(user=UserOut.model_validate(member), role=role[0] if role else "VIEWER", station_names=station_names))
+        result.append(OrganizationRosterMemberOut(user=UserOut.model_validate(member), role=role[0] if role else "VIEWER", project_names=project_names, station_names=station_names))
     return result
 
 

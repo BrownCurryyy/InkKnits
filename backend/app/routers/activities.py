@@ -52,6 +52,10 @@ async def list_activities(db: Session = Depends(get_db), current_user=Depends(ge
         activity for activity in repository.list_all()
         if activity.organization_id == current_user.organization_id
         and (
+            activity.project_id is None
+            or can_access_project(db, current_user, activity.project_id)
+        )
+        and (
             activity.asset_id is None
             or can_access_asset(db, current_user, db.get(Asset, activity.asset_id))
         )

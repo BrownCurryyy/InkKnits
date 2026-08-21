@@ -131,34 +131,6 @@ class ProjectProductionStateOut(BaseModel):
     links: list[AssetLinkOut] = Field(default_factory=list)
 
 
-class VersionBundleCreate(BaseModel):
-    name: str = Field(..., min_length=1, max_length=255)
-
-
-class VersionBundleItemOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: UUID
-    asset_id: UUID
-    version_id: UUID
-    version_number: int
-    asset_title: str
-    asset_type: str
-    created_by: UUID | None = None
-    created_at: datetime
-    snapshot_preview: str | None = None
-
-
-class VersionBundleOut(BaseModel):
-    id: UUID
-    project_id: UUID
-    name: str
-    created_by: UUID
-    created_at: datetime
-    is_active: bool
-    items: list[VersionBundleItemOut] = Field(default_factory=list)
-
-
 class ActivityCreate(BaseModel):
     organization_id: UUID | None = None
     project_id: UUID | None = None
@@ -188,7 +160,7 @@ class AuthRegister(BaseModel):
     password: str = Field(..., min_length=8)
     display_name: str = Field(..., min_length=1, max_length=100)
     organization_id: UUID
-    role: Literal["ADMIN", "EDITOR", "REVIEWER", "VIEWER"] = "VIEWER"
+    role: Literal["ADMIN", "MANAGER", "EDITOR", "REVIEWER", "PUBLISHER", "VIEWER"] = "VIEWER"
 
 
 class AuthLogin(BaseModel):
@@ -217,7 +189,8 @@ class UserOut(BaseModel):
 
 class OrganizationRosterMemberOut(BaseModel):
     user: UserOut
-    role: Literal["ADMIN", "EDITOR", "REVIEWER", "VIEWER"]
+    role: Literal["ADMIN", "MANAGER", "EDITOR", "REVIEWER", "PUBLISHER", "VIEWER"]
+    project_names: list[str] = Field(default_factory=list)
     station_names: list[str] = Field(default_factory=list)
 
 
@@ -300,20 +273,13 @@ class ApprovalTaskOut(BaseModel):
     completed_at: datetime | None = None
 
 
-class StationCreate(BaseModel):
-    project_id: UUID
-    name: str = Field(..., min_length=1, max_length=255)
-    station_type: Literal["WRITING", "GENERATION", "VIEWING", "IMAGE", "APPROVAL"]
-    description: str | None = None
-
-
 class StationOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
     project_id: UUID
     name: str
-    station_type: Literal["WRITING", "GENERATION", "VIEWING", "IMAGE", "APPROVAL"]
+    station_type: Literal["WRITING", "GENERATION", "VIEWING", "IMAGE"]
     description: str | None = None
 
 

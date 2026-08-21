@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 
 from sqlalchemy.engine import make_url
+from sqlalchemy import create_engine, text
 import subprocess
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -27,8 +28,13 @@ def main() -> None:
         raise SystemExit("Refusing to reset a non-local database. DATABASE_URL must point to localhost.")
 
     print(f"Resetting local database at {parsed_url.render_as_string(hide_password=True)}")
-    subprocess.run([sys.executable, "-m", "alembic", "-c", "backend/alembic.ini", "downgrade", "base"], cwd=REPO_ROOT, check=True)
-    subprocess.run([sys.executable, "-m", "alembic", "-c", "backend/alembic.ini", "upgrade", "head"], cwd=REPO_ROOT, check=True)
+    reset_engine = create_engine(database_url)
+    with reset_engine.begin() as connection:
+        connection.execute(text("DROP SCHEMA public CASCADE"))
+        connection.execute(text("CREATE SCHEMA public"))
+
+    alembic_dir = REPO_ROOT / "backend"
+    subprocess.run([sys.executable, "-m", "alembic", "-c", "alembic.ini", "upgrade", "head"], cwd=alembic_dir, check=True)
     subprocess.run([sys.executable, "backend/scripts/local_dev_setup.py"], cwd=REPO_ROOT, check=True)
     print("Database reset, migrations applied, and seed data restored.")
 

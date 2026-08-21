@@ -105,19 +105,21 @@ def seed_demo_data(session: Session) -> dict[str, int]:
     )
 
     roles = {name: ensure_role(session, organization_id, name) for name in (
-        "ADMIN", "EDITOR", "REVIEWER", "VIEWER"
+        "ADMIN", "MANAGER", "EDITOR", "REVIEWER", "PUBLISHER", "VIEWER"
     )}
     users = {
         "admin": ensure_user(session, organization_id, "admin", "admin@example.com", "Demo Admin", roles["ADMIN"]),
+        "manager": ensure_user(session, organization_id, "manager", "manager@example.com", "Demo Manager", roles["MANAGER"]),
         "editor": ensure_user(session, organization_id, "editor", "editor@example.com", "Demo Editor", roles["EDITOR"]),
         "reviewer": ensure_user(session, organization_id, "reviewer", "reviewer@example.com", "Demo Reviewer", roles["REVIEWER"]),
+        "publisher": ensure_user(session, organization_id, "publisher", "publisher@example.com", "Demo Publisher", roles["PUBLISHER"]),
         "viewer": ensure_user(session, organization_id, "viewer", "viewer@example.com", "Demo Viewer", roles["VIEWER"]),
     }
 
     project_specs = {
-        "world-cup": ("World Cup Campaign", ("Writing", "Generation", "Image")),
-        "product-launch": ("Product Launch", ("Writing", "Image")),
-        "editorial": ("Editorial Campaign", ("Writing",)),
+        "world-cup": ("World Cup Campaign", ("Writing", "Viewing", "Generation", "Image")),
+        "product-launch": ("Product Launch", ("Writing", "Viewing", "Generation", "Image")),
+        "editorial": ("Editorial Campaign", ("Writing", "Viewing", "Generation", "Image")),
     }
     stations: dict[str, Station] = {}
     for project_key, (title, station_names) in project_specs.items():
@@ -152,14 +154,16 @@ def seed_demo_data(session: Session) -> dict[str, int]:
 
     assignments = {
         "admin": tuple(stations),
+        "manager": tuple(key for key in stations if key.startswith("world-cup:")),
         "editor": ("world-cup:Writing", "product-launch:Writing", "editorial:Writing"),
-        "reviewer": ("world-cup:Writing",),
-        "viewer": ("world-cup:Writing",),
+        "reviewer": ("world-cup:Viewing", "world-cup:Writing"),
+        "publisher": ("world-cup:Viewing",),
+        "viewer": ("world-cup:Viewing",),
     }
     for user_key, station_keys in assignments.items():
         for station_key in station_keys:
             ensure_station_member(session, stations[station_key].id, users[user_key].id)
-    for user_key in ("editor", "reviewer", "viewer"):
+    for user_key in ("manager", "editor", "reviewer", "publisher", "viewer"):
         for project_key in project_specs:
             project = session.get(Project, stable_id("project", project_key))
             if not session.get(ProjectMember, {"project_id": project.id, "user_id": users[user_key].id}):

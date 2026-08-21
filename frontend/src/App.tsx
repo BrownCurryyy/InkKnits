@@ -2,57 +2,39 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 
 import { ActivityPage } from './components/ActivityPage';
 import { AIJobConsole } from './components/AIJobConsole';
-import { ApprovalsQueue } from './components/ApprovalsQueue';
 import { AppShell } from './components/AppShell';
-import { AssetWorkspace } from './components/AssetWorkspace';
-import { Dashboard } from './components/Dashboard';
+import { ApprovalsQueue } from './components/ApprovalsQueue';
+import { Home } from './components/Home';
 import { LoginPage } from './components/LoginPage';
 import { OrganizationPage } from './components/OrganizationPage';
 import { ProjectPage } from './components/ProjectPage';
+import { ProjectsPage } from './components/ProjectsPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { StationPage } from './components/StationPage';
-import { VersionBundlesPage } from './components/VersionBundlesPage';
+import { VersionTrackingPage } from './components/VersionTrackingPage';
 
 export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
 
-      {/* Home: what the employee needs to work on */}
       <Route
         path="/"
         element={
           <ProtectedRoute>
             <AppShell>
-              <Dashboard />
-            </AppShell>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/dashboard"
-        element={<Navigate to="/" replace />}
-      />
-
-      {/* Organization: management-only workspace */}
-      <Route
-        path="/organization"
-        element={
-          <ProtectedRoute allowedRoles={['ADMIN']}>
-            <AppShell>
-              <OrganizationPage />
+              <Home />
             </AppShell>
           </ProtectedRoute>
         }
       />
 
-      {/* My Projects and project production campaigns */}
       <Route
         path="/projects"
         element={
           <ProtectedRoute>
             <AppShell>
-              <ProjectPage />
+              <ProjectsPage />
             </AppShell>
           </ProtectedRoute>
         }
@@ -68,7 +50,6 @@ export default function App() {
         }
       />
 
-      {/* Production Stations */}
       <Route
         path="/stations/:stationId"
         element={
@@ -80,19 +61,17 @@ export default function App() {
         }
       />
 
-      {/* Dedicated Asset Workspace */}
       <Route
-        path="/assets/:assetId"
+        path="/organization"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={['ADMIN']}>
             <AppShell>
-              <AssetWorkspace />
+              <OrganizationPage />
             </AppShell>
           </ProtectedRoute>
         }
       />
 
-      {/* Workflow Routes */}
       <Route
         path="/approvals"
         element={
@@ -124,11 +103,11 @@ export default function App() {
         }
       />
       <Route
-        path="/bundles"
+        path="/version-tracking"
         element={
           <ProtectedRoute>
             <AppShell>
-              <VersionBundlesPage />
+              <VersionTrackingPage />
             </AppShell>
           </ProtectedRoute>
         }

@@ -1,583 +1,161 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 
 import { apiFetch } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { CozyEmptyState, CozySkeleton } from './UIStates';
-import type {
-  OrganizationRecord,
-  ProjectRecord,
-  StationRecord,
-  UserRecord,
-  OrganizationRosterMemberRecord,
-} from '../types';
+import type { OrganizationRecord, OrganizationRosterMemberRecord, ProjectRecord, StationRecord } from '../types';
 
-function getPermissionMessage(error: unknown, fallback: string) {
-  if (error instanceof Error) {
-    const message = error.message.toLowerCase();
-    if (
-      message.includes('403') ||
-      message.includes('forbidden') ||
-      message.includes('permission') ||
-      message.includes('requires')
-    ) {
-      return "You don't have permission for this.";
-    }
-    return error.message;
-  }
-  return fallback;
-}
+const ROLE_OPTIONS = ['ADMIN', 'MANAGER', 'EDITOR', 'REVIEWER', 'PUBLISHER', 'VIEWER'] as const;
+
+type Draft = { title: string; description: string };
 
 export function OrganizationPage() {
-  const { user, roles } = useAuth();
-  const navigate = useNavigate();
-
-  const [activeTab, setActiveTab] = useState<'overview' | 'people' | 'projects' | 'stations'>('overview');
-  const [organizations, setOrganizations] = useState<OrganizationRecord[]>([]);
-  const [selectedOrgId, setSelectedOrgId] = useState<string>('');
-  const [members, setMembers] = useState<UserRecord[]>([]);
+  const { user } = useAuth();
+  const [organization, setOrganization] = useState<OrganizationRecord | null>(null);
   const [roster, setRoster] = useState<OrganizationRosterMemberRecord[]>([]);
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [stations, setStations] = useState<StationRecord[]>([]);
-
+  const [newMember, setNewMember] = useState({ email: '', display_name: '', password: '', role: 'VIEWER' });
+  const [newProject, setNewProject] = useState({ title: '', description: '' });
+  const [projectDrafts, setProjectDrafts] = useState<Record<string, Draft>>({});
+  const [selectedProjectByUser, setSelectedProjectByUser] = useState<Record<string, string>>({});
+  const [selectedStationByUser, setSelectedStationByUser] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [toast, setToast] = useState<string | null>(null);
+  const [notice, setNotice] = useState('');
 
-  // Modals state
-  const [isProjectModalOpen, setProjectModalOpen] = useState(false);
-  const [isStationModalOpen, setStationModalOpen] = useState(false);
-  const [isMemberModalOpen, setMemberModalOpen] = useState(false);
-
-  // Drafts
-  const [projectDraft, setProjectDraft] = useState({ title: '', description: '', status: 'ACTIVE' });
-  const [stationDraft, setStationDraft] = useState({ name: '', description: '', project_id: '', station_type: 'VIEWING' as StationRecord['station_type'] });
-  const [memberDraft, setMemberDraft] = useState({ email: '', display_name: '', password: '', role: 'VIEWER' as 'ADMIN' | 'EDITOR' | 'REVIEWER' | 'VIEWER' });
-
-  const isAdmin = roles.some((r) => r.toUpperCase() === 'ADMIN');
-
-  useEffect(() => {
-    if (!toast) return;
-    const timer = window.setTimeout(() => setToast(null), 3500);
-    return () => window.clearTimeout(timer);
-  }, [toast]);
-
-  const showToast = (message: string) => setToast(message);
-
-  const loadData = async () => {
+  const load = async () => {
+    if (!user) return;
     try {
-      setLoading(true);
       setError('');
-      const orgs = await apiFetch<OrganizationRecord[]>('/organizations');
-      setOrganizations(orgs);
-
-      const targetOrgId = selectedOrgId || user?.organization_id || orgs[0]?.id || '';
-      setSelectedOrgId(targetOrgId);
-
-      if (targetOrgId) {
-        const [mems, rosterData, projs, stas] = await Promise.all([
-          apiFetch<UserRecord[]>(`/organizations/${targetOrgId}/members`).catch(() => []),
-          apiFetch<OrganizationRosterMemberRecord[]>(`/organizations/${targetOrgId}/roster`).catch(() => []),
-          apiFetch<ProjectRecord[]>('/projects').catch(() => []),
-          apiFetch<StationRecord[]>('/stations').catch(() => []),
-        ]);
-
-        setMembers(mems);
-        setRoster(rosterData);
-        setProjects(projs.filter((p) => p.organization_id === targetOrgId));
-        setStations(stas);
-      }
+      const [orgs, rosterData, projectData, stationData] = await Promise.all([
+        apiFetch<OrganizationRecord[]>('/organizations'),
+        apiFetch<OrganizationRosterMemberRecord[]>(`/organizations/${user.organization_id}/roster`),
+        apiFetch<ProjectRecord[]>('/projects'),
+        apiFetch<StationRecord[]>('/stations'),
+      ]);
+      setOrganization(orgs[0] ?? null);
+      setRoster(rosterData);
+      setProjects(projectData);
+      setStations(stationData);
+      setProjectDrafts(Object.fromEntries(projectData.map((project) => [project.id, { title: project.title, description: project.description || '' }])));
     } catch (err) {
-      setError(getPermissionMessage(err, 'Unable to load organization details'));
+      setError(err instanceof Error ? err.message : 'Unable to load organization administration.');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    void loadData();
-  }, [selectedOrgId]);
+  useEffect(() => { void load(); }, [user?.id]);
 
-  const handleUpdateRole = async (userId: string, newRole: string) => {
-    if (!selectedOrgId) return;
+  const createMember = async () => {
+    if (!user || !newMember.email || !newMember.display_name || newMember.password.length < 8) return;
     try {
-      await apiFetch(`/organizations/${selectedOrgId}/members/${userId}/role`, {
-        method: 'PUT',
-        body: { role_name: newRole },
-      });
-      showToast(`Role updated to ${newRole}`);
-      await loadData();
-    } catch (err) {
-      showToast(getPermissionMessage(err, 'Unable to update user role'));
-    }
+      await apiFetch('/auth/register', { method: 'POST', body: { ...newMember, organization_id: user.organization_id } });
+      setNewMember({ email: '', display_name: '', password: '', role: 'VIEWER' });
+      setNotice('Member created.');
+      await load();
+    } catch (err) { setError(err instanceof Error ? err.message : 'Unable to create member.'); }
   };
 
-  const handleCreateProject = async () => {
-    if (!selectedOrgId || !projectDraft.title.trim()) return;
+  const updateRole = async (memberId: string, role: string) => {
+    if (!user) return;
     try {
-      await apiFetch('/projects', {
-        method: 'POST',
-        body: {
-          organization_id: selectedOrgId,
-          title: projectDraft.title,
-          description: projectDraft.description,
-          status: projectDraft.status,
-        },
-      });
-      setProjectModalOpen(false);
-      setProjectDraft({ title: '', description: '', status: 'ACTIVE' });
-      showToast('Project created successfully.');
-      await loadData();
-    } catch (err) {
-      showToast(getPermissionMessage(err, 'Unable to create project.'));
-    }
+      await apiFetch(`/organizations/${user.organization_id}/members/${memberId}/role`, { method: 'PUT', body: { role_name: role } });
+      setNotice('Role updated.');
+      await load();
+    } catch (err) { setError(err instanceof Error ? err.message : 'Unable to update role.'); }
   };
 
-  const handleCreateStation = async () => {
-    if (!stationDraft.name.trim() || !stationDraft.project_id || !stationDraft.station_type) {
-      showToast('Please specify station name, type, and project.');
-      return;
-    }
+  const assignProject = async (memberId: string) => {
+    const projectId = selectedProjectByUser[memberId];
+    if (!projectId) return;
     try {
-      await apiFetch('/stations', {
-        method: 'POST',
-        body: {
-          project_id: stationDraft.project_id,
-          name: stationDraft.name,
-          station_type: stationDraft.station_type,
-          description: stationDraft.description,
-        },
-      });
-      setStationModalOpen(false);
-      setStationDraft({ name: '', description: '', project_id: '', station_type: 'VIEWING' });
-      showToast('Station created successfully.');
-      await loadData();
-    } catch (err) {
-      showToast(getPermissionMessage(err, 'Unable to create station.'));
-    }
+      await apiFetch(`/projects/${projectId}/members`, { method: 'POST', body: { user_id: memberId } });
+      setNotice('Project assignment saved.');
+      await load();
+    } catch (err) { setError(err instanceof Error ? err.message : 'Unable to assign project.'); }
   };
 
-  const handleCreateMember = async () => {
-    if (!selectedOrgId || !memberDraft.email.trim() || !memberDraft.display_name.trim() || memberDraft.password.length < 8) {
-      showToast('Enter an email, display name, and password of at least 8 characters.');
-      return;
-    }
+  const assignStation = async (memberId: string) => {
+    const stationId = selectedStationByUser[memberId];
+    if (!stationId) return;
     try {
-      await apiFetch('/auth/register', {
-        method: 'POST',
-        skipAuth: false,
-        body: { ...memberDraft, organization_id: selectedOrgId },
-      });
-      setMemberModalOpen(false);
-      setMemberDraft({ email: '', display_name: '', password: '', role: 'VIEWER' });
-      await loadData();
-      showToast('Member created and added to the organization.');
-    } catch (err) {
-      showToast(getPermissionMessage(err, 'Unable to create member.'));
-    }
+      await apiFetch(`/stations/${stationId}/members`, { method: 'POST', body: { user_id: memberId } });
+      setNotice('Station assignment saved.');
+      await load();
+    } catch (err) { setError(err instanceof Error ? err.message : 'Unable to assign station.'); }
   };
 
-  const currentOrg = organizations.find((o) => o.id === selectedOrgId) ?? null;
-  const stationsByProject = useMemo(
-    () => projects.map((project) => ({
-      project,
-      stations: stations.filter((station) => station.project_id === project.id),
-    })),
-    [projects, stations],
-  );
+  const createProject = async () => {
+    if (!user || !newProject.title.trim()) return;
+    try {
+      await apiFetch('/projects', { method: 'POST', body: { organization_id: user.organization_id, title: newProject.title.trim(), description: newProject.description } });
+      setNewProject({ title: '', description: '' });
+      setNotice('Project created with four fixed stations.');
+      await load();
+    } catch (err) { setError(err instanceof Error ? err.message : 'Unable to create project.'); }
+  };
 
-  if (loading) {
-    return <CozySkeleton rows={5} />;
-  }
+  const updateProject = async (projectId: string) => {
+    const draft = projectDrafts[projectId];
+    if (!draft) return;
+    try {
+      await apiFetch(`/projects/${projectId}`, { method: 'PUT', body: draft });
+      setNotice('Project updated.');
+      await load();
+    } catch (err) { setError(err instanceof Error ? err.message : 'Unable to update project.'); }
+  };
+
+  const archiveProject = async (project: ProjectRecord) => {
+    if (!window.confirm(`Archive ${project.title}?`)) return;
+    try {
+      await apiFetch(`/projects/${project.id}`, { method: 'DELETE' });
+      setNotice('Project archived.');
+      await load();
+    } catch (err) { setError(err instanceof Error ? err.message : 'Unable to archive project.'); }
+  };
+
+  if (loading) return <CozySkeleton rows={6} />;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="rounded-3xl border border-black/5 bg-white/80 p-6 shadow-cozy backdrop-blur-md dark:border-white/10 dark:bg-[#3a2d2d]/90">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/20 text-2xl font-bold text-accent">
-              ORG
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-accent">
-                  ORGANIZATION
-                </span>
-                <span className="rounded-full bg-accent/15 px-2.5 py-0.5 text-xs font-semibold text-accent">
-                  Studio Admin
-                </span>
-              </div>
-              <h2 className="text-2xl font-bold text-text dark:text-textDark">
-                {currentOrg?.name || 'Organization Workspace'}
-              </h2>
-            </div>
-          </div>
-
-          {organizations.length > 1 ? (
-            <select
-              value={selectedOrgId}
-              onChange={(e) => setSelectedOrgId(e.target.value)}
-              className="rounded-2xl border border-black/10 bg-background/80 px-3.5 py-2 text-xs font-semibold text-text outline-none dark:border-white/10 dark:bg-[#554949] dark:text-textDark"
-            >
-              {organizations.map((org) => (
-                <option key={org.id} value={org.id}>
-                  {org.name}
-                </option>
-              ))}
-            </select>
-          ) : null}
-        </div>
-
-        {/* Sub-Nav Tabs */}
-        <div className="mt-5 flex gap-2 border-t border-black/5 pt-4 dark:border-white/5">
-          {(['overview', 'people', 'projects', 'stations'] as const).map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setActiveTab(tab)}
-              className={`rounded-2xl px-4 py-2 text-xs font-bold capitalize transition ${
-                activeTab === tab
-                  ? 'bg-accent text-backgroundDark shadow-sm'
-                  : 'bg-background/80 text-text/70 hover:text-text dark:bg-[#554949] dark:text-textDark/70'
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {error ? (
-        <div className="rounded-2xl border border-statusError/60 bg-statusError/20 p-4 text-sm font-semibold text-text dark:text-textDark shadow-cozy">
-          {error}
-        </div>
-      ) : null}
-
-      {/* OVERVIEW TAB */}
-      {activeTab === 'overview' ? (
-        <div className="grid gap-6 md:grid-cols-3">
-          <div className="rounded-3xl border border-black/5 bg-white/80 p-6 shadow-cozy backdrop-blur-md dark:border-white/10 dark:bg-[#3a2d2d]/90">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-text/60 dark:text-textDark/60">
-              Total Members
-            </h3>
-            <p className="mt-2 text-3xl font-bold text-accent">{members.length}</p>
-            <p className="mt-1 text-xs text-text/60 dark:text-textDark/60">Active team accounts</p>
-          </div>
-
-          <div className="rounded-3xl border border-black/5 bg-white/80 p-6 shadow-cozy backdrop-blur-md dark:border-white/10 dark:bg-[#3a2d2d]/90">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-text/60 dark:text-textDark/60">
-              Active Projects
-            </h3>
-            <p className="mt-2 text-3xl font-bold text-statusSuccess">{projects.length}</p>
-            <p className="mt-1 text-xs text-text/60 dark:text-textDark/60">Production campaigns</p>
-          </div>
-
-          <div className="rounded-3xl border border-black/5 bg-white/80 p-6 shadow-cozy backdrop-blur-md dark:border-white/10 dark:bg-[#3a2d2d]/90">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-text/60 dark:text-textDark/60">
-              Total Stations
-            </h3>
-            <p className="mt-2 text-3xl font-bold text-statusPending">{stations.length}</p>
-            <p className="mt-1 text-xs text-text/60 dark:text-textDark/60">Production areas</p>
-          </div>
-        </div>
-      ) : null}
-
-      {/* PEOPLE TAB */}
-      {activeTab === 'people' ? (
-        <div className="rounded-3xl border border-black/5 bg-white/80 p-6 shadow-cozy backdrop-blur-md dark:border-white/10 dark:bg-[#3a2d2d]/90">
-          <div className="mb-4 flex items-center justify-between border-b border-black/5 pb-4 dark:border-white/10">
-            <div>
-              <h3 className="text-lg font-bold text-text dark:text-textDark">Organization Members</h3>
-              <p className="text-xs text-text/60 dark:text-textDark/60">
-                ROLE defines capabilities; STATION defines functional work areas.
-              </p>
-            </div>
-            {isAdmin ? <button type="button" onClick={() => setMemberModalOpen(true)} className="mb-4 rounded-xl bg-accent px-4 py-2 text-xs font-bold text-backgroundDark">Add Member</button> : null}
-            <div className="rounded-2xl bg-accent/15 px-3 py-1.5 text-xs font-bold text-accent">
-              Direct user invitation is managed via the Auth/RBAC contract.
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            {(roster.length ? roster : members.map((user) => ({ user, role: 'VIEWER' as const, station_names: [] }))).map((entry) => {
-              const m = entry.user;
-              return (
-              <div
-                key={m.id}
-                className="flex flex-col gap-3 rounded-2xl border border-black/5 bg-background/30 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-white/5 dark:bg-[#4f3d3d]/40"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-accent/20 text-sm font-bold text-accent">
-                    {(m.display_name || m.email || 'U').slice(0, 1).toUpperCase()}
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-text dark:text-textDark">{m.display_name}</h4>
-                    <p className="text-xs text-text/60 dark:text-textDark/60">{m.email}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <div className="text-right">
-                    <span className="block text-[10px] font-bold uppercase tracking-wider text-text/60 dark:text-textDark/60">
-                      SYSTEM ROLE
-                    </span>
-                    <span className="rounded-full bg-accent/20 px-2.5 py-0.5 text-xs font-bold text-accent">{entry.role}</span>
-                    <div className="mt-1 flex max-w-xs flex-wrap justify-end gap-1">{entry.station_names.map((stationName) => <span key={stationName} className="rounded bg-background px-1.5 py-0.5 text-[10px] font-semibold dark:bg-[#554949]">{stationName}</span>)}</div>
-                  </div>
-
-                  {isAdmin ? (
-                    <select
-                      onChange={(e) => void handleUpdateRole(m.id, e.target.value)}
-                      defaultValue={entry.role}
-                      className="rounded-xl border border-black/10 bg-white px-2.5 py-1 text-xs font-bold text-text outline-none dark:border-white/10 dark:bg-[#4f3d3d] dark:text-textDark"
-                    >
-                      <option value="ADMIN">ADMIN</option>
-                      <option value="EDITOR">EDITOR</option>
-                      <option value="VIEWER">VIEWER</option>
-                    </select>
-                  ) : null}
-                </div>
-              </div>
-              );
-            })}
-          </div>
-        </div>
-      ) : null}
-
-      {/* PROJECTS TAB */}
-      {activeTab === 'projects' ? (
-        <div className="rounded-3xl border border-black/5 bg-white/80 p-6 shadow-cozy backdrop-blur-md dark:border-white/10 dark:bg-[#3a2d2d]/90">
-          <div className="mb-4 flex items-center justify-between border-b border-black/5 pb-4 dark:border-white/10">
-            <div>
-              <h3 className="text-lg font-bold text-text dark:text-textDark">Organization Projects</h3>
-              <p className="text-xs text-text/60 dark:text-textDark/60">
-                Production contexts housing stations and creative assets
-              </p>
-            </div>
-
-            {isAdmin ? (
-              <button
-                type="button"
-                onClick={() => setProjectModalOpen(true)}
-                className="rounded-2xl bg-accent px-4 py-2 text-xs font-bold text-backgroundDark shadow-sm hover:opacity-90 active:scale-95"
-              >
-                ➕ New Project
-              </button>
-            ) : null}
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            {projects.map((p) => (
-              <div
-                key={p.id}
-                onClick={() => navigate(`/projects/${p.id}`)}
-                className="group cursor-pointer rounded-2xl border border-black/5 bg-background/40 p-5 transition hover:-translate-y-1 hover:border-accent/40 hover:bg-background/80 dark:border-white/10 dark:bg-[#4f3d3d]/70"
-              >
-                <div className="flex items-start justify-between">
-                  <h4 className="text-base font-bold text-text dark:text-textDark group-hover:text-accent">
-                    {p.title}
-                  </h4>
-                  <span className="rounded-full bg-statusSuccess/20 px-2.5 py-0.5 text-[10px] font-bold text-statusSuccess uppercase">
-                    {p.status}
-                  </span>
-                </div>
-                <p className="mt-2 text-xs text-text/70 dark:text-textDark/70">{p.description || 'No description'}</p>
-                <div className="mt-4 flex items-center justify-between border-t border-black/5 pt-3 text-[11px] text-accent font-bold">
-                  <span>View Project State →</span>
-                  {isAdmin ? <button type="button" onClick={(event) => { event.stopPropagation(); if (window.confirm(`Delete ${p.title}?`)) void apiFetch(`/projects/${p.id}`, { method: 'DELETE' }).then(() => loadData()); }} className="text-statusError">Delete</button> : null}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {/* STATIONS TAB */}
-      {activeTab === 'stations' ? (
-        <div className="rounded-3xl border border-black/5 bg-white/80 p-6 shadow-cozy backdrop-blur-md dark:border-white/10 dark:bg-[#3a2d2d]/90">
-          <div className="mb-4 flex items-center justify-between border-b border-black/5 pb-4 dark:border-white/10">
-            <div>
-              <h3 className="text-lg font-bold text-text dark:text-textDark">Production Stations</h3>
-              <p className="text-xs text-text/60 dark:text-textDark/60">
-                Functional work destinations across projects
-              </p>
-            </div>
-
-            {isAdmin ? (
-              <button
-                type="button"
-                onClick={() => setStationModalOpen(true)}
-                className="rounded-2xl bg-accent px-4 py-2 text-xs font-bold text-backgroundDark shadow-sm hover:opacity-90 active:scale-95"
-              >
-                ➕ New Station
-              </button>
-            ) : null}
-          </div>
-
-          <div className="space-y-5">
-            {stationsByProject.map(({ project, stations: projectStations }) => (
-              <section key={project.id} className="rounded-2xl border border-black/10 bg-background/25 p-4 dark:border-white/10 dark:bg-[#4f3d3d]/30">
-                <div className="mb-3 flex items-center justify-between border-b border-black/10 pb-3 dark:border-white/10">
-                  <div><h4 className="font-bold">{project.title}</h4><p className="text-xs text-text/55 dark:text-textDark/55">{projectStations.length} production stations</p></div>
-                  <button type="button" onClick={() => navigate(`/projects/${project.id}`)} className="text-xs font-bold text-accent">Open project</button>
-                </div>
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                  {projectStations.map((station) => (
-                    <button key={station.id} type="button" onClick={() => navigate(`/stations/${station.id}`)} className="rounded-xl border border-black/10 bg-white/55 p-4 text-left transition hover:border-accent dark:border-white/10 dark:bg-[#423838]/55">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-accent">{station.station_type}</span>
-                      <h5 className="mt-1 font-bold">{station.name}</h5>
-                      <p className="mt-1 text-xs text-text/60 dark:text-textDark/60">{station.description || 'Production station'}</p>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {/* New Project Modal */}
-      {isProjectModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#423838]/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-3xl bg-background p-6 text-text shadow-cozy dark:bg-[#2d2222] dark:text-textDark border border-black/5 dark:border-white/10">
-            <h3 className="mb-4 text-xl font-bold">New Project</h3>
-            <form
-              className="space-y-4"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void handleCreateProject();
-              }}
-            >
-              <label className="block text-xs font-bold">
-                <span className="mb-1 block">Title</span>
-                <input
-                  value={projectDraft.title}
-                  onChange={(e) => setProjectDraft((p) => ({ ...p, title: e.target.value }))}
-                  className="w-full rounded-2xl border border-black/10 bg-white px-3.5 py-2.5 text-sm outline-none dark:border-white/10 dark:bg-[#4f3d3d]"
-                  required
-                />
-              </label>
-
-              <label className="block text-xs font-bold">
-                <span className="mb-1 block">Description</span>
-                <textarea
-                  value={projectDraft.description}
-                  onChange={(e) => setProjectDraft((p) => ({ ...p, description: e.target.value }))}
-                  rows={3}
-                  className="w-full rounded-2xl border border-black/10 bg-white px-3.5 py-2.5 text-sm outline-none dark:border-white/10 dark:bg-[#4f3d3d]"
-                />
-              </label>
-
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setProjectModalOpen(false)}
-                  className="rounded-2xl bg-white px-4 py-2 text-xs font-bold text-text dark:bg-[#554949] dark:text-textDark"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="rounded-2xl bg-accent px-5 py-2 text-xs font-bold text-backgroundDark shadow-sm"
-                >
-                  Create
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      ) : null}
-
-      {/* New Station Modal */}
-      {isStationModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#423838]/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-3xl bg-background p-6 text-text shadow-cozy dark:bg-[#2d2222] dark:text-textDark border border-black/5 dark:border-white/10">
-            <h3 className="mb-4 text-xl font-bold">New Station</h3>
-            <form
-              className="space-y-4"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void handleCreateStation();
-              }}
-            >
-              <label className="block text-xs font-bold">
-                <span className="mb-1 block">Project</span>
-                <select
-                  value={stationDraft.project_id}
-                  onChange={(e) => setStationDraft((s) => ({ ...s, project_id: e.target.value }))}
-                  className="w-full rounded-2xl border border-black/10 bg-white px-3.5 py-2.5 text-sm outline-none dark:border-white/10 dark:bg-[#4f3d3d]"
-                  required
-                >
-                  <option value="">Select a Project…</option>
-                  {projects.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.title}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="block text-xs font-bold">
-                <span className="mb-1 block">Station Name</span>
-                <input
-                  value={stationDraft.name}
-                  onChange={(e) => setStationDraft((s) => ({ ...s, name: e.target.value }))}
-                  className="w-full rounded-2xl border border-black/10 bg-white px-3.5 py-2.5 text-sm outline-none dark:border-white/10 dark:bg-[#4f3d3d]"
-                  placeholder="e.g. Writing Station"
-                  required
-                />
-              </label>
-
-              <label className="block text-xs font-bold">
-                <span className="mb-1 block">Description</span>
-                <input
-                  value={stationDraft.description}
-                  onChange={(e) => setStationDraft((s) => ({ ...s, description: e.target.value }))}
-                  className="w-full rounded-2xl border border-black/10 bg-white px-3.5 py-2.5 text-sm outline-none dark:border-white/10 dark:bg-[#4f3d3d]"
-                />
-              </label>
-
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setStationModalOpen(false)}
-                  className="rounded-2xl bg-white px-4 py-2 text-xs font-bold text-text dark:bg-[#554949] dark:text-textDark"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="rounded-2xl bg-accent px-5 py-2 text-xs font-bold text-backgroundDark shadow-sm"
-                >
-                  Create
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      ) : null}
-
-      {isMemberModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#423838]/60 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-background p-6 text-text shadow-cozy dark:bg-[#2d2222] dark:text-textDark">
-            <h3 className="mb-4 text-xl font-bold">Add Member</h3>
-            <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); void handleCreateMember(); }}>
-              <input type="email" required placeholder="Email" value={memberDraft.email} onChange={(event) => setMemberDraft((draft) => ({ ...draft, email: event.target.value }))} className="w-full rounded-xl border bg-white px-3 py-2.5 text-sm dark:bg-[#4f3d3d]" />
-              <input required placeholder="Display name" value={memberDraft.display_name} onChange={(event) => setMemberDraft((draft) => ({ ...draft, display_name: event.target.value }))} className="w-full rounded-xl border bg-white px-3 py-2.5 text-sm dark:bg-[#4f3d3d]" />
-              <input type="password" required minLength={8} placeholder="Temporary password" value={memberDraft.password} onChange={(event) => setMemberDraft((draft) => ({ ...draft, password: event.target.value }))} className="w-full rounded-xl border bg-white px-3 py-2.5 text-sm dark:bg-[#4f3d3d]" />
-              <select value={memberDraft.role} onChange={(event) => setMemberDraft((draft) => ({ ...draft, role: event.target.value as typeof draft.role }))} className="w-full rounded-xl border bg-white px-3 py-2.5 text-sm dark:bg-[#4f3d3d]"><option>VIEWER</option><option>EDITOR</option><option>REVIEWER</option><option>ADMIN</option></select>
-              <div className="flex justify-end gap-2"><button type="button" onClick={() => setMemberModalOpen(false)} className="rounded-xl bg-background px-4 py-2 text-xs font-bold dark:bg-[#554949]">Cancel</button><button type="submit" className="rounded-xl bg-accent px-4 py-2 text-xs font-bold text-backgroundDark">Create member</button></div>
-            </form>
-          </div>
-        </div>
-      ) : null}
-
-      {toast ? (
-        <div className="fixed bottom-6 right-6 z-50 rounded-2xl bg-[#423838] px-5 py-3.5 text-sm font-medium text-[#FFF2C2] shadow-cozy border border-accent/20">
-          {toast}
-        </div>
-      ) : null}
+    <div className="space-y-7">
+      <header className="border-b border-black/10 pb-6 dark:border-white/10">
+        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-accent">Administration</p>
+        <h1 className="mt-2 text-3xl font-bold">{organization?.name || 'Organization'}</h1>
+        <p className="mt-2 text-sm text-text/65 dark:text-textDark/65">Manage people and assigned project participation.</p>
+      </header>
+      {error ? <div className="rounded-xl border border-statusError/40 bg-statusError/10 p-3 text-sm text-statusError">{error}</div> : null}
+      {notice ? <div className="rounded-xl border border-statusSuccess/40 bg-statusSuccess/10 p-3 text-sm text-statusSuccess">{notice}</div> : null}
+      <PeopleSection
+        roster={roster}
+        projects={projects}
+        stations={stations}
+        newMember={newMember}
+        selectedProjectByUser={selectedProjectByUser}
+        selectedStationByUser={selectedStationByUser}
+        currentUserId={user?.id}
+        onMemberChange={setNewMember}
+        onAddMember={() => void createMember()}
+        onRoleChange={(id, role) => void updateRole(id, role)}
+        onProjectChange={(id, value) => setSelectedProjectByUser({ ...selectedProjectByUser, [id]: value })}
+        onStationChange={(id, value) => setSelectedStationByUser({ ...selectedStationByUser, [id]: value })}
+        onAssignProject={(id) => void assignProject(id)}
+        onAssignStation={(id) => void assignStation(id)}
+      />
+      <ProjectsSection projects={projects} stations={stations} drafts={projectDrafts} newProject={newProject} onNewProjectChange={setNewProject} onCreate={() => void createProject()} onDraftChange={(id, draft) => setProjectDrafts({ ...projectDrafts, [id]: draft })} onSave={(id) => void updateProject(id)} onArchive={archiveProject} />
     </div>
   );
+}
+
+function PeopleSection(props: { roster: OrganizationRosterMemberRecord[]; projects: ProjectRecord[]; stations: StationRecord[]; newMember: { email: string; display_name: string; password: string; role: string }; selectedProjectByUser: Record<string, string>; selectedStationByUser: Record<string, string>; currentUserId?: string; onMemberChange: (value: { email: string; display_name: string; password: string; role: string }) => void; onAddMember: () => void; onRoleChange: (id: string, role: string) => void; onProjectChange: (id: string, value: string) => void; onStationChange: (id: string, value: string) => void; onAssignProject: (id: string) => void; onAssignStation: (id: string) => void }) {
+  return <section className="rounded-2xl border border-black/10 bg-white/60 p-5 dark:border-white/10 dark:bg-[#3a2d2d]/70"><div className="mb-4 flex items-center justify-between"><div><h2 className="text-lg font-bold">People</h2><p className="mt-1 text-xs text-text/60">Role and project/station participation are managed here.</p></div><span className="text-xs text-text/55">{props.roster.length} members</span></div><div className="mb-6 grid gap-2 md:grid-cols-[1fr_1fr_1fr_auto]"><input value={props.newMember.display_name} onChange={(event) => props.onMemberChange({ ...props.newMember, display_name: event.target.value })} placeholder="Name" className="rounded-xl border border-black/10 bg-background px-3 py-2 text-sm dark:border-white/10 dark:bg-[#4f3d3d]" /><input value={props.newMember.email} onChange={(event) => props.onMemberChange({ ...props.newMember, email: event.target.value })} placeholder="Email" className="rounded-xl border border-black/10 bg-background px-3 py-2 text-sm dark:border-white/10 dark:bg-[#4f3d3d]" /><input type="password" value={props.newMember.password} onChange={(event) => props.onMemberChange({ ...props.newMember, password: event.target.value })} placeholder="Temporary password" className="rounded-xl border border-black/10 bg-background px-3 py-2 text-sm dark:border-white/10 dark:bg-[#4f3d3d]" /><button type="button" onClick={props.onAddMember} className="rounded-xl bg-accent px-4 py-2 text-xs font-bold text-backgroundDark">Add person</button></div>{props.roster.length === 0 ? <CozyEmptyState icon="◎" title="No people" message="Add an organization member to begin assigning work." /> : <div className="space-y-3">{props.roster.map((entry) => <div key={entry.user.id} className="rounded-xl border border-black/5 bg-background/40 p-4 dark:border-white/10 dark:bg-[#4f3d3d]/50"><div className="grid gap-4 xl:grid-cols-[1.1fr_150px_1fr_1fr]"><div><p className="font-bold">{entry.user.display_name}</p><p className="text-xs text-text/60">{entry.user.email}</p></div><select value={entry.role} onChange={(event) => props.onRoleChange(entry.user.id, event.target.value)} disabled={entry.user.id === props.currentUserId} className="rounded-lg border border-black/10 bg-background px-2 py-2 text-xs dark:border-white/10 dark:bg-[#554949]">{ROLE_OPTIONS.map((role) => <option key={role}>{role}</option>)}</select><Assignment label="Projects" values={entry.project_names} options={props.projects.map((project) => ({ id: project.id, label: project.title }))} value={props.selectedProjectByUser[entry.user.id] || ''} onChange={(value) => props.onProjectChange(entry.user.id, value)} onAssign={() => props.onAssignProject(entry.user.id)} /><Assignment label="Stations" values={entry.station_names} options={props.stations.map((station) => ({ id: station.id, label: `${station.name} · ${station.project_id.slice(0, 8)}` }))} value={props.selectedStationByUser[entry.user.id] || ''} onChange={(value) => props.onStationChange(entry.user.id, value)} onAssign={() => props.onAssignStation(entry.user.id)} /></div></div>)}</div>}</section>;
+}
+
+function Assignment(props: { label: string; values: string[]; options: { id: string; label: string }[]; value: string; onChange: (value: string) => void; onAssign: () => void }) {
+  return <div><p className="mb-1 text-[10px] font-bold uppercase text-text/50">{props.label}</p><p className="min-h-5 text-xs">{props.values.length ? props.values.join(', ') : 'None assigned'}</p><div className="mt-2 flex gap-1"><select value={props.value} onChange={(event) => props.onChange(event.target.value)} className="min-w-0 flex-1 rounded-lg border border-black/10 bg-background px-2 py-1 text-[11px] dark:border-white/10 dark:bg-[#554949]"><option value="">Assign...</option>{props.options.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}</select><button type="button" onClick={props.onAssign} className="rounded-lg bg-accent/20 px-2 text-[11px] font-bold text-accent">Add</button></div></div>;
+}
+
+function ProjectsSection(props: { projects: ProjectRecord[]; stations: StationRecord[]; drafts: Record<string, Draft>; newProject: Draft; onNewProjectChange: (value: Draft) => void; onCreate: () => void; onDraftChange: (id: string, value: Draft) => void; onSave: (id: string) => void; onArchive: (project: ProjectRecord) => void }) {
+  return <section className="rounded-2xl border border-black/10 bg-white/60 p-5 dark:border-white/10 dark:bg-[#3a2d2d]/70"><div className="mb-4"><h2 className="text-lg font-bold">Projects</h2><p className="mt-1 text-xs text-text/60">Every project is provisioned with Writing, Viewing, Generation, and Image stations.</p></div><div className="mb-5 grid gap-2 md:grid-cols-[1fr_2fr_auto]"><input value={props.newProject.title} onChange={(event) => props.onNewProjectChange({ ...props.newProject, title: event.target.value })} placeholder="Project name" className="rounded-xl border border-black/10 bg-background px-3 py-2 text-sm dark:border-white/10 dark:bg-[#4f3d3d]" /><input value={props.newProject.description} onChange={(event) => props.onNewProjectChange({ ...props.newProject, description: event.target.value })} placeholder="Description" className="rounded-xl border border-black/10 bg-background px-3 py-2 text-sm dark:border-white/10 dark:bg-[#4f3d3d]" /><button type="button" onClick={props.onCreate} className="rounded-xl bg-accent px-4 py-2 text-xs font-bold text-backgroundDark">Create project</button></div>{props.projects.length === 0 ? <CozyEmptyState icon="⌂" title="No projects" message="Create a project to provision its fixed stations." /> : <div className="space-y-3">{props.projects.map((project) => { const draft = props.drafts[project.id] || { title: project.title, description: project.description || '' }; return <div key={project.id} className="rounded-xl border border-black/5 bg-background/40 p-4 dark:border-white/10 dark:bg-[#4f3d3d]/50"><div className="grid gap-3 md:grid-cols-[1fr_2fr_auto_auto]"><input value={draft.title} onChange={(event) => props.onDraftChange(project.id, { ...draft, title: event.target.value })} className="rounded-lg border border-black/10 bg-background px-2 py-2 text-sm dark:border-white/10 dark:bg-[#554949]" /><input value={draft.description} onChange={(event) => props.onDraftChange(project.id, { ...draft, description: event.target.value })} placeholder="Description" className="rounded-lg border border-black/10 bg-background px-2 py-2 text-sm dark:border-white/10 dark:bg-[#554949]" /><button type="button" onClick={() => props.onSave(project.id)} className="rounded-lg bg-accent/20 px-3 py-2 text-xs font-bold text-accent">Save</button><button type="button" onClick={() => props.onArchive(project)} className="rounded-lg bg-statusError/10 px-3 py-2 text-xs font-bold text-statusError">Archive</button></div><div className="mt-3 flex flex-wrap gap-2">{props.stations.filter((station) => station.project_id === project.id).map((station) => <span key={station.id} className="rounded-lg bg-accent/10 px-2 py-1 text-[10px] font-bold text-accent">{station.name} · {station.station_type}</span>)}</div></div>; })}</div>}</section>;
 }

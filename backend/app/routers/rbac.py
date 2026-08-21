@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from backend.app.routers.auth import get_current_user
-from backend.app.auth import get_user_roles, require_roles
+from backend.app.auth import CANONICAL_ROLES, get_user_roles, require_roles
 from backend.app.schemas import RoleCreate, RoleOut, PermissionOut
 from backend.database.connection import get_db
 from backend.models.rbac import Role, Permission
@@ -51,7 +51,7 @@ async def seed_rbac(
     # Basic seeder for default roles and permissions
     role_repo = RoleRepository(db)
     
-    default_roles = ["ADMIN", "EDITOR", "REVIEWER", "VIEWER"]
+    default_roles = list(CANONICAL_ROLES)
     created_roles = []
     
     # Simple check if roles already exist for org

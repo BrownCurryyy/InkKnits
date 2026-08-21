@@ -1,20 +1,8 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
 
 import { apiFetch } from '../api/client';
 import { CozyEmptyState, CozySkeleton } from './UIStates';
-import type { ActivityRecord } from '../types';
-
-function formatDate(value?: string) {
-  if (!value) return '—';
-  return new Date(value).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
+import type { ActivityRecord, AssetRecord, ProjectRecord } from '../types';
 
 const activityBadgeStyles: Record<string, string> = {
   ASSET_CREATED: 'bg-statusSuccess/20 text-statusSuccess border-statusSuccess/30',
@@ -22,126 +10,51 @@ const activityBadgeStyles: Record<string, string> = {
   ASSET_OPENED: 'bg-background text-text/80 border-black/10 dark:bg-[#554949] dark:text-textDark',
   IMAGE_GENERATED: 'bg-statusSuccess/20 text-statusSuccess border-statusSuccess/30',
   AI_GENERATED: 'bg-accent/20 text-accent border-accent/30',
-  ARCHIVE: 'bg-statusError/20 text-statusError border-statusError/30',
+  APPROVAL: 'bg-statusPending/20 text-statusPending border-statusPending/30',
+  ESCALATION: 'bg-statusEscalated/20 text-statusEscalated border-statusEscalated/30',
 };
 
 export function ActivityPage() {
-  const navigate = useNavigate();
   const [activities, setActivities] = useState<ActivityRecord[]>([]);
+  const [projects, setProjects] = useState<ProjectRecord[]>([]);
+  const [assets, setAssets] = useState<AssetRecord[]>([]);
+  const [projectFilter, setProjectFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const loadActivities = async () => {
+  const loadActivity = async () => {
     try {
-      setLoading(true);
       setError('');
-      const data = await apiFetch<ActivityRecord[]>('/activities');
-      setActivities(data);
-    } catch {
-      setError('Unable to load production activities feed.');
+      const [activityData, projectData, assetData] = await Promise.all([
+        apiFetch<ActivityRecord[]>('/activities'),
+        apiFetch<ProjectRecord[]>('/projects'),
+        apiFetch<AssetRecord[]>('/assets'),
+      ]);
+      setActivities(activityData);
+      setProjects(projectData);
+      setAssets(assetData);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to load activity.');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    void loadActivities();
-  }, []);
+  useEffect(() => { void loadActivity(); }, []);
 
-  if (loading) {
-    return <CozySkeleton rows={5} />;
-  }
+  const projectNames = useMemo(() => new Map(projects.map((project) => [project.id, project.title])), [projects]);
+  const assetNames = useMemo(() => new Map(assets.map((asset) => [asset.id, asset.title || asset.name])), [assets]);
+  const visibleActivities = activities.filter((item) => projectFilter === 'ALL' || item.project_id === projectFilter);
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="rounded-3xl border border-black/5 bg-white/80 p-6 shadow-cozy backdrop-blur-md dark:border-white/10 dark:bg-[#3a2d2d]/90">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-accent">
-                WORKFLOW
-              </span>
-              <span className="rounded-full bg-accent/15 px-2.5 py-0.5 text-xs font-semibold text-accent">
-                Global Stream
-              </span>
-            </div>
-            <h2 className="mt-1 text-2xl font-bold text-text dark:text-textDark">
-              Production Activity Log
-            </h2>
-            <p className="mt-1 text-xs text-text/60 dark:text-textDark/60">
-              Audit trail of organization events, asset updates, and AI generation tasks
-            </p>
-          </div>
+  if (loading) return <CozySkeleton rows={5} />;
 
-          <button
-            type="button"
-            onClick={() => void loadActivities()}
-            className="rounded-2xl bg-background px-4 py-2 text-xs font-bold text-text transition hover:bg-black/5 dark:bg-[#554949] dark:text-textDark"
-          >
-            🔄 Refresh
-          </button>
-        </div>
-      </div>
+  return <div className="space-y-6">
+    <header className="rounded-3xl border border-black/5 bg-white/80 p-6 shadow-cozy dark:border-white/10 dark:bg-[#3a2d2d]/90"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-[11px] font-bold uppercase tracking-[0.18em] text-accent">Workflow</p><h1 className="mt-2 text-3xl font-bold">Activity</h1><p className="mt-2 text-sm text-text/65 dark:text-textDark/65">What happened across your accessible projects.</p></div><button type="button" onClick={() => void loadActivity()} className="rounded-xl bg-background px-3 py-2 text-xs font-bold dark:bg-[#554949]">Refresh</button></div><label className="mt-5 block max-w-sm text-xs font-bold">Project<select value={projectFilter} onChange={(event) => setProjectFilter(event.target.value)} className="mt-2 w-full rounded-xl border border-black/10 bg-background px-3 py-2 text-sm dark:border-white/10 dark:bg-[#554949]"><option value="ALL">All accessible projects</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.title}</option>)}</select></label></header>
+    {error ? <div className="rounded-2xl border border-statusError/60 bg-statusError/20 p-4 text-sm font-semibold">{error}</div> : null}
+    <section className="rounded-3xl border border-black/5 bg-white/80 p-6 shadow-cozy dark:border-white/10 dark:bg-[#3a2d2d]/90">{visibleActivities.length === 0 ? <CozyEmptyState icon="📜" title="No activity recorded" message="Events from your accessible projects will appear here." /> : <div className="space-y-3">{visibleActivities.map((item) => <article key={item.id} className="rounded-2xl border border-black/5 bg-white/70 p-4 dark:border-white/5 dark:bg-[#2d2222]"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div className="flex items-start gap-3"><span className={`rounded-xl border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${activityBadgeStyles[item.activity_type] || 'bg-background text-text border-black/10'}`}>{item.activity_type}</span><div><p className="text-sm font-medium">{item.description}</p><p className="mt-1 text-xs text-text/60 dark:text-textDark/60">User {item.user_id ? item.user_id.slice(0, 8) : 'System'} · {projectNames.get(item.project_id || '') || 'Organization activity'}</p>{item.asset_id ? <p className="mt-1 text-xs text-text/60 dark:text-textDark/60">Asset: {assetNames.get(item.asset_id) || item.asset_id.slice(0, 8)}</p> : null}</div></div><time className="text-xs text-text/60 dark:text-textDark/60">{formatDate(item.created_at)}</time></div></article>)}</div>}</section>
+  </div>;
+}
 
-      {error ? (
-        <div className="rounded-2xl border border-statusError/60 bg-statusError/20 p-4 text-sm font-semibold text-text dark:text-textDark shadow-cozy">
-          ⚠️ {error}
-        </div>
-      ) : null}
-
-      {/* Activity List */}
-      <div className="rounded-3xl border border-black/5 bg-white/80 p-6 shadow-cozy backdrop-blur-md dark:border-white/10 dark:bg-[#3a2d2d]/90">
-        {activities.length === 0 ? (
-          <CozyEmptyState
-            icon="📜"
-            title="No activity recorded yet"
-            message="Production activities, asset creation, and AI job runs will be logged here automatically."
-          />
-        ) : (
-          <div className="space-y-3">
-            {activities.map((item) => {
-              const style = activityBadgeStyles[item.activity_type] || activityBadgeStyles.ASSET_OPENED;
-
-              return (
-                <div
-                  key={item.id}
-                  className="flex flex-col gap-2 rounded-2xl border border-black/5 bg-white/70 p-4 shadow-sm transition hover:border-accent/30 sm:flex-row sm:items-center sm:justify-between dark:border-white/5 dark:bg-[#2d2222]"
-                >
-                  <div className="flex items-start gap-3">
-                    <span className={`mt-0.5 rounded-xl border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${style}`}>
-                      {item.activity_type}
-                    </span>
-                    <div>
-                      <p className="text-sm font-medium text-text dark:text-textDark">
-                        {item.description}
-                      </p>
-                      <p className="mt-0.5 text-xs text-text/60 dark:text-textDark/60">
-                        Activity ID: <span className="font-mono">{item.id.slice(0, 8)}</span>
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 self-end sm:self-auto">
-                    <span className="text-xs text-text/60 dark:text-textDark/60">
-                      {formatDate(item.created_at)}
-                    </span>
-                    {item.asset_id ? (
-                      <button
-                        type="button"
-                        onClick={() => navigate(`/assets/${item.asset_id}`)}
-                        className="rounded-xl bg-accent/15 px-3 py-1 text-xs font-bold text-accent transition hover:bg-accent/25"
-                      >
-                        View Asset →
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    </div>
-  );
+function formatDate(value: string) {
+  return new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 }

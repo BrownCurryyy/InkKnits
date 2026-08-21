@@ -372,6 +372,8 @@ class AIScheduler:
                 asset_ids = AIScheduler._create_result_assets(session, job)
                 if asset_ids:
                     persisted.result_asset = json.dumps(asset_ids)
+                    if isinstance(job.result, dict):
+                        job.result["asset_ids"] = asset_ids
             session.commit()
         except Exception:
             session.rollback()
@@ -386,6 +388,43 @@ class AIScheduler:
         from backend.models.asset_link import AssetLink
 
         result = job.result or {}
+        if job.job_type in ("TEXT", "REWRITE", "IMPROVE_TONE", "CHANGE_AUDIENCE", "SUMMARIZE", "EXPAND"):
+            from backend.models.asset import Asset
+            from backend.services.activity_service import ActivityService
+            from backend.services.version_service import VersionService
+
+            content = result.get("content")
+            if not content or not job.payload.get("station_id"):
+                return []
+            completed_at = job.completed_at
+            asset_id = uuid.uuid4()
+            title = job.payload.get("title") or f"{job.job_type.title()} result"
+            generated_asset = Asset(
+                id=asset_id,
+                organization_id=uuid.UUID(str(job.payload["organization_id"])),
+                station_id=uuid.UUID(str(job.payload["station_id"])),
+                owner_id=uuid.UUID(str(job.payload["created_by"])) if job.payload.get("created_by") else None,
+                name=title,
+                title=title,
+                content=content,
+                asset_type="TEXT",
+                raw_metadata={"generation": job.payload, "source_job_id": str(job.task_id)},
+                created_at=completed_at,
+                updated_at=completed_at,
+            )
+            session.add(generated_asset)
+            session.flush()
+            VersionService.create_snapshot(session, generated_asset, user_id=job.payload.get("created_by"))
+            ActivityService.log(
+                session,
+                "ASSET_CREATED",
+                f"Generated text asset '{title}' created",
+                organization_id=generated_asset.organization_id,
+                asset_id=asset_id,
+                user_id=uuid.UUID(str(job.payload["created_by"])) if job.payload.get("created_by") else None,
+            )
+            return [str(asset_id)]
+
         if job.job_type == "IMAGE":
             asset_id = uuid.UUID(result["asset_ids"][0])
             completed_at = job.completed_at
