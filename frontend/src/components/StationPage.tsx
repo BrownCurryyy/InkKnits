@@ -75,6 +75,10 @@ export function StationPage() {
   const [newTitle, setNewTitle] = useState('');
   const [newAssetTitle, setNewAssetTitle] = useState('');
   const [selectedFormats, setSelectedFormats] = useState<string[]>([]);
+  const [atomizationOpen, setAtomizationOpen] = useState(false);
+  const [navigationOpen, setNavigationOpen] = useState(true);
+  const [aiPanelOpen, setAiPanelOpen] = useState(false);
+  const [writingFocus, setWritingFocus] = useState(false);
   const [creatingAsset, setCreatingAsset] = useState(false);
   const [saveState, setSaveState] = useState('');
   const [loading, setLoading] = useState(true);
@@ -198,7 +202,7 @@ export function StationPage() {
 
   const submitAI = async (jobType: string) => {
     const isAtomization = jobType === 'ATOMIZE';
-    if (!selectedAsset || !canWrite || (!isAtomization && !selectedText.trim()) || (isAtomization && selectedFormats.length === 0)) return;
+    if (!selectedAsset || !canWrite || (!isAtomization && !selectedText.trim()) || (isAtomization && selectedFormats.length === 0)) return false;
     try {
       setJobStatus('QUEUED');
       setAiResult('');
@@ -217,7 +221,8 @@ export function StationPage() {
       const result = status.result as AIResult | null;
       setAiResult(result?.content || result?.results?.map((item) => `${item.format}\n${item.content}`).join('\n\n') || status.error || 'No result returned.');
       if (jobType === 'ATOMIZE' && stationId) await loadAssets(stationId);
-    } catch (err) { setJobStatus('FAILED'); setAiResult(err instanceof Error ? err.message : 'Unable to submit AI job.'); }
+      return true;
+    } catch (err) { setJobStatus('FAILED'); setAiResult(err instanceof Error ? err.message : 'Unable to submit AI job.'); return false; }
   };
 
   if (loading) return <CozySkeleton rows={6} />;
@@ -230,10 +235,10 @@ export function StationPage() {
   const editorToolbar = <WritingToolbar editor={editor} />;
 
   return <div className="space-y-5">
-    <header className="flex flex-wrap items-start justify-between gap-3 border-b border-black/10 pb-5 dark:border-white/10"><div><button type="button" onClick={() => navigate(`/projects/${station.project_id}`)} className="text-xs font-bold text-accent">← Project</button><p className="mt-4 text-[11px] font-bold uppercase tracking-[0.18em] text-accent">Writing Station</p><h1 className="mt-1 text-3xl font-bold">{station.name}</h1></div><span className="rounded-full bg-accent/15 px-3 py-1.5 text-xs font-bold uppercase text-accent">{station.station_type}</span></header>
+    <header className="flex flex-wrap items-start justify-between gap-3 border-b border-black/10 pb-5 dark:border-white/10"><div><button type="button" onClick={() => navigate(`/projects/${station.project_id}`)} className="text-xs font-bold text-accent">← Project</button>{!writingFocus ? <><p className="mt-4 text-[11px] font-bold uppercase tracking-[0.18em] text-accent">Writing Station</p><h1 className="mt-1 text-3xl font-bold">{station.name}</h1></> : <h1 className="mt-4 text-2xl font-bold">Writing Focus</h1>}</div><div className="flex flex-wrap items-center gap-2"><button type="button" onClick={() => setNavigationOpen((current) => !current)} className="rounded-xl border border-black/10 px-3 py-2 text-xs font-bold dark:border-white/10">{navigationOpen ? 'Hide assets' : 'Show assets'}</button><button type="button" onClick={() => setAiPanelOpen((current) => !current)} className="rounded-xl border border-black/10 px-3 py-2 text-xs font-bold dark:border-white/10">{aiPanelOpen ? 'Hide AI' : 'AI'}</button><button type="button" onClick={() => setAtomizationOpen(true)} disabled={!canWrite || !selectedAsset} className="rounded-xl border border-black/10 px-3 py-2 text-xs font-bold dark:border-white/10 disabled:opacity-40">Create assets</button><button type="button" onClick={() => { setWritingFocus((current) => !current); setNavigationOpen(false); setAiPanelOpen(false); }} className="rounded-xl bg-accent/15 px-3 py-2 text-xs font-bold text-accent">{writingFocus ? 'Exit focus' : 'Focus'}</button>{!writingFocus ? <span className="rounded-full bg-accent/15 px-3 py-1.5 text-xs font-bold uppercase text-accent">{station.station_type}</span> : null}</div></header>
     {error ? <div className="rounded-2xl border border-statusError/60 bg-statusError/20 p-3 text-sm">{error}</div> : null}
-    <div className="grid gap-5 xl:grid-cols-[minmax(220px,260px)_minmax(0,1fr)_280px]">
-      <AssetNavigator
+    <div className={`grid gap-5 transition-[grid-template-columns] duration-300 ${writingFocus || !navigationOpen ? 'xl:grid-cols-[minmax(0,1fr)]' : aiPanelOpen ? 'xl:grid-cols-[minmax(220px,260px)_minmax(0,1fr)_280px]' : 'xl:grid-cols-[minmax(220px,260px)_minmax(0,1fr)]'}`}>
+      {navigationOpen && !writingFocus ? <AssetNavigator
         assets={writingAssets}
         lineage={lineage}
         currentVersions={currentVersions}
@@ -246,10 +251,11 @@ export function StationPage() {
         createLabel="+ Create Text Asset"
         title="CONTENT"
         showCreateButton={true}
-      />
+      /> : null}
       <main className="rounded-2xl border border-black/10 bg-white/70 p-5 dark:border-white/10 dark:bg-[#3a2d2d]/80"><div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/10 pb-4 dark:border-white/10"><input value={newTitle} onChange={(event) => setNewTitle(event.target.value)} disabled={!selectedAsset} className="min-w-0 flex-1 bg-transparent text-xl font-bold outline-none" placeholder="Untitled document" /><div className="flex items-center gap-2 text-xs"><span className="rounded-full bg-statusSuccess/20 px-2 py-1 font-bold text-statusSuccess">{currentVersion ? `v${currentVersion.version_number} CURRENT` : 'No version'}</span><span className="text-text/55">{saveState}</span></div></div>{editorToolbar}<div className="writing-editor mt-5 min-h-[420px]"><EditorContent editor={editor} /></div><div className="mt-4 flex flex-wrap justify-between gap-2 border-t border-black/10 pt-4 dark:border-white/10"><button type="button" disabled={!canWrite || !selectedAsset} onClick={() => void deleteAsset()} className="text-xs font-bold text-statusError disabled:opacity-50">Delete Asset</button><button type="button" disabled={!canWrite || !selectedAsset} onClick={() => void saveAsset()} className="rounded-xl bg-accent px-4 py-2 text-xs font-bold text-backgroundDark disabled:opacity-50">Save</button></div></main>
-      <aside className="space-y-5"><WritingAssistant editor={editor} canWrite={canWrite} selectedText={selectedText} selectedAssetTitle={selectedAsset?.title || selectedAsset?.name || ''} jobStatus={jobStatus} aiResult={aiResult} onSubmit={submitAI} /><AtomizationPanel selectedAssetTitle={selectedAsset?.title || ''} formats={ATOMIZATION_FORMATS} selectedFormats={selectedFormats} setSelectedFormats={setSelectedFormats} jobStatus={jobStatus} canWrite={canWrite} canSubmit={Boolean(selectedAsset)} onSubmit={submitAI} children={lineage[selectedId]?.children ?? []} /></aside>
+      {aiPanelOpen && !writingFocus ? <aside className="space-y-5 transition-opacity duration-300"><WritingAssistant editor={editor} canWrite={canWrite} selectedText={selectedText} selectedAssetTitle={selectedAsset?.title || selectedAsset?.name || ''} jobStatus={jobStatus} aiResult={aiResult} onSubmit={(jobType) => { void submitAI(jobType); }} /></aside> : null}
     </div>
+    <AtomizationPanel open={atomizationOpen} setOpen={setAtomizationOpen} showLauncher={false} selectedAssetTitle={selectedAsset?.title || ''} formats={ATOMIZATION_FORMATS} selectedFormats={selectedFormats} setSelectedFormats={setSelectedFormats} jobStatus={jobStatus} canWrite={canWrite} canSubmit={Boolean(selectedAsset)} onSubmit={async () => { const succeeded = await submitAI('ATOMIZE'); if (succeeded) setAtomizationOpen(false); }} children={lineage[selectedId]?.children ?? []} />
   </div>;
 }
 
@@ -298,19 +304,49 @@ function WritingAssistant({ editor, canWrite, selectedText, selectedAssetTitle, 
   );
 }
 
-function AtomizationPanel({ selectedAssetTitle, formats, selectedFormats, setSelectedFormats, jobStatus, canWrite, canSubmit, onSubmit, children }: { selectedAssetTitle: string; formats: string[]; selectedFormats: string[]; setSelectedFormats: React.Dispatch<React.SetStateAction<string[]>>; jobStatus: string; canWrite: boolean; canSubmit: boolean; onSubmit: (jobType: string) => void; children: AssetRecord[] }) {
+type AtomizationPanelProps = { open: boolean; setOpen: (open: boolean) => void; selectedAssetTitle: string; formats: string[]; selectedFormats: string[]; setSelectedFormats: React.Dispatch<React.SetStateAction<string[]>>; jobStatus: string; canWrite: boolean; canSubmit: boolean; onSubmit: (jobType: string) => void; children: AssetRecord[]; showLauncher?: boolean };
+
+function AtomizationPanel({ open, setOpen, showLauncher = true, ...workspaceProps }: AtomizationPanelProps) {
+  const { jobStatus, canWrite, canSubmit } = workspaceProps;
+  useEffect(() => {
+    if (!open) return;
+    const handleEscape = (event: KeyboardEvent) => { if (event.key === 'Escape' && !['QUEUED', 'RUNNING'].includes(jobStatus)) setOpen(false); };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', handleEscape);
+    return () => { document.body.style.overflow = previousOverflow; document.removeEventListener('keydown', handleEscape); };
+  }, [open, jobStatus, setOpen]);
+  return (
+    <>
+      {showLauncher ? <section className="rounded-2xl border border-black/10 bg-white/60 p-4 shadow-[0_8px_20px_rgba(66,56,56,0.04)] dark:border-white/10 dark:bg-[#3a2d2d]/70">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent">Create assets</p>
+        <h2 className="mt-1 text-lg font-bold">Content Atomisation</h2>
+        <p className="mt-1 text-xs text-text/60 dark:text-textDark/60">Turn this document into focused formats.</p>
+        <button type="button" onClick={() => setOpen(true)} disabled={!canWrite || !canSubmit} className="mt-4 w-full rounded-xl bg-accent px-3 py-2 text-xs font-bold text-backgroundDark transition-all hover:-translate-y-0.5 hover:shadow-[0_5px_12px_rgba(180,151,231,0.22)] disabled:cursor-not-allowed disabled:opacity-50">Open{workspaceProps.selectedFormats.length ? ` · ${workspaceProps.selectedFormats.length} selected` : ''}</button>
+      </section> : null}
+      {open ? <div className="atomization-backdrop fixed inset-0 z-50 flex items-center justify-center bg-backgroundDark/60 p-4 backdrop-blur-md" role="dialog" aria-modal="true" aria-labelledby="atomization-modal-title" onMouseDown={(event) => { if (event.target === event.currentTarget && !['QUEUED', 'RUNNING'].includes(jobStatus)) setOpen(false); }}><div className="atomization-modal w-full max-w-3xl" onMouseDown={(event) => event.stopPropagation()}><AtomizationWorkspace {...workspaceProps} onClose={() => { if (!['QUEUED', 'RUNNING'].includes(jobStatus)) setOpen(false); }} /></div></div> : null}
+    </>
+  );
+}
+
+function AtomizationWorkspace({ selectedAssetTitle, formats, selectedFormats, setSelectedFormats, jobStatus, canWrite, canSubmit, onSubmit, children, onClose }: { selectedAssetTitle: string; formats: string[]; selectedFormats: string[]; setSelectedFormats: React.Dispatch<React.SetStateAction<string[]>>; jobStatus: string; canWrite: boolean; canSubmit: boolean; onSubmit: (jobType: string) => void; children: AssetRecord[]; onClose: () => void }) {
   const optionsByCategory = ATOMIZATION_OPTIONS.reduce<Record<string, typeof ATOMIZATION_OPTIONS[number][]>>((groups, option) => {
     (groups[option.category] ??= []).push(option);
     return groups;
   }, {});
+  const categories = Object.keys(optionsByCategory);
+  const [activeCategory, setActiveCategory] = useState(categories[0] ?? 'Writing');
+  const [showAllSelected, setShowAllSelected] = useState(false);
+  const activeOptions = optionsByCategory[activeCategory] ?? [];
+  const toggleFormat = (format: string) => setSelectedFormats((current) => current.includes(format) ? current.filter((item) => item !== format) : [...current, format]);
   return (
-    <section className="flex max-h-[620px] flex-col rounded-2xl border border-black/10 bg-white/60 p-4 dark:border-white/10 dark:bg-[#3a2d2d]/70">
-      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent">Create assets</p><h2 className="mt-1 text-lg font-bold">Content Atomisation</h2><p className="mt-1 text-xs text-text/60 dark:text-textDark/60">From {selectedAssetTitle || 'the selected master document'}</p>
-      <div className="mt-4 flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.12em] text-text/55"><span>Select outputs</span><span className="flex gap-2"><button type="button" onClick={() => setSelectedFormats(formats)} className="text-accent">Select all</button><button type="button" onClick={() => setSelectedFormats([])} className="text-text/55">Clear</button></span></div>
-      <div className="mt-2 flex-1 space-y-4 overflow-y-auto pr-1">{Object.entries(optionsByCategory).map(([category, options]) => <section key={category}><h3 className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-accent">{category}</h3><div className="space-y-1.5">{options.map((option) => { const checked = selectedFormats.includes(option.label); return <label key={option.label} className={`flex cursor-pointer items-start justify-between rounded-xl border px-3 py-2 text-xs transition-colors ${checked ? 'border-accent/60 bg-accent/10' : 'border-black/10 hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5'}`}><span className="flex min-w-0 gap-2"><input type="checkbox" checked={checked} onChange={(event) => setSelectedFormats((current) => event.target.checked ? [...current, option.label] : current.filter((item) => item !== option.label))} className="mt-0.5 shrink-0" /><span className="min-w-0"><span className="block truncate font-semibold">{option.label}</span><span className="mt-0.5 block text-[10px] leading-4 text-text/55 dark:text-textDark/55">{option.description}</span></span></span><span className="ml-2 shrink-0 text-[10px] text-text/50">{checked ? 'Selected' : ''}</span></label>; })}</div></section>)}</div>
-      <p className="mt-3 text-xs text-text/55">{selectedFormats.length} selected</p>
+    <section className="flex max-h-[min(680px,calc(100vh-2rem))] flex-col rounded-2xl border border-accent/30 bg-[#fffaf1] p-5 shadow-[0_24px_70px_rgba(20,14,14,0.3)] dark:bg-[#352d2d]">
+      <header className="flex items-start justify-between gap-4 border-b border-black/10 pb-4 dark:border-white/10"><div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent">Create assets</p><h2 id="atomization-modal-title" className="mt-1 text-2xl font-bold">Content Atomisation</h2><p className="mt-1 text-sm text-text/60 dark:text-textDark/60">Turn {selectedAssetTitle || 'this document'} into multiple focused formats.</p></div><button type="button" aria-label="Close Content Atomisation" onClick={onClose} disabled={['QUEUED', 'RUNNING'].includes(jobStatus)} className="rounded-lg border border-black/10 px-2.5 py-1 text-lg leading-none transition-colors hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/10">×</button></header>
+      <div className="mt-4 flex items-center justify-between gap-3 border-b border-black/10 pb-1 dark:border-white/10"><div className="flex min-w-0 gap-1 overflow-x-auto" role="tablist" aria-label="Atomisation categories">{categories.map((category) => <button key={category} type="button" role="tab" aria-selected={activeCategory === category} onClick={() => setActiveCategory(category)} className={`relative whitespace-nowrap px-2 py-2 text-[10px] font-bold uppercase tracking-[0.1em] transition-colors duration-200 ${activeCategory === category ? 'text-accent' : 'text-text/50 hover:text-text/80 dark:text-textDark/55 dark:hover:text-textDark/80'}`}>{category.replace('Video / Audio', 'Media').replace('SEO / Marketing', 'Marketing')}{activeCategory === category ? <span className="absolute inset-x-2 -bottom-[5px] h-0.5 rounded-full bg-accent transition-all duration-200" /> : null}</button>)}</div><div className="flex shrink-0 gap-2 text-[10px] font-bold"><button type="button" onClick={() => setSelectedFormats(formats)} className="text-accent transition-opacity hover:opacity-70">Select all</button><button type="button" onClick={() => setSelectedFormats([])} className="text-text/50 transition-opacity hover:opacity-70">Clear</button></div></div>
+      <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-1"><div key={activeCategory} className="grid grid-cols-2 gap-3 sm:grid-cols-3">{activeOptions.map((option, index) => { const checked = selectedFormats.includes(option.label); return <button key={option.label} type="button" role="checkbox" aria-checked={checked} onClick={() => toggleFormat(option.label)} style={{ animationDelay: `${index * 25}ms` }} className={`[animation:atomizationFadeIn_220ms_ease-out_both] group relative min-h-[82px] rounded-xl border p-3 text-left transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70 ${checked ? 'border-accent/70 bg-accent/10 shadow-[0_4px_12px_rgba(180,151,231,0.14)]' : 'border-black/10 bg-white/40 hover:-translate-y-0.5 hover:border-accent/40 hover:bg-accent/5 dark:border-white/10 dark:bg-[#4f3d3d]/40 dark:hover:bg-white/5'}`}><span className={`absolute right-3 top-3 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold transition-all duration-200 ${checked ? 'scale-100 bg-accent text-backgroundDark' : 'scale-75 border border-text/25 text-transparent group-hover:scale-100'}`}>✓</span><span className="block max-w-[calc(100%-22px)] truncate text-sm font-bold text-text dark:text-textDark">{option.label}</span><span className="mt-1 block truncate text-[11px] leading-4 text-text/55 dark:text-textDark/55">{option.description}</span></button>; })}</div></div>
+      <div className="mt-3 border-t border-black/10 pt-3 dark:border-white/10"><div className="flex items-center justify-between gap-2"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text/55">Selected</p><div className="flex items-center gap-2"><span className="text-[10px] text-text/50">{selectedFormats.length} format{selectedFormats.length === 1 ? '' : 's'}</span>{selectedFormats.length > 6 ? <button type="button" onClick={() => setShowAllSelected((current) => !current)} className="text-[10px] font-bold text-accent">{showAllSelected ? 'Less' : 'View all'}</button> : null}</div></div>{selectedFormats.length ? <div className={`mt-2 flex flex-wrap gap-1.5 ${showAllSelected ? '' : 'max-h-12 overflow-hidden'}`}>{selectedFormats.map((format) => <button key={format} type="button" onClick={() => toggleFormat(format)} title={`Remove ${format}`} className="[animation:atomizationFadeIn_180ms_ease-out_both] rounded-full bg-accent/15 px-2 py-1 text-[10px] font-semibold text-accent transition-colors hover:bg-accent/25">{format} <span aria-hidden="true">×</span></button>)}</div> : <p className="mt-2 text-[10px] text-text/50">Choose one or more formats above.</p>}</div>
       {children.length ? <p className="mt-2 truncate text-[10px] text-text/50">Existing generated assets: {children.length}</p> : null}
-      <button type="button" disabled={!canWrite || !canSubmit || selectedFormats.length === 0 || Boolean(jobStatus && ['QUEUED', 'RUNNING'].includes(jobStatus))} onClick={() => onSubmit('ATOMIZE')} className="mt-4 w-full rounded-xl bg-accent px-3 py-2 text-xs font-bold text-backgroundDark disabled:cursor-not-allowed disabled:opacity-50">{jobStatus === 'QUEUED' || jobStatus === 'RUNNING' ? 'Creating selected...' : 'Create Selected'}</button>
+      <button type="button" disabled={!canWrite || !canSubmit || selectedFormats.length === 0 || Boolean(jobStatus && ['QUEUED', 'RUNNING'].includes(jobStatus))} onClick={() => onSubmit('ATOMIZE')} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-3 py-2.5 text-xs font-bold text-backgroundDark transition-all duration-150 hover:-translate-y-0.5 hover:shadow-[0_5px_12px_rgba(180,151,231,0.22)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50">{jobStatus === 'QUEUED' || jobStatus === 'RUNNING' ? <><span className="h-3 w-3 animate-spin rounded-full border-2 border-backgroundDark/30 border-t-backgroundDark" />Creating selected...</> : `Generate ${selectedFormats.length ? `${selectedFormats.length} selected` : 'selected'}`}</button>
     </section>
   );
 }
@@ -365,18 +401,20 @@ interface ReadOnlyStationLayoutProps extends ReadOnlyStationProps {
 }
 
 function ReadOnlyStationLayout({ station, assets, lineage, currentVersions, title, description, selectedId, onSelect, selected, currentVersion, headerAction, onDelete }: ReadOnlyStationLayoutProps) {
-  return <div className="space-y-5">
-    <header className="flex flex-wrap items-start justify-between gap-3 border-b border-black/10 pb-5 dark:border-white/10"><div><p className="text-[11px] font-bold uppercase tracking-[0.18em] text-accent">{title}</p><h1 className="mt-2 text-3xl font-bold">{station.name}</h1><p className="mt-2 text-sm text-text/65 dark:text-textDark/65">{description}</p></div><div className="flex items-center gap-2">{headerAction}<span className="rounded-full bg-accent/15 px-3 py-1.5 text-xs font-bold uppercase text-accent">{station.station_type}</span></div></header>
-    <div className="grid gap-5 lg:grid-cols-[minmax(220px,260px)_minmax(0,1fr)]">
-      <AssetNavigator
+  const [navigationOpen, setNavigationOpen] = useState(true);
+  const [focusMode, setFocusMode] = useState(false);
+  return <div className={`space-y-5 transition-all duration-300 ${focusMode ? 'fixed inset-0 z-30 overflow-y-auto bg-background p-5 dark:bg-backgroundDark lg:ml-72' : ''}`}>
+    <header className="flex flex-wrap items-start justify-between gap-3 border-b border-black/10 pb-5 dark:border-white/10"><div>{!focusMode ? <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-accent">{title}</p> : null}<h1 className={`${focusMode ? 'mt-2 text-2xl' : 'mt-2 text-3xl'} font-bold`}>{focusMode ? `${title} Focus` : station.name}</h1>{!focusMode ? <p className="mt-2 text-sm text-text/65 dark:text-textDark/65">{description}</p> : null}</div><div className="flex items-center gap-2">{!focusMode ? headerAction : null}<button type="button" onClick={() => setNavigationOpen((current) => !current)} className="rounded-xl border border-black/10 px-3 py-2 text-xs font-bold dark:border-white/10">{navigationOpen ? 'Hide assets' : 'Show assets'}</button><button type="button" onClick={() => { setFocusMode((current) => !current); setNavigationOpen(false); }} className="rounded-xl bg-accent/15 px-3 py-2 text-xs font-bold text-accent">{focusMode ? 'Exit focus' : 'Focus'}</button>{!focusMode ? <span className="rounded-full bg-accent/15 px-3 py-1.5 text-xs font-bold uppercase text-accent">{station.station_type}</span> : null}</div></header>
+    <div className={`grid gap-5 transition-[grid-template-columns] duration-300 ${focusMode || !navigationOpen ? 'lg:grid-cols-[minmax(0,1fr)]' : 'lg:grid-cols-[minmax(220px,260px)_minmax(0,1fr)]'}`}>
+      {navigationOpen && !focusMode ? <AssetNavigator
         assets={assets}
         lineage={lineage}
         currentVersions={currentVersions}
         selectedId={selectedId}
         onSelect={onSelect}
         title="CONTENT"
-      />
-      <main className="rounded-2xl border border-black/10 bg-white/70 p-6 dark:border-white/10 dark:bg-[#3a2d2d]/80">{selected ? <ReadOnlyAsset asset={selected} lineage={lineage[selected.id]} currentVersion={currentVersion} imageOnly={station.station_type === 'IMAGE'} onDeleted={onDelete} /> : <p className="py-16 text-center text-sm text-text/60 dark:text-textDark/60">No assets are available in this station.</p>}</main>
+      /> : null}
+      <main className={`rounded-2xl border border-black/10 bg-white/70 p-6 transition-all duration-300 dark:border-white/10 dark:bg-[#3a2d2d]/80 ${focusMode ? 'min-h-[calc(100vh-9rem)]' : ''}`}>{selected ? <ReadOnlyAsset asset={selected} lineage={lineage[selected.id]} currentVersion={currentVersion} imageOnly={station.station_type === 'IMAGE'} onDeleted={onDelete} /> : <p className="py-16 text-center text-sm text-text/60 dark:text-textDark/60">No assets are available in this station.</p>}</main>
     </div>
   </div>;
 }

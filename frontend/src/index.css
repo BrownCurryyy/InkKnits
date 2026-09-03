@@ -157,6 +157,24 @@ textarea::placeholder {
   background: rgba(88, 68, 68, 0.42);
 }
 
+@keyframes atomizationFadeIn {
+  from { opacity: 0; transform: translateY(3px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes atomizationBackdropIn {
+  from { opacity: 0; backdrop-filter: blur(0); }
+  to { opacity: 1; backdrop-filter: blur(8px); }
+}
+
+@keyframes atomizationModalIn {
+  from { opacity: 0; transform: translateY(18px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.atomization-backdrop { animation: atomizationBackdropIn 240ms ease-out both; }
+.atomization-modal { animation: atomizationModalIn 320ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+
 ::selection {
   background: rgba(180, 151, 231, 0.28);
 }
