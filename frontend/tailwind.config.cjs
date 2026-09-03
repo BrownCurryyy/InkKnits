@@ -6,6 +6,9 @@ module.exports = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['Segoe UI', 'Helvetica Neue', 'Arial', 'sans-serif'],
+      },
       colors: {
         background: '#FFF2C2',
         backgroundDark: '#423838',

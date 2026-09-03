@@ -16,6 +16,8 @@ export type OrganizationRosterMemberRecord = {
   role: 'ADMIN' | 'MANAGER' | 'EDITOR' | 'REVIEWER' | 'PUBLISHER' | 'VIEWER';
   project_names: string[];
   station_names: string[];
+  project_ids?: string[];
+  station_ids?: string[];
 };
 
 export type JwtPayload = {

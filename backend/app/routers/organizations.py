@@ -74,11 +74,15 @@ async def organization_roster(organization_id: str, db: Session = Depends(get_db
     result: list[OrganizationRosterMemberOut] = []
     for member in members:
         role = db.query(Role.name).join(UserRole, UserRole.role_id == Role.id).filter(UserRole.user_id == member.id, Role.organization_id == member.organization_id, Role.name.in_(("ADMIN", "MANAGER", "EDITOR", "REVIEWER", "PUBLISHER", "VIEWER"))).order_by(Role.name).first()
-        project_names = [name for (name,) in db.query(Project.title).join(ProjectMember, ProjectMember.project_id == Project.id).filter(ProjectMember.user_id == member.id, Project.organization_id == organization_id, Project.deleted_at.is_(None)).order_by(Project.title).all()]
+        project_rows = db.query(Project.id, Project.title).join(ProjectMember, ProjectMember.project_id == Project.id).filter(ProjectMember.user_id == member.id, Project.organization_id == organization_id, Project.deleted_at.is_(None)).order_by(Project.title).all()
+        project_names = [name for _, name in project_rows]
+        project_ids = [project_id for project_id, _ in project_rows]
         station_project_names = [name for (name,) in db.query(Project.title).join(Station, Station.project_id == Project.id).join(StationMember, StationMember.station_id == Station.id).filter(StationMember.user_id == member.id, Project.organization_id == organization_id, Project.deleted_at.is_(None), Station.deleted_at.is_(None)).all()]
         project_names = sorted(set(project_names + station_project_names))
-        station_names = [name for (name,) in db.query(Station.name).join(StationMember, StationMember.station_id == Station.id).filter(StationMember.user_id == member.id, Station.organization_id == organization_id, Station.deleted_at.is_(None)).order_by(Station.name).all()]
-        result.append(OrganizationRosterMemberOut(user=UserOut.model_validate(member), role=role[0] if role else "VIEWER", project_names=project_names, station_names=station_names))
+        station_rows = db.query(Station.id, Station.name).join(StationMember, StationMember.station_id == Station.id).filter(StationMember.user_id == member.id, Station.organization_id == organization_id, Station.deleted_at.is_(None)).order_by(Station.name).all()
+        station_names = [name for _, name in station_rows]
+        station_ids = [station_id for station_id, _ in station_rows]
+        result.append(OrganizationRosterMemberOut(user=UserOut.model_validate(member), role=role[0] if role else "VIEWER", project_names=project_names, station_names=station_names, project_ids=project_ids, station_ids=station_ids))
     return result
 
 

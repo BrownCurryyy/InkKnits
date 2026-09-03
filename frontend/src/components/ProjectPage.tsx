@@ -50,28 +50,58 @@ export function ProjectPage() {
 
   return (
     <div className="space-y-6">
-      <button type="button" onClick={() => navigate('/projects')} className="text-sm font-semibold text-accent hover:underline">← Projects</button>
-      <header className="rounded-3xl border border-black/5 bg-white/80 p-6 shadow-cozy dark:border-white/10 dark:bg-[#3a2d2d]/90">
+      <button type="button" onClick={() => navigate('/projects')} className="text-sm font-semibold text-accent hover:underline">
+        ← Projects
+      </button>
+
+      <header className="rounded-[20px] border border-[#eadfb7] bg-[#fffaf1]/90 p-5 shadow-[0_10px_22px_rgba(66,56,56,0.04)] dark:border-white/10 dark:bg-[#352d2d]/90">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-accent">Project</p>
-            <h1 className="mt-2 text-3xl font-bold">{project.title}</h1>
-            {project.description ? <p className="mt-2 max-w-2xl text-sm text-text/65 dark:text-textDark/65">{project.description}</p> : null}
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">Project</p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-text dark:text-textDark">{project.title}</h1>
+            {project.description ? (
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-text/65 dark:text-textDark/70">{project.description}</p>
+            ) : null}
           </div>
-          <span className="rounded-full bg-statusSuccess/20 px-3 py-1.5 text-xs font-bold uppercase text-statusSuccess">{project.status}</span>
+          <span className="rounded-full bg-statusSuccess/20 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-statusSuccess">
+            {project.status}
+          </span>
         </div>
+
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
           <Summary label="Visible assets" value={assets.length} />
-          <Summary label="Available stations" value={stations.length} />
-          <Summary label="Deadline" value={project.deadline ? 1 : 0} valueLabel={project.deadline ? formatDate(project.deadline) : 'Not set'} />
+          <Summary label="Stations" value={stations.length} />
+          <Summary label="Deadline" valueLabel={project.deadline ? formatDate(project.deadline) : 'Not set'} />
         </div>
       </header>
 
-      <section className="rounded-3xl border border-black/5 bg-white/80 p-6 shadow-cozy dark:border-white/10 dark:bg-[#3a2d2d]/90">
-        <div className="mb-4 border-b border-black/5 pb-3 dark:border-white/10"><h2 className="text-lg font-bold">Stations</h2><p className="mt-1 text-xs text-text/60 dark:text-textDark/60">Functional workspaces available to you in this project.</p></div>
-        {stations.length === 0 ? <CozyEmptyState icon="⌂" title="No stations available" message="This project has no stations available to your account." /> : (
+      <section className="rounded-[20px] border border-[#eadfb7] bg-[#fffaf1]/90 p-5 shadow-[0_10px_22px_rgba(66,56,56,0.04)] dark:border-white/10 dark:bg-[#352d2d]/90">
+        <div className="mb-4 flex items-end justify-between gap-2 border-b border-[#efe1c0] pb-3 dark:border-white/10">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-text/45 dark:text-textDark/60">Workspaces</p>
+            <h2 className="mt-1 text-xl font-semibold text-text dark:text-textDark">Project stations</h2>
+          </div>
+          <span className="text-xs text-text/55 dark:text-textDark/65">{stations.length} available</span>
+        </div>
+
+        {stations.length === 0 ? (
+          <CozyEmptyState icon="•" title="No stations available" message="This project has no stations available to your account." />
+        ) : (
           <div className="grid gap-4 sm:grid-cols-2">
-            {stations.map((station) => <button key={station.id} type="button" onClick={() => navigate(`/stations/${station.id}`)} className="rounded-2xl border border-black/5 bg-background/40 p-4 text-left transition hover:border-accent/40 hover:bg-background/80 dark:border-white/10 dark:bg-[#4f3d3d]/70"><p className="text-[10px] font-bold uppercase tracking-wider text-accent">{station.station_type}</p><h3 className="mt-2 font-bold">{station.name}</h3><p className="mt-1 text-xs text-text/60 dark:text-textDark/60">{station.description || 'Production workspace'}</p></button>)}
+            {stations.map((station) => (
+              <button
+                key={station.id}
+                type="button"
+                onClick={() => navigate(`/stations/${station.id}`)}
+                className="rounded-[16px] border border-[#efe1c0] bg-[#fdf7ea] p-4 text-left transition hover:border-[#d7c0f0] hover:bg-[#f9f0ff] dark:border-white/10 dark:bg-[#483d3d]/70 dark:hover:border-[#ae8de8]/50 dark:hover:bg-[#4e3d52]"
+              >
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-accent">{station.station_type}</p>
+                <h3 className="mt-2 text-lg font-semibold text-text dark:text-textDark">{station.name}</h3>
+                <p className="mt-2 text-sm leading-6 text-text/60 dark:text-textDark/70">
+                  {station.description || 'Production workspace'}
+                </p>
+              </button>
+            ))}
           </div>
         )}
       </section>
@@ -79,10 +109,16 @@ export function ProjectPage() {
   );
 }
 
-function Summary({ label, value, valueLabel }: { label: string; value: number; valueLabel?: string }) {
-  return <div className="rounded-2xl border border-black/5 bg-background/50 p-4 dark:border-white/5 dark:bg-[#4f3d3d]/50"><p className="text-xs font-bold text-text/60 dark:text-textDark/60">{label}</p><p className="mt-1 text-2xl font-bold text-accent">{valueLabel || value}</p></div>;
+function Summary({ label, value, valueLabel }: { label?: string; value?: number; valueLabel?: string }) {
+  return (
+    <div className="rounded-[16px] border border-[#efe1c0] bg-[#fdf7ea] p-4 dark:border-white/10 dark:bg-[#483d3d]/70">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-text/55 dark:text-textDark/60">{label}</p>
+      <p className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-accent">{valueLabel ?? value}</p>
+    </div>
+  );
 }
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
+

@@ -192,6 +192,8 @@ class OrganizationRosterMemberOut(BaseModel):
     role: Literal["ADMIN", "MANAGER", "EDITOR", "REVIEWER", "PUBLISHER", "VIEWER"]
     project_names: list[str] = Field(default_factory=list)
     station_names: list[str] = Field(default_factory=list)
+    project_ids: list[UUID] = Field(default_factory=list)
+    station_ids: list[UUID] = Field(default_factory=list)
 
 
 class RoleCreate(BaseModel):

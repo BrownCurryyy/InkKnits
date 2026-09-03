@@ -32,10 +32,13 @@ export function VersionTrackingPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    void apiFetch<ProjectRecord[]>('/projects').then((data) => {
-      setProjects(data);
-      setSelectedProjectId((current) => data.some((project) => project.id === current) ? current : data[0]?.id ?? '');
-    }).catch(() => setError('Unable to load accessible projects.')).finally(() => setLoadingProjects(false));
+    void apiFetch<ProjectRecord[]>('/projects')
+      .then((data) => {
+        setProjects(data);
+        setSelectedProjectId((current) => data.some((project) => project.id === current) ? current : data[0]?.id ?? '');
+      })
+      .catch(() => setError('Unable to load accessible projects.'))
+      .finally(() => setLoadingProjects(false));
   }, []);
 
   useEffect(() => {
@@ -52,15 +55,65 @@ export function VersionTrackingPage() {
   }, [selectedProjectId]);
 
   const selectedProject = projects.find((project) => project.id === selectedProjectId);
-  const tree = useMemo(() => state ? buildTree(state) : [], [state]);
+  const tree = useMemo(() => (state ? buildTree(state) : []), [state]);
 
   if (loadingProjects) return <CozySkeleton rows={5} />;
 
-  return <div className="space-y-6">
-    <header className="rounded-3xl border border-black/5 bg-white/80 p-6 shadow-cozy dark:border-white/10 dark:bg-[#3a2d2d]/90"><p className="text-[11px] font-bold uppercase tracking-[0.18em] text-accent">Workflow</p><h1 className="mt-2 text-3xl font-bold">Version Tracking</h1><p className="mt-2 text-sm text-text/65 dark:text-textDark/65">Current assembled production state for one accessible project.</p><label className="mt-5 block max-w-md text-xs font-bold">Project<select value={selectedProjectId} onChange={(event) => setSelectedProjectId(event.target.value)} className="mt-2 w-full rounded-xl border border-black/10 bg-background px-3 py-2 text-sm dark:border-white/10 dark:bg-[#554949]"><option value="">Select a project</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.title}</option>)}</select></label></header>
-    {error ? <div className="rounded-2xl border border-statusError/60 bg-statusError/20 p-4 text-sm font-semibold">{error}</div> : null}
-    {loadingState ? <CozySkeleton rows={5} /> : !selectedProject || !state ? <CozyEmptyState icon="⌘" title="No project selected" message="Choose an accessible project to view its current production state." /> : <section className="rounded-3xl border border-black/5 bg-white/80 p-6 shadow-cozy dark:border-white/10 dark:bg-[#3a2d2d]/90"><div className="border-b border-black/10 pb-4 dark:border-white/10"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent">Project</p><h2 className="mt-1 text-2xl font-bold">{selectedProject.title}</h2><p className="mt-1 text-xs text-text/60 dark:text-textDark/60">{state.assets.length} current assets · historical versions omitted</p></div>{tree.length === 0 ? <CozyEmptyState icon="⌘" title="No current assets" message="This project has no visible current production assets." /> : <div className="mt-8 space-y-5">{tree.map((node) => <TreeNodeView key={node.asset.id} node={node} />)}</div>}</section>}
-  </div>;
+  return (
+    <div className="space-y-6">
+      <header className="rounded-[20px] border border-[#eadfb7] bg-[#fffaf1]/90 p-5 shadow-[0_10px_22px_rgba(66,56,56,0.04)] dark:border-white/10 dark:bg-[#352d2d]/90">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">Workflow</p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-text dark:text-textDark">Version tracking</h1>
+            <p className="mt-2 text-sm leading-6 text-text/65 dark:text-textDark/70">
+              Current assembled production state for one accessible project.
+            </p>
+          </div>
+
+          <label className="block max-w-md text-[10px] font-semibold uppercase tracking-[0.14em] text-text/55 dark:text-textDark/60">
+            Project
+            <select
+              value={selectedProjectId}
+              onChange={(event) => setSelectedProjectId(event.target.value)}
+              className="mt-2 w-full rounded-[12px] border border-[#e7d9c0] bg-[#f7f0df] px-3 py-2 text-sm text-text dark:border-white/10 dark:bg-[#4a3c3c] dark:text-textDark"
+            >
+              <option value="">Select a project</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>{project.title}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </header>
+
+      {error ? <div className="rounded-[16px] border border-statusError/60 bg-statusError/20 p-4 text-sm font-semibold">{error}</div> : null}
+
+      {loadingState ? (
+        <CozySkeleton rows={5} />
+      ) : !selectedProject || !state ? (
+        <CozyEmptyState icon="•" title="No project selected" message="Choose an accessible project to view its current production state." />
+      ) : (
+        <section className="rounded-[20px] border border-[#eadfb7] bg-[#fffaf1]/90 p-5 shadow-[0_10px_22px_rgba(66,56,56,0.04)] dark:border-white/10 dark:bg-[#352d2d]/90">
+          <div className="border-b border-[#efe1c0] pb-4 dark:border-white/10">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">Current production state</p>
+            <h2 className="mt-1 text-2xl font-semibold text-text dark:text-textDark">{selectedProject.title}</h2>
+            <p className="mt-1 text-xs text-text/60 dark:text-textDark/65">{state.assets.length} active assets in the current project build · historical versions omitted</p>
+          </div>
+
+          {tree.length === 0 ? (
+            <CozyEmptyState icon="•" title="No current assets" message="This project has no visible current production assets." />
+          ) : (
+            <div className="mt-8 space-y-5">
+              {tree.map((node) => (
+                <TreeNodeView key={node.asset.id} node={node} />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+    </div>
+  );
 }
 
 function buildTree(state: ProductionState): TreeNode[] {
@@ -78,14 +131,52 @@ function buildTree(state: ProductionState): TreeNode[] {
 }
 
 function TreeNodeView({ node }: { node: TreeNode }) {
-  return <div className="relative"><AssetStateCard node={node} />{node.children.length ? <div className="ml-7 border-l-2 border-accent/25 pl-5 pt-4"><div className="mb-3 text-xs font-bold uppercase tracking-wider text-accent">Derived children</div><div className="space-y-4">{node.children.map((child) => <TreeNodeView key={child.asset.id} node={child} />)}</div></div> : null}</div>;
+  return (
+    <div className="relative">
+      <div className="flex items-center gap-3">
+        <div className="h-3 w-3 rounded-full border-2 border-accent bg-[#fffaf1] dark:bg-[#352d2d]" />
+        {node.parent ? <div className="h-px w-6 bg-[#d7c0f0]" /> : null}
+        <div className="flex-1">
+          <AssetStateCard node={node} />
+        </div>
+      </div>
+      {node.children.length ? (
+        <div className="ml-7 border-l-2 border-[#d7c0f0] pl-5 pt-4">
+          <div className="mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">Derived children</div>
+          <div className="space-y-4">
+            {node.children.map((child) => (
+              <TreeNodeView key={child.asset.id} node={child} />
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function AssetStateCard({ node }: { node: TreeNode }) {
   const { asset, version, parent } = node;
-  return <article className="rounded-2xl border border-black/10 bg-background/50 p-4 dark:border-white/10 dark:bg-[#4f3d3d]/60" title={`Current state: ${asset.title || asset.name}`}><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-wider text-accent">{asset.asset_type}</p><h3 className="mt-1 text-base font-bold">{asset.title || asset.name}</h3>{parent ? <p className="mt-1 text-xs text-text/60 dark:text-textDark/60">Child derived from: {parent.title || parent.name}</p> : null}</div><span className="rounded-full bg-statusSuccess/20 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-statusSuccess">v{version.version_number} CURRENT</span></div><div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-text/55 dark:text-textDark/55"><span>Created by: {version.created_by ? version.created_by.slice(0, 8) : 'System'}</span><span>Updated: {formatDate(version.created_at)}</span></div></article>;
+  return (
+    <article className="rounded-[16px] border border-[#efe1c0] bg-[#fdf7ea] p-4 dark:border-white/10 dark:bg-[#483d3d]/70" title={`Current state: ${asset.title || asset.name}`}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-accent">{asset.asset_type}</p>
+          <h3 className="mt-1 text-base font-semibold text-text dark:text-textDark">{asset.title || asset.name}</h3>
+          {parent ? <p className="mt-1 text-xs text-text/60 dark:text-textDark/60">Child derived from: {parent.title || parent.name}</p> : null}
+        </div>
+        <span className="rounded-full bg-statusSuccess/20 px-3 py-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-statusSuccess">
+          v{version.version_number} current
+        </span>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-text/55 dark:text-textDark/60">
+        <span>Created by: {version.created_by ? version.created_by.slice(0, 8) : 'System'}</span>
+        <span>Updated: {formatDate(version.created_at)}</span>
+      </div>
+    </article>
+  );
 }
 
 function formatDate(value: string) {
   return new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 }
+

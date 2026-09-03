@@ -33,14 +33,14 @@ export function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-backgroundDark text-textDark px-4">
-      <div className="w-full max-w-md rounded-cozy bg-[#554949] p-8 shadow-cozy ring-1 ring-white/10">
-        <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent text-xl font-bold text-backgroundDark">
+    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(180,151,231,0.16),_transparent_28%),_#423838] px-4 py-8 text-textDark">
+      <div className="w-full max-w-md rounded-[20px] border border-white/10 bg-[#2f2626]/95 p-7 shadow-[0_22px_60px_rgba(18,14,14,0.36)] ring-1 ring-white/10">
+        <div className="mb-7 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent text-xl font-bold text-[#fffaf1] shadow-[0_10px_24px_rgba(180,151,231,0.28)]">
             I
           </div>
-          <h1 className="text-3xl font-bold">InkKnits</h1>
-          <p className="mt-2 text-sm text-textDark/80">Welcome back</p>
+          <h1 className="text-3xl font-semibold tracking-[-0.04em]">InkKnits</h1>
+          <p className="mt-2 text-sm text-textDark/75">Welcome back</p>
         </div>
 
         <form className="space-y-5" onSubmit={handleSubmit}>
@@ -69,7 +69,7 @@ export function LoginPage() {
           </label>
 
           {error ? (
-            <div className="rounded-xl border border-statusError/60 bg-statusError/20 px-3 py-2 text-sm text-textDark">
+            <div className="rounded-xl border border-statusError/50 bg-statusError/20 px-3 py-2 text-sm text-textDark">
               {error}
             </div>
           ) : null}
@@ -77,7 +77,7 @@ export function LoginPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full rounded-xl bg-accent px-4 py-3 font-semibold text-backgroundDark transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-xl bg-accent px-4 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-[#fffaf1] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isSubmitting ? 'Signing in…' : 'Sign in'}
           </button>

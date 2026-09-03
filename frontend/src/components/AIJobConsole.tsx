@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { apiFetch } from '../api/client';
-import { useAuth } from '../context/AuthContext';
 import { CozyEmptyState, CozySkeleton } from './UIStates';
 import type { AIJobStatusRecord } from '../types';
 
@@ -23,8 +22,6 @@ const statusColors: Record<string, string> = {
   FAILED: 'bg-statusError/30 text-statusError',
 };
 
-type JobType = 'TEXT' | 'REWRITE' | 'IMPROVE_TONE' | 'CHANGE_AUDIENCE' | 'SUMMARIZE' | 'EXPAND' | 'ATOMIZE' | 'IMAGE';
-
 function friendlyJobError(error?: string | null) {
   if (!error) return 'The job could not be completed. Please try again.';
   if (error.toLowerCase().includes('ollama')) return 'The local text-generation service is unavailable. Start Ollama, then try again.';
@@ -33,15 +30,14 @@ function friendlyJobError(error?: string | null) {
 }
 
 export function AIJobConsole() {
-  const { user, roles } = useAuth();
   const [jobs, setJobs] = useState<AIJobStatusRecord[]>([]);
   const [selectedJobId, setSelectedJobId] = useState<string>('');
   const [selectedJob, setSelectedJob] = useState<AIJobStatusRecord | null>(null);
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'RUNNING' | 'QUEUED' | 'COMPLETED' | 'FAILED'>('ALL');
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [toast, setToast] = useState<string | null>(null);
+  const selectedJobIdRef = useRef('');
 
   useEffect(() => {
     if (!toast) return;
@@ -49,22 +45,31 @@ export function AIJobConsole() {
     return () => window.clearTimeout(timer);
   }, [toast]);
 
-  const showToast = (message: string) => setToast(message);
-
-  const loadJobs = async () => {
+  const loadJobs = async (showLoading = false) => {
     try {
       setError('');
+      if (showLoading) setLoading(true);
       const loadedJobs = await apiFetch<AIJobStatusRecord[]>('/ai/jobs');
       setJobs(loadedJobs);
-      if (!selectedJobId && loadedJobs[0]) {
+      const currentSelectedJobId = selectedJobIdRef.current;
+      const selected = loadedJobs.find((job) => job.task_id === currentSelectedJobId);
+      if (selected) {
+        setSelectedJob((current) => current ? { ...current, ...selected } : selected);
+      } else if (!currentSelectedJobId && loadedJobs[0]) {
         setSelectedJobId(loadedJobs[0].task_id);
+      } else if (currentSelectedJobId) {
+        setSelectedJobId(loadedJobs[0]?.task_id ?? '');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load AI jobs');
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
+
+  useEffect(() => {
+    selectedJobIdRef.current = selectedJobId;
+  }, [selectedJobId]);
 
   const pollJobStatus = async (jobId: string) => {
     try {
@@ -88,7 +93,7 @@ export function AIJobConsole() {
   };
 
   useEffect(() => {
-    void loadJobs();
+    void loadJobs(true);
   }, []);
 
   useEffect(() => {
@@ -121,67 +126,53 @@ export function AIJobConsole() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {error ? (
-        <div className="rounded-2xl border border-statusError/60 bg-statusError/20 p-4 text-sm font-semibold text-text dark:text-textDark shadow-cozy">
-          ⚠️ {error}
+        <div className="rounded-[16px] border border-statusError/60 bg-statusError/20 p-4 text-sm font-semibold text-text dark:text-textDark">
+          {error}
         </div>
       ) : null}
 
-      {/* Header */}
-      <div className="border-b border-black/10 pb-5 dark:border-white/10">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <header className="rounded-[20px] border border-[#eadfb7] bg-[#fffaf1]/90 p-5 shadow-[0_10px_22px_rgba(66,56,56,0.04)] dark:border-white/10 dark:bg-[#352d2d]/90">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-accent">
-                WORKFLOW
-              </span>
-              <span className="rounded-full bg-accent/15 px-2.5 py-0.5 text-xs font-semibold text-accent">
-                Global Monitor
-              </span>
-            </div>
-            <h2 className="mt-2 text-3xl font-bold text-text dark:text-textDark">
-              AI Queue & Job Monitor
-            </h2>
-            <p className="mt-1 text-xs text-text/60 dark:text-textDark/60">
-              Monitor asynchronous text and image generation tasks across stations
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">AI workflow</p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-text dark:text-textDark">AI queue</h1>
+            <p className="mt-2 text-sm leading-6 text-text/65 dark:text-textDark/70">
+              Central monitoring for generated text, images, and derived creative outputs.
             </p>
           </div>
-
-          <span className="rounded-full bg-background px-3 py-1.5 text-xs font-semibold text-text/70 dark:bg-[#554949] dark:text-textDark/70">
-            Monitoring surface
-          </span>
+          <div className="flex flex-wrap gap-2">
+            {(['ALL', 'RUNNING', 'QUEUED', 'COMPLETED', 'FAILED'] as const).map((st) => (
+              <button
+                key={st}
+                type="button"
+                onClick={() => setStatusFilter(st)}
+                className={`rounded-xl px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] transition ${
+                  statusFilter === st
+                    ? 'bg-accent text-[#fffaf1]'
+                    : 'border border-[#e7d9c0] bg-[#f7f0df] text-text dark:border-white/10 dark:bg-[#4a3c3c] dark:text-textDark'
+                }`}
+              >
+                {st}
+              </button>
+            ))}
+          </div>
         </div>
+      </header>
 
-        {/* Filter Pills */}
-        <div className="mt-4 flex gap-2 border-t border-black/5 pt-4 dark:border-white/5">
-          {(['ALL', 'RUNNING', 'QUEUED', 'COMPLETED', 'FAILED'] as const).map((st) => (
-            <button
-              key={st}
-              type="button"
-              onClick={() => setStatusFilter(st)}
-              className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
-                statusFilter === st
-                  ? 'bg-accent text-backgroundDark'
-                  : 'bg-background text-text/70 hover:text-text dark:bg-[#554949] dark:text-textDark/70'
-              }`}
-            >
-              {st}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
-        {/* Job Monitor Queue List */}
-        <div className="rounded-2xl border border-black/10 bg-white/65 p-5 shadow-cozy dark:border-white/10 dark:bg-[#3a2d2d]/75">
-          <div className="mb-4 flex items-center justify-between"><h3 className="text-base font-bold text-text dark:text-textDark">Queue activity</h3><span className="text-xs text-text/50 dark:text-textDark/50">{filteredJobs.length} visible</span></div>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(300px,0.8fr)]">
+        <section className="rounded-[20px] border border-[#eadfb7] bg-[#fffaf1]/90 p-5 shadow-[0_10px_22px_rgba(66,56,56,0.04)] dark:border-white/10 dark:bg-[#352d2d]/90">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 className="text-xl font-semibold text-text dark:text-textDark">Queue activity</h2>
+            <span className="text-xs text-text/55 dark:text-textDark/60">{filteredJobs.length} visible</span>
+          </div>
 
           {filteredJobs.length === 0 ? (
             <CozyEmptyState
-              icon="✦"
+              icon="•"
               title="The queue is quiet"
-              message="Contextual AI jobs triggered from an Asset Workspace will appear here with live progress."
+              message="Contextual AI jobs triggered from project workspaces will appear here with live status."
             />
           ) : (
             <div className="space-y-3">
@@ -190,169 +181,80 @@ export function AIJobConsole() {
                   key={job.task_id}
                   type="button"
                   onClick={() => setSelectedJobId(job.task_id)}
-                    className={`w-full rounded-xl border p-4 text-left transition-all duration-200 ${
+                  className={`w-full rounded-[16px] border p-4 text-left transition ${
                     selectedJobId === job.task_id
-                      ? 'border-accent bg-accent/10 shadow-cozy'
-                      : 'border-black/5 bg-background/40 hover:border-accent/40 hover:bg-background/80 dark:border-white/10 dark:bg-[#4f3d3d]/60'
+                      ? 'border-[#d7c0f0] bg-[#f3eaff] dark:border-[#ae8de8]/70 dark:bg-[#473a59]'
+                      : 'border-[#efe1c0] bg-[#fdf7ea] hover:border-[#d7c0f0] dark:border-white/10 dark:bg-[#483d3d]/70'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h4 className="font-bold text-text dark:text-textDark">
-                        {jobTypeLabels[job.job_type] || job.job_type}
-                      </h4>
-                      <p className="mt-1 font-mono text-[10px] text-text/45 dark:text-textDark/45">{job.task_id}</p>
-                      <p className="mt-1 text-xs text-text/60 dark:text-textDark/60 line-clamp-1">
-                        {job.prompt ? job.prompt : 'No prompt details'}
+                    <div className="min-w-0">
+                      <h3 className="text-base font-semibold text-text dark:text-textDark">{jobTypeLabels[job.job_type] || job.job_type}</h3>
+                      <p className="mt-1 text-[11px] text-text/55 dark:text-textDark/60">{job.task_id}</p>
+                      <p className="mt-2 text-sm leading-6 text-text/60 dark:text-textDark/70">
+                        {job.prompt || 'No prompt details'}
                       </p>
                     </div>
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${
-                        statusColors[job.status] || statusColors.QUEUED
-                      }`}
-                    >
+                    <span className={`rounded-full px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] ${statusColors[job.status] || statusColors.QUEUED}`}>
                       {job.status}
                     </span>
                   </div>
-                  {job.queue_position !== null && job.queue_position !== undefined && job.status === 'QUEUED' ? (
-                    <p className="mt-2 text-xs font-semibold text-accent">
-                      Queue Position: #{job.queue_position}
-                    </p>
-                  ) : null}
-                  <p className="mt-2 text-[11px] text-text/50 dark:text-textDark/50">
-                    {job.project_id ? `Project ${job.project_id.slice(0, 8)}` : 'No project context'}
-                    {job.asset_id ? ` · Asset ${job.asset_id.slice(0, 8)}` : ''}
-                    {job.created_by ? ` · User ${job.created_by.slice(0, 8)}` : ''}
-                  </p>
+
+                  <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-text/55 dark:text-textDark/60">
+                    {job.project_id ? <span>{job.project_id.slice(0, 8)}</span> : null}
+                    {job.asset_id ? <span>• {job.asset_id.slice(0, 8)}</span> : null}
+                    {job.created_by ? <span>• {job.created_by.slice(0, 8)}</span> : null}
+                  </div>
                 </button>
               ))}
             </div>
           )}
-        </div>
+        </section>
 
-        {/* Selected Job Detail Sidebar */}
-        {selectedJob ? (
-          <aside className="rounded-2xl border border-black/10 bg-white/75 p-5 shadow-cozy dark:border-white/10 dark:bg-[#3a2d2d]/80">
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div>
-                <h3 className="text-base font-bold text-text dark:text-textDark">Task Status Detail</h3>
-                <p className="mt-0.5 font-mono text-[10px] text-text/60 dark:text-textDark/60">
-                  ID: {selectedJob.task_id}
-                </p>
+        <aside className="rounded-[20px] border border-[#eadfb7] bg-[#fffaf1]/90 p-5 shadow-[0_10px_22px_rgba(66,56,56,0.04)] dark:border-white/10 dark:bg-[#352d2d]/90">
+          {selectedJob ? (
+            <>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-text/45 dark:text-textDark/60">Selected job</p>
+                  <h2 className="mt-1 text-xl font-semibold text-text dark:text-textDark">{jobTypeLabels[selectedJob.job_type] || selectedJob.job_type}</h2>
+                </div>
+                <span className={`rounded-full px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] ${statusColors[selectedJob.status] || statusColors.QUEUED}`}>
+                  {selectedJob.status}
+                </span>
               </div>
+
+              <dl className="mt-4 space-y-3 text-sm text-text/70 dark:text-textDark/70">
+                <div className="rounded-[14px] border border-[#efe1c0] bg-[#fdf7ea] px-3 py-2 dark:border-white/10 dark:bg-[#483d3d]">
+                  <dt className="text-[10px] font-semibold uppercase tracking-[0.14em] text-text/55 dark:text-textDark/60">Job ID</dt>
+                  <dd className="mt-1 font-mono text-xs">{selectedJob.task_id}</dd>
+                </div>
+                <div className="rounded-[14px] border border-[#efe1c0] bg-[#fdf7ea] px-3 py-2 dark:border-white/10 dark:bg-[#483d3d]">
+                  <dt className="text-[10px] font-semibold uppercase tracking-[0.14em] text-text/55 dark:text-textDark/60">Status</dt>
+                  <dd className="mt-1 font-medium">{selectedJob.status}</dd>
+                </div>
+                {selectedJob.error ? (
+                  <div className="rounded-[14px] border border-statusError/40 bg-statusError/10 px-3 py-2 text-sm text-statusError">
+                    {friendlyJobError(selectedJob.error)}
+                  </div>
+                ) : null}
+              </dl>
+
               <button
                 type="button"
-                onClick={() => setSelectedJobId('')}
-                className="text-xs font-bold text-text/70 dark:text-textDark/70"
+                onClick={() => void suspendJob(selectedJob.task_id)}
+                className="mt-4 w-full rounded-xl border border-statusError/30 bg-statusError/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-statusError"
               >
-                ✕ Close
+                Suspend job
               </button>
-            </div>
+            </>
+          ) : (
+            <CozyEmptyState icon="•" title="No job selected" message="Select a job from the queue to inspect its status and output." />
+          )}
 
-            <div className="space-y-4 text-xs">
-              <div>
-                <p className="font-bold text-text/60 dark:text-textDark/60">Job Type</p>
-                <p className="mt-1 font-semibold text-accent">
-                  {jobTypeLabels[selectedJob.job_type] || selectedJob.job_type}
-                </p>
-              </div>
-
-              <div>
-                <p className="font-bold text-text/60 dark:text-textDark/60">Status</p>
-                <p
-                  className={`mt-1 inline-block rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${
-                    statusColors[selectedJob.status] || statusColors.QUEUED
-                  }`}
-                >
-                  {selectedJob.status}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <p className="font-bold text-text/60 dark:text-textDark/60">Priority</p>
-                  <p className="mt-1 font-semibold">{selectedJob.priority}</p>
-                </div>
-                <div>
-                  <p className="font-bold text-text/60 dark:text-textDark/60">Result</p>
-                  <p className="mt-1 font-semibold">{selectedJob.result_available ? 'Available' : 'Pending'}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><p className="font-bold text-text/60 dark:text-textDark/60">Queue position</p><p className="mt-1 font-semibold">{selectedJob.queue_position ?? 'Running'}</p></div>
-                <div><p className="font-bold text-text/60 dark:text-textDark/60">Requester</p><p className="mt-1 font-mono text-[10px]">{selectedJob.created_by?.slice(0, 12) || 'Unknown'}</p></div>
-              </div>
-              <div className="grid grid-cols-2 gap-3 text-[11px]">
-                <div><p className="font-bold text-text/60 dark:text-textDark/60">Created</p><p className="mt-1">{formatJobDate(selectedJob.created_at)}</p></div>
-                <div><p className="font-bold text-text/60 dark:text-textDark/60">Started</p><p className="mt-1">{formatJobDate(selectedJob.started_at)}</p></div>
-                <div><p className="font-bold text-text/60 dark:text-textDark/60">Completed</p><p className="mt-1">{formatJobDate(selectedJob.completed_at)}</p></div>
-                <div><p className="font-bold text-text/60 dark:text-textDark/60">Duration</p><p className="mt-1">{formatJobDuration(selectedJob)}</p></div>
-              </div>
-              {['QUEUED', 'RUNNING'].includes(selectedJob.status) ? (
-                <button type="button" onClick={() => void suspendJob(selectedJob.task_id)} className="rounded-xl border border-statusError/40 bg-statusError/10 px-3 py-2 text-xs font-bold text-statusError">
-                  Suspend job
-                </button>
-              ) : null}
-
-              {selectedJob.prompt ? (
-                <div>
-                  <p className="font-bold text-text/60 dark:text-textDark/60">Prompt</p>
-                  <p className="mt-1 max-h-32 overflow-auto rounded-xl bg-background/50 p-3 text-xs leading-relaxed dark:bg-[#4f3d3d]">
-                    {selectedJob.prompt}
-                  </p>
-                </div>
-              ) : null}
-
-              {selectedJob.status === 'COMPLETED' && selectedJob.result ? (
-                <div className="border-t border-black/5 pt-3 dark:border-white/5">
-                  <p className="mb-2 font-bold text-accent">Result Output</p>
-                  <div className="max-h-48 overflow-auto rounded-xl bg-background/50 p-3 dark:bg-[#4f3d3d]">
-                    {typeof selectedJob.result === 'string' ? (
-                      <p className="whitespace-pre-wrap leading-relaxed">{selectedJob.result}</p>
-                    ) : typeof selectedJob.result.data === 'string' ? (
-                      <img
-                        src={`data:image/png;base64,${selectedJob.result.data}`}
-                        alt="AI Result"
-                        className="max-h-60 rounded-xl object-contain shadow-cozy"
-                      />
-                    ) : typeof selectedJob.result.content === 'string' ? (
-                      <p className="whitespace-pre-wrap leading-relaxed">{selectedJob.result.content}</p>
-                    ) : (
-                      <pre className="overflow-auto font-mono text-[10px]">
-                        {JSON.stringify(selectedJob.result, null, 2)}
-                      </pre>
-                    )}
-                  </div>
-                </div>
-              ) : null}
-
-              {selectedJob.status === 'FAILED' ? (
-                <div className="rounded-xl border border-statusError/30 bg-statusError/10 p-3 text-statusError">
-                  <p className="font-bold">Job Execution Failed</p>
-                  <p className="mt-1 leading-relaxed">{friendlyJobError(selectedJob.error)}</p>
-                </div>
-              ) : null}
-            </div>
-          </aside>
-        ) : null}
+          {toast ? <div className="mt-4 rounded-xl bg-backgroundDark px-3 py-2 text-[11px] font-medium text-textDark">{toast}</div> : null}
+        </aside>
       </div>
-
-      {/* Toast */}
-      {toast ? (
-        <div className="fixed bottom-6 right-6 z-50 rounded-2xl bg-[#423838] px-5 py-3.5 text-sm font-medium text-[#FFF2C2] shadow-cozy border border-accent/20">
-          {toast}
-        </div>
-      ) : null}
     </div>
   );
-}
-
-function formatJobDate(value?: string | null) {
-  return value ? new Date(value).toLocaleString() : 'Pending';
-}
-
-function formatJobDuration(job: AIJobStatusRecord) {
-  if (!job.started_at) return 'Pending';
-  const end = job.completed_at ? new Date(job.completed_at).getTime() : Date.now();
-  return `${Math.max(0, Math.round((end - new Date(job.started_at).getTime()) / 1000))}s`;
 }

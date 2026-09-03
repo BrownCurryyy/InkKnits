@@ -51,6 +51,19 @@ async def assign_member(station_id: str, payload: OrganizationMemberAdd, db: Ses
     return {"message": "User assigned to station"}
 
 
+@router.delete("/{station_id}/members/{user_id}", status_code=status.HTTP_200_OK)
+async def remove_member(station_id: str, user_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)) -> dict:
+    require_roles(get_user_roles(db, current_user), ("ADMIN",))
+    station = db.get(Station, station_id)
+    if not station or station.organization_id != current_user.organization_id:
+        raise HTTPException(status_code=404, detail="Station not found")
+    member = db.query(StationMember).filter(StationMember.station_id == station_id, StationMember.user_id == user_id).first()
+    if member is not None:
+        db.delete(member)
+        db.commit()
+    return {"message": "User removed from station"}
+
+
 @router.get("/{station_id}/assets")
 async def filter_assets(station_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)) -> list[dict]:
     """Return all active (non-deleted) assets belonging to this station."""

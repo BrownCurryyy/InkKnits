@@ -175,56 +175,57 @@ export function ApprovalsQueue() {
   return (
     <div className="space-y-6">
       {error ? (
-        <div className="rounded-cozy border border-statusError/60 bg-statusError/20 p-3 text-sm text-text dark:text-textDark">
+        <div className="rounded-[16px] border border-statusError/60 bg-statusError/20 p-3 text-sm text-text dark:text-textDark">
           {error}
         </div>
       ) : null}
 
-      <div className="rounded-cozy bg-white/70 p-5 shadow-cozy dark:bg-[#3a2d2d]/80">
-        <div className="mb-4">
-          <h2 className="text-2xl font-semibold">Approval Tasks</h2>
-          <p className="mt-1 text-sm text-text/60 dark:text-textDark/60">
-            Review and manage asset approvals across stations
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex gap-2">
+      <header className="rounded-[20px] border border-[#eadfb7] bg-[#fffaf1]/90 p-5 shadow-[0_10px_22px_rgba(66,56,56,0.04)] dark:border-white/10 dark:bg-[#352d2d]/90">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">Approvals</p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-text dark:text-textDark">Review queue</h1>
+            <p className="mt-2 text-sm leading-6 text-text/65 dark:text-textDark/70">
+              Review and manage production assets awaiting approval.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
             {(['All', 'Pending', 'Approved', 'Rejected', 'Escalated'] as const).map((status) => (
               <button
                 key={status}
                 type="button"
                 onClick={() => setStatusFilter(status)}
-                className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
+                className={`rounded-xl px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] transition ${
                   statusFilter === status
-                    ? 'bg-accent text-backgroundDark'
-                    : 'bg-background text-text dark:bg-[#554949] dark:text-textDark'
+                    ? 'bg-accent text-[#fffaf1]'
+                    : 'border border-[#e7d9c0] bg-[#f7f0df] text-text dark:border-white/10 dark:bg-[#4a3c3c] dark:text-textDark'
                 }`}
               >
                 {status}
               </button>
             ))}
           </div>
-
-          <label className="ml-auto flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={showOnlyAssignedToMe}
-              onChange={(event) => setShowOnlyAssignedToMe(event.target.checked)}
-              className="h-4 w-4 rounded"
-            />
-            <span className="text-sm font-medium">Assigned to me</span>
-          </label>
         </div>
-      </div>
+      </header>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
-        <div className="rounded-cozy bg-white/70 p-5 shadow-cozy dark:bg-[#3a2d2d]/80">
-          <h3 className="mb-4 text-lg font-semibold">Tasks</h3>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(320px,0.9fr)]">
+        <section className="rounded-[20px] border border-[#eadfb7] bg-[#fffaf1]/90 p-5 shadow-[0_10px_22px_rgba(66,56,56,0.04)] dark:border-white/10 dark:bg-[#352d2d]/90">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 className="text-xl font-semibold text-text dark:text-textDark">Tasks</h2>
+            <label className="flex items-center gap-2 text-xs font-medium text-text/65 dark:text-textDark/70">
+              <input
+                type="checkbox"
+                checked={showOnlyAssignedToMe}
+                onChange={(event) => setShowOnlyAssignedToMe(event.target.checked)}
+                className="h-4 w-4 rounded"
+              />
+              Assigned to me
+            </label>
+          </div>
 
           {filteredTasks.length === 0 ? (
             <CozyEmptyState
-              icon="✓"
+              icon="•"
               title="No approvals waiting"
               message="The review desk is clear. New approval requests will appear here when they are ready."
             />
@@ -235,152 +236,95 @@ export function ApprovalsQueue() {
                   key={task.id}
                   type="button"
                   onClick={() => setSelectedTaskId(task.id)}
-                  className={`w-full rounded-cozy border p-4 text-left shadow-sm transition ${
+                  className={`w-full rounded-[16px] border p-4 text-left transition ${
                     selectedTaskId === task.id
-                      ? 'border-accent bg-accent/10'
-                      : 'border-transparent bg-background/50 dark:bg-[#4f3d3d]/60'
+                      ? 'border-[#d7c0f0] bg-[#f3eaff] dark:border-[#ae8de8]/70 dark:bg-[#473a59]'
+                      : 'border-[#efe1c0] bg-[#fdf7ea] hover:border-[#d7c0f0] dark:border-white/10 dark:bg-[#483d3d]/70'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <h4 className="font-semibold">{task.assetTitle}</h4>
-                      <p className="mt-1 text-xs text-text/60 dark:text-textDark/60">
-                        Task {task.id.slice(0, 8)}
-                      </p>
+                      <h3 className="text-base font-semibold text-text dark:text-textDark">{task.assetTitle}</h3>
+                      <p className="mt-1 text-[11px] text-text/55 dark:text-textDark/60">Task {task.id.slice(0, 8)}</p>
                     </div>
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide ${
-                        statusColors[task.status] || statusColors.PENDING
-                      }`}
-                    >
+                    <span className={`rounded-full px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] ${statusColors[task.status] || statusColors.PENDING}`}>
                       {task.status}
                     </span>
                   </div>
-                  <div className="mt-3 flex items-center justify-between text-xs text-text/60 dark:text-textDark/60">
+
+                  <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-text/60 dark:text-textDark/60">
                     <span>Created {formatDate(task.created_at)}</span>
-                    {task.deadline ? <span>Due {formatDate(task.deadline)}</span> : null}
+                    <span>•</span>
+                    <span>Assigned to {task.assigned_to.slice(0, 8)}</span>
                   </div>
                 </button>
               ))}
             </div>
           )}
-        </div>
+        </section>
 
-        {selectedTask ? (
-          <aside className="rounded-cozy bg-white/70 p-5 shadow-cozy dark:bg-[#3a2d2d]/80">
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div>
-                <h3 className="text-lg font-semibold">Task Detail</h3>
-                <p className="mt-1 text-xs text-text/60 dark:text-textDark/60">
-                  {selectedTask.assetTitle}
-                </p>
-                {selectedTask.asset_id ? (
-                  <p className="mt-2.5 text-xs font-bold text-accent">
-                    Asset {selectedTask.asset_id.slice(0, 8)}
-                  </p>
-                ) : null}
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedTaskId('')}
-                className="text-sm text-text/70 dark:text-textDark/70"
-              >
-                Close
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-text/60 dark:text-textDark/60">
-                  Status
-                </p>
-                <p
-                  className={`mt-1 inline-block rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide ${
-                    statusColors[selectedTask.status] || statusColors.PENDING
-                  }`}
-                >
+        <aside className="rounded-[20px] border border-[#eadfb7] bg-[#fffaf1]/90 p-5 shadow-[0_10px_22px_rgba(66,56,56,0.04)] dark:border-white/10 dark:bg-[#352d2d]/90">
+          {selectedTask ? (
+            <>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-text/45 dark:text-textDark/60">Selected task</p>
+                  <h2 className="mt-1 text-xl font-semibold text-text dark:text-textDark">{selectedTask.assetTitle}</h2>
+                </div>
+                <span className={`rounded-full px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] ${statusColors[selectedTask.status] || statusColors.PENDING}`}>
                   {selectedTask.status}
-                </p>
+                </span>
               </div>
 
-              {selectedTask.deadline ? (
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-text/60 dark:text-textDark/60">
-                    Deadline
-                  </p>
-                  <p className="mt-1 text-sm font-medium">{formatDate(selectedTask.deadline)}</p>
+              <div className="mt-4 space-y-3 text-sm text-text/70 dark:text-textDark/70">
+                <div className="rounded-[14px] border border-[#efe1c0] bg-[#fdf7ea] px-3 py-2 dark:border-white/10 dark:bg-[#483d3d]">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-text/55 dark:text-textDark/60">Review notes</p>
+                  <p className="mt-2 leading-6">{selectedTask.comments || 'No review comments yet.'}</p>
                 </div>
-              ) : null}
-
-              <div>
-                <p className="text-xs uppercase tracking-wide text-text/60 dark:text-textDark/60">
-                  Created
-                </p>
-                <p className="mt-1 text-sm font-medium">{formatDate(selectedTask.created_at)}</p>
-              </div>
-
-              {selectedTask.completed_at ? (
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-text/60 dark:text-textDark/60">
-                    Completed
-                  </p>
-                  <p className="mt-1 text-sm font-medium">{formatDate(selectedTask.completed_at)}</p>
-                </div>
-              ) : null}
-
-              {canReview ? (
-                <div className="border-t border-black/10 pt-4 dark:border-white/10">
-                  <label className="block text-sm">
-                    <p className="mb-2 text-xs uppercase tracking-wide text-text/60 dark:text-textDark/60">
-                      Comments
-                    </p>
-                    <textarea
-                      value={commentDraft}
-                      onChange={(event) => setCommentDraft(event.target.value)}
-                      rows={4}
-                      className="w-full rounded-xl border border-black/5 bg-white px-3 py-2 text-sm outline-none dark:border-white/10 dark:bg-[#4f3d3d]"
-                    />
-                  </label>
+                <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => void updateComment(selectedTask.id)}
-                    className="mt-2 rounded-lg bg-background px-3 py-1 text-sm font-medium text-text dark:bg-[#554949] dark:text-textDark"
+                    onClick={() => void approveTask(selectedTask.id)}
+                    disabled={!canReview}
+                    className="flex-1 rounded-xl bg-statusSuccess/20 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-statusSuccess disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    Save comment
+                    Approve
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void rejectTask(selectedTask.id)}
+                    disabled={!canReview}
+                    className="flex-1 rounded-xl bg-statusError/20 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-statusError disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Reject
                   </button>
                 </div>
-              ) : null}
 
-              {canReview && selectedTask.status === 'PENDING' ? (
-                <div className="border-t border-black/10 pt-4 dark:border-white/10">
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => void approveTask(selectedTask.id)}
-                      className="flex-1 rounded-lg bg-statusSuccess/20 px-3 py-2 text-sm font-medium text-statusSuccess"
-                    >
-                      Approve
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void rejectTask(selectedTask.id)}
-                      className="flex-1 rounded-lg bg-statusError/20 px-3 py-2 text-sm font-medium text-text dark:text-textDark"
-                    >
-                      Reject
-                    </button>
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          </aside>
-        ) : null}
+                <label className="block">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-text/55 dark:text-textDark/60">Comments</span>
+                  <textarea
+                    value={commentDraft}
+                    onChange={(event) => setCommentDraft(event.target.value)}
+                    rows={4}
+                    className="mt-2 w-full rounded-[12px] border border-[#e7d9c0] bg-[#f7f0df] px-3 py-2 text-sm text-text focus:border-accent dark:border-white/10 dark:bg-[#4a3c3c] dark:text-textDark"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => void updateComment(selectedTask.id)}
+                  className="w-full rounded-xl bg-accent px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#fffaf1]"
+                >
+                  Save comment
+                </button>
+              </div>
+            </>
+          ) : (
+            <CozyEmptyState icon="•" title="No task selected" message="Choose a task from the queue to review and act on it." />
+          )}
+
+          {toast ? <div className="mt-4 rounded-xl bg-backgroundDark px-3 py-2 text-[11px] font-medium text-textDark">{toast}</div> : null}
+        </aside>
       </div>
-
-      {toast ? (
-        <div className="fixed bottom-5 right-5 z-50 rounded-xl bg-[#423838] px-4 py-3 text-sm text-[#FFF2C2] shadow-cozy">
-          {toast}
-        </div>
-      ) : null}
     </div>
   );
 }
