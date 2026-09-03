@@ -33,55 +33,69 @@ export function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-backgroundDark text-textDark px-4">
-      <div className="w-full max-w-md rounded-cozy bg-[#554949] p-8 shadow-cozy ring-1 ring-white/10">
-        <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent text-xl font-bold text-backgroundDark">
-            I
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4">
+      <div className="blob-circle -left-16 top-20 h-48 w-48 bg-accentSecondary/50" aria-hidden="true" />
+      <div className="blob-circle bottom-10 right-10 h-36 w-36 bg-accent/40" aria-hidden="true" />
+
+      <div className="relative grid w-full max-w-4xl overflow-hidden rounded-2xl shadow-bold lg:grid-cols-2">
+        {/* Brand panel */}
+        <div className="hidden flex-col justify-between bg-accent p-10 text-text lg:flex">
+          <div>
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-text font-display text-2xl font-bold text-white">I</div>
+            <h1 className="display-heading mt-8">inkknits</h1>
+            <p className="mt-4 text-sm font-medium text-text/70">Create, generate, and preview — all in one place.</p>
           </div>
-          <h1 className="text-3xl font-bold">InkKnits</h1>
-          <p className="mt-2 text-sm text-textDark/80">Welcome back</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-text/50">production studio</p>
         </div>
 
-        <form className="space-y-5" onSubmit={handleSubmit}>
-          <label className="block">
-            <span className="mb-2 block text-sm font-medium text-textDark/90">Email</span>
-            <input
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-textDark placeholder:text-textDark/60 focus:border-accent focus:outline-none"
-              placeholder="admin@example.com"
-              required
-            />
-          </label>
+        {/* Form panel */}
+        <div className="bg-accentSecondary p-8 text-white sm:p-10">
+          <div className="mb-8 lg:hidden">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent font-display text-xl font-bold text-text">I</div>
+            <h1 className="font-display mt-4 text-3xl font-bold lowercase">inkknits</h1>
+          </div>
 
-          <label className="block">
-            <span className="mb-2 block text-sm font-medium text-textDark/90">Password</span>
-            <input
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-textDark placeholder:text-textDark/60 focus:border-accent focus:outline-none"
-              placeholder="InkKnits-Dev-2026!"
-              required
-            />
-          </label>
+          <h2 className="font-display text-2xl font-bold lowercase">welcome back</h2>
+          <p className="mt-1 text-sm text-white/70">Sign in to your workspace</p>
 
-          {error ? (
-            <div className="rounded-xl border border-statusError/60 bg-statusError/20 px-3 py-2 text-sm text-textDark">
-              {error}
-            </div>
-          ) : null}
+          <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
+            <label className="block">
+              <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-white/70">Email</span>
+              <input
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                className="w-full rounded-xl border-2 border-white/20 bg-white/10 px-4 py-3 text-white placeholder:text-white/40 focus:border-accent focus:outline-none"
+                placeholder="admin@example.com"
+                required
+              />
+            </label>
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full rounded-xl bg-accent px-4 py-3 font-semibold text-backgroundDark transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isSubmitting ? 'Signing in…' : 'Sign in'}
-          </button>
-        </form>
+            <label className="block">
+              <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-white/70">Password</span>
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                className="w-full rounded-xl border-2 border-white/20 bg-white/10 px-4 py-3 text-white placeholder:text-white/40 focus:border-accent focus:outline-none"
+                placeholder="••••••••"
+                required
+              />
+            </label>
+
+            {error ? (
+              <div className="rounded-xl border border-statusError/60 bg-statusError/20 px-3 py-2 text-sm">{error}</div>
+            ) : null}
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full rounded-xl bg-accent px-4 py-3.5 font-bold text-text transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSubmitting ? 'Signing in…' : 'Sign in →'}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );
