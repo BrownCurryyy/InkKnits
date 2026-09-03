@@ -3,21 +3,19 @@
 @tailwind utilities;
 
 :root {
-  --ink-cream: #FFF2C2;
-  --ink-ink: #423838;
-  --ink-lilac: #B497E7;
-  --ink-sage: #A9C7A2;
-  --ink-peach: #E8B08C;
-  --ink-coral: #D88983;
-  --ink-orange: #D58B57;
-  --ink-line: rgba(66, 56, 56, 0.12);
-  --ink-line-dark: rgba(255, 242, 194, 0.14);
-  --ink-shadow: 0 14px 35px rgba(66, 56, 56, 0.08);
-  --ink-shadow-dark: 0 16px 40px rgba(18, 14, 14, 0.2);
-  font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
+  --ink-cream: #FAFAF5;
+  --ink-ink: #2D2A4A;
+  --ink-lime: #D4E257;
+  --ink-lavender: #B2B9EE;
+  --ink-lavender-light: rgba(178, 185, 238, 0.35);
+  --ink-line: rgba(178, 185, 238, 0.45);
+  --ink-line-dark: rgba(178, 185, 238, 0.2);
+  --ink-shadow: 0 14px 35px rgba(45, 42, 74, 0.08);
+  --ink-shadow-dark: 0 16px 40px rgba(18, 14, 14, 0.25);
+  font-family: 'DM Sans', 'Segoe UI', sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color: #423838;
+  color: #2D2A4A;
   background: var(--ink-cream);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -33,14 +31,20 @@ html, body, #root {
 
 body {
   min-height: 100vh;
-  background: var(--ink-cream);
+  background-color: var(--ink-cream);
+  background-image:
+    linear-gradient(var(--ink-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--ink-line) 1px, transparent 1px);
+  background-size: 28px 28px;
   color: var(--ink-ink);
-  letter-spacing: 0;
 }
 
 .dark body {
-  background: #423838;
-  color: #FFF2C2;
+  background-color: #2D2A4A;
+  background-image:
+    linear-gradient(var(--ink-line-dark) 1px, transparent 1px),
+    linear-gradient(90deg, var(--ink-line-dark) 1px, transparent 1px);
+  color: #FAFAF5;
 }
 
 * {
@@ -48,22 +52,22 @@ body {
 }
 
 h1, h2, h3, h4 {
-  font-family: Georgia, 'Times New Roman', serif;
-  letter-spacing: 0;
+  font-family: 'Fredoka', 'Nunito', sans-serif;
+  letter-spacing: -0.02em;
 }
 
 button, input, textarea, select {
   letter-spacing: 0;
+  font-family: inherit;
 }
 
 button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
-  outline: 2px solid var(--ink-lilac);
+  outline: 2px solid var(--ink-lime);
   outline-offset: 2px;
 }
 
-/* Keep the existing component language soft and structured instead of inflated. */
-.rounded-3xl { border-radius: 16px !important; }
-.rounded-2xl { border-radius: 12px !important; }
+.rounded-3xl { border-radius: 20px !important; }
+.rounded-2xl { border-radius: 14px !important; }
 .rounded-xl { border-radius: 10px !important; }
 .shadow-cozy { box-shadow: var(--ink-shadow); }
 .dark .shadow-cozy { box-shadow: var(--ink-shadow-dark); }
@@ -72,9 +76,42 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .tiptap p { margin: 0 0 0.85rem; }
 .tiptap h1, .tiptap h2, .tiptap h3 { margin: 1.2rem 0 0.6rem; }
 .tiptap ul, .tiptap ol { margin: 0.75rem 0; padding-left: 1.4rem; }
-.tiptap blockquote { border-left: 3px solid var(--ink-lilac); margin: 1rem 0; padding-left: 1rem; opacity: 0.8; }
+.tiptap blockquote { border-left: 3px solid var(--ink-lavender); margin: 1rem 0; padding-left: 1rem; opacity: 0.85; }
 
-button,
-input {
-  font: inherit;
+@layer components {
+  .display-heading {
+    @apply font-display text-4xl font-bold lowercase tracking-tight sm:text-5xl lg:text-6xl;
+  }
+
+  .section-label {
+    @apply text-[11px] font-bold uppercase tracking-[0.2em] text-text/50 dark:text-textDark/50;
+  }
+
+  .panel-lime {
+    @apply rounded-2xl bg-accent p-6 text-text shadow-bold;
+  }
+
+  .panel-lavender {
+    @apply rounded-2xl bg-accentSecondary p-6 text-white shadow-bold;
+  }
+
+  .panel-card {
+    @apply rounded-2xl border border-accentSecondary/30 bg-white/80 p-5 shadow-cozy backdrop-blur-sm dark:border-accentSecondary/20 dark:bg-backgroundDark/60;
+  }
+
+  .btn-primary {
+    @apply rounded-xl bg-text px-5 py-3 text-sm font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-accent dark:text-text;
+  }
+
+  .btn-secondary {
+    @apply rounded-xl border-2 border-text/20 bg-white/60 px-4 py-2.5 text-sm font-bold transition hover:border-accentSecondary hover:bg-accentSecondary/10 dark:border-white/20 dark:bg-white/5 dark:hover:border-accentSecondary;
+  }
+
+  .nav-active {
+    @apply border-l-4 border-accent bg-accent/25 font-bold text-text dark:bg-accent dark:text-text;
+  }
+
+  .blob-circle {
+    @apply pointer-events-none absolute rounded-full bg-accentSecondary/40;
+  }
 }

@@ -15,7 +15,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
   const [isDark, setIsDark] = useState(() => {
     const stored = localStorage.getItem('inkknits-theme');
-    return stored ? stored === 'dark' : true;
+    return stored ? stored === 'dark' : false;
   });
 
   useEffect(() => {
@@ -80,19 +80,21 @@ export function AppShell({ children }: { children: ReactNode }) {
   ];
 
   return (
-    <div className="min-h-screen bg-background text-text transition-colors duration-200 dark:bg-backgroundDark dark:text-textDark">
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-72 border-r border-black/5 bg-[#fff8dc] p-6 dark:border-white/10 dark:bg-[#392f2f] lg:block">
+    <div className="min-h-screen text-text transition-colors duration-200 dark:text-textDark">
+      {/* Sidebar — lime accent strip */}
+      <aside className="fixed inset-y-0 left-0 z-20 hidden w-72 border-r-4 border-accent bg-white/90 p-6 backdrop-blur-md dark:border-accent dark:bg-backgroundDark/95 lg:block">
         <button type="button" onClick={() => navigate('/')} className="mb-10 flex w-full items-center gap-3 text-left">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent font-bold text-backgroundDark shadow-sm">I</div>
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent font-display text-xl font-bold text-text shadow-bold">I</div>
           <div>
-            <div className="text-xl font-bold text-text dark:text-textDark">InkKnits</div>
-            <div className="text-[11px] uppercase tracking-[0.18em] text-text/50 dark:text-textDark/50">Production studio</div>
+            <div className="font-display text-2xl font-bold lowercase text-text dark:text-textDark">inkknits</div>
+            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-accentSecondary">production studio</div>
           </div>
         </button>
+
         <nav className="space-y-6" aria-label="Primary navigation">
           {sidebarSections.map((section) => section.items.length > 0 ? (
             <div key={section.label}>
-              <p className="mb-2 px-3 text-[10px] font-extrabold uppercase tracking-wider text-text/40 dark:text-textDark/40">{section.label}</p>
+              <p className="section-label mb-2 px-3">{section.label}</p>
               <div className="space-y-1">
                 {section.items.map((item) => {
                   const isActive = item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path);
@@ -101,7 +103,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                       key={item.path}
                       type="button"
                       onClick={() => navigate(item.path)}
-                      className={`w-full rounded-xl border-l-2 px-3.5 py-2.5 text-left text-sm font-semibold transition ${isActive ? 'border-accent bg-accent/20 text-text dark:bg-accent dark:text-backgroundDark' : 'border-transparent text-text/65 hover:border-accent/50 hover:bg-black/5 dark:text-textDark/70 dark:hover:bg-white/5'}`}
+                      className={`w-full rounded-xl border-l-4 px-3.5 py-2.5 text-left text-sm font-semibold transition ${
+                        isActive
+                          ? 'nav-active'
+                          : 'border-transparent text-text/60 hover:border-accentSecondary/50 hover:bg-accentSecondary/10 dark:text-textDark/70'
+                      }`}
                     >
                       {item.label}
                     </button>
@@ -110,7 +116,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </div>
 
               {section.label === 'Projects' ? (
-                <div className="mt-3 space-y-2 border-l border-black/10 pl-3 dark:border-white/10">
+                <div className="mt-3 space-y-2 border-l-2 border-accentSecondary/30 pl-3">
                   {projectGroups.map(({ project, stations: projectStations }) => {
                     const expanded = expandedProjects[project.id] ?? false;
                     return (
@@ -118,10 +124,10 @@ export function AppShell({ children }: { children: ReactNode }) {
                         <button
                           type="button"
                           onClick={() => setExpandedProjects((current) => ({ ...current, [project.id]: !expanded }))}
-                          className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-xs font-bold text-text/75 hover:bg-black/5 dark:text-textDark/75 dark:hover:bg-white/5"
+                          className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-xs font-bold text-text/75 hover:bg-accentSecondary/10 dark:text-textDark/75"
                         >
                           <span className="truncate">{project.title}</span>
-                          <span aria-hidden="true" className="ml-2 text-text/45">{expanded ? '−' : '+'}</span>
+                          <span aria-hidden="true" className="ml-2 text-accentSecondary">{expanded ? '−' : '+'}</span>
                         </button>
                         {expanded ? (
                           <div className="mt-1 space-y-0.5 pl-2">
@@ -133,7 +139,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                                   key={station.id}
                                   type="button"
                                   onClick={() => navigate(path)}
-                                  className={`w-full rounded-lg px-2.5 py-2 text-left text-xs transition ${isActive ? 'bg-accent/20 font-bold text-text dark:bg-accent dark:text-backgroundDark' : 'text-text/60 hover:bg-black/5 dark:text-textDark/65 dark:hover:bg-white/5'}`}
+                                  className={`w-full rounded-lg px-2.5 py-2 text-left text-xs transition ${
+                                    isActive
+                                      ? 'bg-accentSecondary/25 font-bold text-text dark:bg-accentSecondary dark:text-white'
+                                      : 'text-text/55 hover:bg-accentSecondary/10 dark:text-textDark/60'
+                                  }`}
                                 >
                                   {station.name}
                                 </button>
@@ -151,48 +161,43 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
       </aside>
 
-      <header className="border-b border-black/5 bg-[#fff8dc]/80 backdrop-blur-sm dark:border-white/10 dark:bg-[#423838]/80 lg:ml-72">
+      <header className="sticky top-0 z-10 border-b border-accentSecondary/20 bg-white/80 backdrop-blur-md dark:border-accentSecondary/10 dark:bg-backgroundDark/90 lg:ml-72">
         <div className="mx-auto max-w-[1440px] px-6 lg:px-10">
           <div className="flex items-center justify-between py-3">
-            <div
+            <button
+              type="button"
               onClick={() => navigate('/')}
-              className="flex cursor-pointer items-center gap-3 transition hover:opacity-90"
+              className="flex items-center gap-3 transition hover:opacity-90 lg:hidden"
             >
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent font-bold text-backgroundDark shadow-sm">I</div>
-              <div>
-                <div className="text-lg font-bold text-text dark:text-textDark">InkKnits</div>
-                <div className="text-xs text-text/70 dark:text-textDark/70">
-                  {user?.organization_id ? `Org: ${user.organization_id.slice(0, 8)}` : 'Studio Workspace'}
-                </div>
-              </div>
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent font-display font-bold text-text">I</div>
+              <span className="font-display text-lg font-bold lowercase">inkknits</span>
+            </button>
+
+            <div className="hidden text-xs text-text/50 dark:text-textDark/50 lg:block">
+              {user?.organization_id ? `Org ${user.organization_id.slice(0, 8)}` : 'Studio Workspace'}
             </div>
 
             <div className="flex items-center gap-2.5">
               <button
                 type="button"
                 onClick={() => setIsDark((current) => !current)}
-                className="rounded-xl border border-black/10 bg-white/60 px-3 py-2 text-xs font-semibold text-text shadow-sm transition hover:opacity-90 dark:border-white/10 dark:bg-[#4f3d3d] dark:text-textDark"
+                className="btn-secondary px-3 py-2 text-xs"
               >
-                {isDark ? '☀️ Light' : '🌙 Dark'}
+                {isDark ? '☀ Light' : '☾ Dark'}
               </button>
-              <span className="rounded-full bg-accent/20 px-3 py-1 text-xs font-semibold text-accent dark:text-textDark">
+              <span className="hidden rounded-full bg-accentSecondary/25 px-3 py-1 text-xs font-bold text-accentSecondary sm:inline dark:text-accentSecondary">
                 {highestRole}
               </span>
-              <div className="hidden items-center gap-3 rounded-xl bg-white/70 px-3 py-1.5 shadow-sm dark:bg-[#4f3d3d] sm:flex">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-backgroundDark text-xs font-bold text-textDark dark:bg-background dark:text-text">
+              <div className="hidden items-center gap-3 rounded-xl bg-accentSecondary/10 px-3 py-1.5 sm:flex">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent font-display text-xs font-bold text-text">
                   {(user?.display_name ?? 'U').slice(0, 1).toUpperCase()}
                 </div>
                 <div className="text-xs">
                   <div className="font-bold">{user?.display_name ?? 'User'}</div>
-                  <div className="text-[10px] text-text/60 dark:text-textDark/70">{user?.email ?? ''}</div>
+                  <div className="text-[10px] text-text/50 dark:text-textDark/60">{user?.email ?? ''}</div>
                 </div>
               </div>
-
-              <button
-                type="button"
-                onClick={() => void logout()}
-                className="rounded-xl bg-backgroundDark px-3.5 py-2 text-xs font-bold text-textDark transition hover:opacity-90 dark:bg-background dark:text-text"
-              >
+              <button type="button" onClick={() => void logout()} className="btn-primary px-3.5 py-2 text-xs">
                 Logout
               </button>
             </div>

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { apiFetch } from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import { CozySkeleton } from './UIStates';
+import { AssetPreview, JobStatusBadge } from './AssetPreview';
 import type { AIJobStatusRecord, AssetRecord, StationRecord } from '../types';
 
 type AssetType = 'TEXT' | 'IMAGE';
@@ -17,8 +17,15 @@ export function GenerationStation({ station }: { station: StationRecord }) {
   const [prompt, setPrompt] = useState('');
   const [job, setJob] = useState<AIJobStatusRecord | null>(null);
   const [generatedAsset, setGeneratedAsset] = useState<AssetRecord | null>(null);
+  const [relatedStations, setRelatedStations] = useState<StationRecord[]>([]);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    void apiFetch<StationRecord[]>('/stations')
+      .then((stations) => setRelatedStations(stations.filter((item) => item.project_id === station.project_id)))
+      .catch(() => setRelatedStations([]));
+  }, [station.project_id]);
 
   useEffect(() => {
     if (!job || !['QUEUED', 'RUNNING'].includes(job.status)) return;
@@ -58,9 +65,147 @@ export function GenerationStation({ station }: { station: StationRecord }) {
     }
   };
 
-  return <div className="space-y-5">
-    <header className="flex flex-wrap items-start justify-between gap-3 border-b border-black/10 pb-5 dark:border-white/10"><div><button type="button" onClick={() => navigate(`/projects/${station.project_id}`)} className="text-xs font-bold text-accent">← Project</button><p className="mt-4 text-[11px] font-bold uppercase tracking-[0.18em] text-accent">Generation Station</p><h1 className="mt-1 text-3xl font-bold">{station.name}</h1><p className="mt-2 text-sm text-text/65 dark:text-textDark/65">Create assets through the centralized AI queue.</p></div><span className="rounded-full bg-accent/15 px-3 py-1.5 text-xs font-bold uppercase text-accent">{station.station_type}</span></header>
-    {error ? <div className="rounded-2xl border border-statusError/60 bg-statusError/20 p-3 text-sm">{error}</div> : null}
-    <main className="mx-auto w-full max-w-3xl rounded-2xl border border-black/10 bg-white/70 p-6 shadow-cozy dark:border-white/10 dark:bg-[#3a2d2d]/80"><div><p className="text-xs font-bold uppercase tracking-wider text-accent">New generation</p><h2 className="mt-2 text-2xl font-bold">Create an asset</h2></div><div className="mt-6"><p className="mb-2 text-xs font-bold">Asset Type</p><div className="grid grid-cols-2 gap-2">{(['TEXT', 'IMAGE'] as const).map((type) => <button key={type} type="button" onClick={() => setAssetType(type)} className={`rounded-xl border px-4 py-3 text-sm font-bold ${assetType === type ? 'border-accent bg-accent/15 text-accent' : 'border-black/10 dark:border-white/10'}`}>{type}</button>)}</div></div><label className="mt-6 block text-xs font-bold" htmlFor="generation-prompt">Prompt<textarea id="generation-prompt" value={prompt} onChange={(event) => setPrompt(event.target.value)} rows={7} placeholder="Describe what you want to create..." className="mt-2 w-full resize-y rounded-xl border border-black/10 bg-background p-3 text-sm outline-none focus:border-accent dark:border-white/10 dark:bg-[#4f3d3d]" /></label><button type="button" disabled={!canGenerate || !prompt.trim() || submitting} onClick={() => void generate()} className="mt-5 rounded-xl bg-accent px-5 py-3 text-sm font-bold text-backgroundDark disabled:opacity-50">{submitting ? 'Queueing...' : 'Generate'}</button>{job ? <section className="mt-8 border-t border-black/10 pt-5 dark:border-white/10"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-bold">AI Job</h3><span className="rounded-full bg-accent/15 px-2.5 py-1 text-[10px] font-bold uppercase text-accent">{job.status}</span></div><dl className="mt-3 grid gap-2 text-xs sm:grid-cols-2"><div><dt className="text-text/55">Job ID</dt><dd className="font-mono">{job.task_id}</dd></div><div><dt className="text-text/55">Priority</dt><dd>{job.priority}</dd></div><div><dt className="text-text/55">Queue position</dt><dd>{job.queue_position ?? 'Running'}</dd></div></dl>{job.status === 'FAILED' ? <p className="mt-3 text-sm text-statusError">{job.error || 'Generation failed.'}</p> : null}{generatedAsset ? <div className="mt-4 rounded-xl bg-background/60 p-4"><p className="text-xs font-bold text-statusSuccess">Asset created</p><p className="mt-1 font-bold">{generatedAsset.title || generatedAsset.name}</p><p className="mt-1 text-xs text-text/60">Open the Writing or Viewing Station to continue.</p></div> : null}</section> : null}</main>
-  </div>;
+  const writingStation = relatedStations.find((item) => item.station_type === 'WRITING');
+  const viewingStation = relatedStations.find((item) => item.station_type === 'VIEWING');
+  const imageStation = relatedStations.find((item) => item.station_type === 'IMAGE');
+  const targetStation = assetType === 'IMAGE' ? imageStation : (writingStation || viewingStation);
+
+  return (
+    <div className="relative space-y-6">
+      <div className="blob-circle -left-8 -top-8 h-32 w-32" aria-hidden="true" />
+      <div className="blob-circle bottom-0 right-0 h-24 w-24 bg-accent/30" aria-hidden="true" />
+
+      <header className="relative flex flex-wrap items-start justify-between gap-4 border-b border-accentSecondary/30 pb-6">
+        <div>
+          <button type="button" onClick={() => navigate(`/projects/${station.project_id}`)} className="text-xs font-bold text-accentSecondary hover:underline">
+            ← back to project
+          </button>
+          <p className="section-label mt-4">generation station</p>
+          <h1 className="display-heading mt-1 text-text dark:text-textDark">{station.name}</h1>
+          <p className="mt-2 max-w-xl text-sm text-text/65 dark:text-textDark/65">
+            Create assets and see results instantly — no need to switch sections.
+          </p>
+        </div>
+        <span className="rounded-full bg-accentSecondary/20 px-4 py-2 text-xs font-bold uppercase text-accentSecondary dark:text-accentSecondary">
+          {station.station_type}
+        </span>
+      </header>
+
+      {error ? (
+        <div className="rounded-2xl border border-statusError/60 bg-statusError/20 p-4 text-sm font-semibold">{error}</div>
+      ) : null}
+
+      <div className="grid min-h-[560px] gap-0 overflow-hidden rounded-2xl shadow-bold lg:grid-cols-[minmax(0,38%)_minmax(0,1fr)]">
+        {/* Input pane — lime green */}
+        <section className="flex flex-col bg-accent p-6 text-text lg:p-8">
+          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-text/60">new generation</p>
+          <h2 className="font-display mt-2 text-3xl font-bold lowercase">create an asset</h2>
+
+          <div className="mt-8">
+            <p className="mb-2 text-xs font-bold uppercase tracking-wider">asset type</p>
+            <div className="grid grid-cols-2 gap-2">
+              {(['TEXT', 'IMAGE'] as const).map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setAssetType(type)}
+                  className={`rounded-xl border-2 px-4 py-3 text-sm font-bold transition ${
+                    assetType === type
+                      ? 'border-text bg-text text-white'
+                      : 'border-text/20 bg-white/40 hover:border-text/40'
+                  }`}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <label className="mt-6 block flex-1 text-xs font-bold uppercase tracking-wider" htmlFor="generation-prompt">
+            prompt
+            <textarea
+              id="generation-prompt"
+              value={prompt}
+              onChange={(event) => setPrompt(event.target.value)}
+              rows={8}
+              placeholder="Describe what you want to create…"
+              className="mt-2 w-full flex-1 resize-y rounded-xl border-2 border-text/15 bg-white/70 p-4 text-sm font-normal normal-case outline-none focus:border-text dark:bg-white/90"
+            />
+          </label>
+
+          <button
+            type="button"
+            disabled={!canGenerate || !prompt.trim() || submitting}
+            onClick={() => void generate()}
+            className="mt-6 w-full rounded-xl bg-text px-5 py-4 text-sm font-bold text-white transition hover:opacity-90 disabled:opacity-50"
+          >
+            {submitting ? 'Queueing…' : 'Generate →'}
+          </button>
+
+          {!canGenerate ? (
+            <p className="mt-3 text-center text-xs text-text/60">Editor or Admin role required to generate.</p>
+          ) : null}
+        </section>
+
+        {/* Result pane — lavender */}
+        <section className="flex flex-col bg-accentSecondary p-6 text-white lg:p-8">
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/60">live preview</p>
+              <h2 className="font-display mt-1 text-2xl font-bold lowercase">your result</h2>
+            </div>
+            {job ? <JobStatusBadge status={job.status} /> : null}
+          </div>
+
+          <div className="flex-1">
+            <AssetPreview
+              asset={generatedAsset}
+              job={job}
+              emptyMessage="Enter a prompt and hit Generate — your content will show up right here."
+            />
+          </div>
+
+          {job ? (
+            <div className="mt-6 space-y-3 border-t border-white/20 pt-5 text-xs">
+              <dl className="grid gap-2 sm:grid-cols-3">
+                <div>
+                  <dt className="text-white/50">Job ID</dt>
+                  <dd className="font-mono text-[11px]">{job.task_id.slice(0, 12)}…</dd>
+                </div>
+                <div>
+                  <dt className="text-white/50">Priority</dt>
+                  <dd>{job.priority}</dd>
+                </div>
+                <div>
+                  <dt className="text-white/50">Queue</dt>
+                  <dd>{job.queue_position ?? (job.status === 'RUNNING' ? 'Running' : '—')}</dd>
+                </div>
+              </dl>
+
+              {generatedAsset && job.status === 'COMPLETED' ? (
+                <div className="flex flex-wrap gap-2 pt-2">
+                  {targetStation ? (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/stations/${targetStation.id}`)}
+                      className="rounded-xl bg-white px-4 py-2.5 text-xs font-bold text-accentSecondary transition hover:bg-accent hover:text-text"
+                    >
+                      Open in {targetStation.name} →
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => navigate('/ai')}
+                    className="rounded-xl border border-white/30 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-white/10"
+                  >
+                    View in AI Queue
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </section>
+      </div>
+    </div>
+  );
 }

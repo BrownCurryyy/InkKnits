@@ -129,32 +129,21 @@ export function AIJobConsole() {
       ) : null}
 
       {/* Header */}
-      <div className="border-b border-black/10 pb-5 dark:border-white/10">
+      <div className="border-b border-accentSecondary/30 pb-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-accent">
-                WORKFLOW
-              </span>
-              <span className="rounded-full bg-accent/15 px-2.5 py-0.5 text-xs font-semibold text-accent">
-                Global Monitor
-              </span>
-            </div>
-            <h2 className="mt-2 text-3xl font-bold text-text dark:text-textDark">
-              AI Queue & Job Monitor
-            </h2>
-            <p className="mt-1 text-xs text-text/60 dark:text-textDark/60">
-              Monitor asynchronous text and image generation tasks across stations
+            <p className="section-label">workflow</p>
+            <h2 className="display-heading mt-2 text-text dark:text-textDark">ai queue</h2>
+            <p className="mt-2 text-sm text-text/65 dark:text-textDark/65">
+              Monitor generation tasks — results appear in the detail panel instantly
             </p>
           </div>
-
-          <span className="rounded-full bg-background px-3 py-1.5 text-xs font-semibold text-text/70 dark:bg-[#554949] dark:text-textDark/70">
-            Monitoring surface
+          <span className="rounded-full bg-accentSecondary/20 px-4 py-2 text-xs font-bold text-accentSecondary">
+            Global Monitor
           </span>
         </div>
 
-        {/* Filter Pills */}
-        <div className="mt-4 flex gap-2 border-t border-black/5 pt-4 dark:border-white/5">
+        <div className="mt-4 flex gap-2 border-t border-accentSecondary/20 pt-4">
           {(['ALL', 'RUNNING', 'QUEUED', 'COMPLETED', 'FAILED'] as const).map((st) => (
             <button
               key={st}
@@ -162,8 +151,8 @@ export function AIJobConsole() {
               onClick={() => setStatusFilter(st)}
               className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
                 statusFilter === st
-                  ? 'bg-accent text-backgroundDark'
-                  : 'bg-background text-text/70 hover:text-text dark:bg-[#554949] dark:text-textDark/70'
+                  ? 'bg-accent text-text'
+                  : 'border-2 border-accentSecondary/25 bg-white/60 text-text/70 hover:border-accentSecondary dark:bg-backgroundDark/40'
               }`}
             >
               {st}
@@ -172,9 +161,8 @@ export function AIJobConsole() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
-        {/* Job Monitor Queue List */}
-        <div className="rounded-2xl border border-black/10 bg-white/65 p-5 shadow-cozy dark:border-white/10 dark:bg-[#3a2d2d]/75">
+      <div className="grid min-h-[520px] gap-0 overflow-hidden rounded-2xl shadow-bold lg:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
+        <div className="border-r border-accentSecondary/20 bg-white/80 p-5 dark:bg-backgroundDark/60">
           <div className="mb-4 flex items-center justify-between"><h3 className="text-base font-bold text-text dark:text-textDark">Queue activity</h3><span className="text-xs text-text/50 dark:text-textDark/50">{filteredJobs.length} visible</span></div>
 
           {filteredJobs.length === 0 ? (
@@ -190,10 +178,10 @@ export function AIJobConsole() {
                   key={job.task_id}
                   type="button"
                   onClick={() => setSelectedJobId(job.task_id)}
-                    className={`w-full rounded-xl border p-4 text-left transition-all duration-200 ${
+                    className={`w-full rounded-xl border-2 p-4 text-left transition-all duration-200 ${
                     selectedJobId === job.task_id
-                      ? 'border-accent bg-accent/10 shadow-cozy'
-                      : 'border-black/5 bg-background/40 hover:border-accent/40 hover:bg-background/80 dark:border-white/10 dark:bg-[#4f3d3d]/60'
+                      ? 'border-accent bg-accent/15 shadow-cozy'
+                      : 'border-accentSecondary/20 bg-accentSecondary/5 hover:border-accentSecondary/40 hover:bg-accentSecondary/10'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -232,7 +220,7 @@ export function AIJobConsole() {
 
         {/* Selected Job Detail Sidebar */}
         {selectedJob ? (
-          <aside className="rounded-2xl border border-black/10 bg-white/75 p-5 shadow-cozy dark:border-white/10 dark:bg-[#3a2d2d]/80">
+          <aside className="bg-accentSecondary p-5 text-white">
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-base font-bold text-text dark:text-textDark">Task Status Detail</h3>
@@ -339,7 +327,7 @@ export function AIJobConsole() {
 
       {/* Toast */}
       {toast ? (
-        <div className="fixed bottom-6 right-6 z-50 rounded-2xl bg-[#423838] px-5 py-3.5 text-sm font-medium text-[#FFF2C2] shadow-cozy border border-accent/20">
+        <div className="fixed bottom-6 right-6 z-50 rounded-2xl bg-text px-5 py-3.5 text-sm font-medium text-white shadow-cozy border border-accent/30">
           {toast}
         </div>
       ) : null}
