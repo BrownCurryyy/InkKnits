@@ -61,7 +61,7 @@ export function VersionTrackingPage() {
 
   return (
     <div className="space-y-6">
-      <header className="rounded-[20px] border border-[#eadfb7] bg-[#fffaf1]/90 p-5 shadow-[0_10px_22px_rgba(66,56,56,0.04)] dark:border-white/10 dark:bg-[#352d2d]/90">
+      <header className="rounded-[20px] border border-[#D9D6CF] bg-[#F5F3EE]/90 p-5 shadow-[0_12px_28px_rgba(13,13,13,0.05)] dark:border-[#292929] dark:bg-[#151515]/90">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">Workflow</p>
@@ -76,7 +76,7 @@ export function VersionTrackingPage() {
             <select
               value={selectedProjectId}
               onChange={(event) => setSelectedProjectId(event.target.value)}
-              className="mt-2 w-full rounded-[12px] border border-[#e7d9c0] bg-[#f7f0df] px-3 py-2 text-sm text-text dark:border-white/10 dark:bg-[#4a3c3c] dark:text-textDark"
+              className="mt-2 w-full rounded-[12px] border border-[#D9D6CF] bg-[#F5F3EE] px-3 py-2 text-sm text-text dark:border-[#292929] dark:bg-[#1A1A1A] dark:text-textDark"
             >
               <option value="">Select a project</option>
               {projects.map((project) => (
@@ -94,8 +94,8 @@ export function VersionTrackingPage() {
       ) : !selectedProject || !state ? (
         <CozyEmptyState icon="•" title="No project selected" message="Choose an accessible project to view its current production state." />
       ) : (
-        <section className="rounded-[20px] border border-[#eadfb7] bg-[#fffaf1]/90 p-5 shadow-[0_10px_22px_rgba(66,56,56,0.04)] dark:border-white/10 dark:bg-[#352d2d]/90">
-          <div className="border-b border-[#efe1c0] pb-4 dark:border-white/10">
+        <section className="rounded-[20px] border border-[#D9D6CF] bg-[#F5F3EE]/90 p-5 shadow-[0_12px_28px_rgba(13,13,13,0.05)] dark:border-[#292929] dark:bg-[#151515]/90">
+          <div className="border-b border-[#D9D6CF] pb-4 dark:border-[#292929]">
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">Current production state</p>
             <h2 className="mt-1 text-2xl font-semibold text-text dark:text-textDark">{selectedProject.title}</h2>
             <p className="mt-1 text-xs text-text/60 dark:text-textDark/65">{state.assets.length} active assets in the current project build · historical versions omitted</p>
@@ -134,14 +134,14 @@ function TreeNodeView({ node }: { node: TreeNode }) {
   return (
     <div className="relative">
       <div className="flex items-center gap-3">
-        <div className="h-3 w-3 rounded-full border-2 border-accent bg-[#fffaf1] dark:bg-[#352d2d]" />
-        {node.parent ? <div className="h-px w-6 bg-[#d7c0f0]" /> : null}
+        <div className="h-3 w-3 rounded-full border-2 border-accent bg-[#F5F3EE] dark:bg-[#151515]" />
+        {node.parent ? <div className="h-px w-6 bg-[#E53935]/60" /> : null}
         <div className="flex-1">
           <AssetStateCard node={node} />
         </div>
       </div>
       {node.children.length ? (
-        <div className="ml-7 border-l-2 border-[#d7c0f0] pl-5 pt-4">
+        <div className="ml-7 border-l-2 border-[#E53935]/40 pl-5 pt-4">
           <div className="mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">Derived children</div>
           <div className="space-y-4">
             {node.children.map((child) => (
@@ -157,7 +157,7 @@ function TreeNodeView({ node }: { node: TreeNode }) {
 function AssetStateCard({ node }: { node: TreeNode }) {
   const { asset, version, parent } = node;
   return (
-    <article className="rounded-[16px] border border-[#efe1c0] bg-[#fdf7ea] p-4 dark:border-white/10 dark:bg-[#483d3d]/70" title={`Current state: ${asset.title || asset.name}`}>
+    <article className="rounded-[16px] border border-[#D9D6CF] bg-[#F5F3EE] p-4 dark:border-[#292929] dark:bg-[#1A1A1A]/80" title={`Current state: ${asset.title || asset.name}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-accent">{asset.asset_type}</p>

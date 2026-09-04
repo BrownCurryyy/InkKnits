@@ -54,7 +54,7 @@ export function ProjectPage() {
         ← Projects
       </button>
 
-      <header className="rounded-[20px] border border-[#eadfb7] bg-[#fffaf1]/90 p-5 shadow-[0_10px_22px_rgba(66,56,56,0.04)] dark:border-white/10 dark:bg-[#352d2d]/90">
+      <header className="rounded-[20px] border border-[#D9D6CF] bg-[#F5F3EE]/90 p-5 shadow-[0_12px_28px_rgba(13,13,13,0.05)] dark:border-[#292929] dark:bg-[#151515]/90">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">Project</p>
@@ -75,8 +75,8 @@ export function ProjectPage() {
         </div>
       </header>
 
-      <section className="rounded-[20px] border border-[#eadfb7] bg-[#fffaf1]/90 p-5 shadow-[0_10px_22px_rgba(66,56,56,0.04)] dark:border-white/10 dark:bg-[#352d2d]/90">
-        <div className="mb-4 flex items-end justify-between gap-2 border-b border-[#efe1c0] pb-3 dark:border-white/10">
+      <section className="rounded-[20px] border border-[#D9D6CF] bg-[#F5F3EE]/90 p-5 shadow-[0_12px_28px_rgba(13,13,13,0.05)] dark:border-[#292929] dark:bg-[#151515]/90">
+        <div className="mb-4 flex items-end justify-between gap-2 border-b border-[#D9D6CF] pb-3 dark:border-[#292929]">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-text/45 dark:text-textDark/60">Workspaces</p>
             <h2 className="mt-1 text-xl font-semibold text-text dark:text-textDark">Project stations</h2>
@@ -93,7 +93,7 @@ export function ProjectPage() {
                 key={station.id}
                 type="button"
                 onClick={() => navigate(`/stations/${station.id}`)}
-                className="rounded-[16px] border border-[#efe1c0] bg-[#fdf7ea] p-4 text-left transition hover:border-[#d7c0f0] hover:bg-[#f9f0ff] dark:border-white/10 dark:bg-[#483d3d]/70 dark:hover:border-[#ae8de8]/50 dark:hover:bg-[#4e3d52]"
+                className="rounded-[16px] border border-[#D9D6CF] bg-[#F5F3EE] p-4 text-left transition hover:border-[#E53935]/40 hover:bg-[#FCE9E8]/40 dark:border-[#292929] dark:bg-[#1A1A1A]/80 dark:hover:border-[#E53935]/40 dark:hover:bg-[#211818]"
               >
                 <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-accent">{station.station_type}</p>
                 <h3 className="mt-2 text-lg font-semibold text-text dark:text-textDark">{station.name}</h3>
@@ -111,7 +111,7 @@ export function ProjectPage() {
 
 function Summary({ label, value, valueLabel }: { label?: string; value?: number; valueLabel?: string }) {
   return (
-    <div className="rounded-[16px] border border-[#efe1c0] bg-[#fdf7ea] p-4 dark:border-white/10 dark:bg-[#483d3d]/70">
+    <div className="rounded-[16px] border border-[#D9D6CF] bg-[#F5F3EE] p-4 dark:border-[#292929] dark:bg-[#1A1A1A]/80">
       <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-text/55 dark:text-textDark/60">{label}</p>
       <p className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-accent">{valueLabel ?? value}</p>
     </div>

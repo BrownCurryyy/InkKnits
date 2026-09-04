@@ -180,7 +180,7 @@ export function ApprovalsQueue() {
         </div>
       ) : null}
 
-      <header className="rounded-[20px] border border-[#eadfb7] bg-[#fffaf1]/90 p-5 shadow-[0_10px_22px_rgba(66,56,56,0.04)] dark:border-white/10 dark:bg-[#352d2d]/90">
+      <header className="rounded-[20px] border border-[#D9D6CF] bg-[#F5F3EE]/90 p-5 shadow-[0_12px_28px_rgba(13,13,13,0.05)] dark:border-[#292929] dark:bg-[#151515]/90">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">Approvals</p>
@@ -198,7 +198,7 @@ export function ApprovalsQueue() {
                 className={`rounded-xl px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] transition ${
                   statusFilter === status
                     ? 'bg-accent text-[#fffaf1]'
-                    : 'border border-[#e7d9c0] bg-[#f7f0df] text-text dark:border-white/10 dark:bg-[#4a3c3c] dark:text-textDark'
+                    : 'border border-[#D9D6CF] bg-[#F5F3EE] text-text dark:border-[#292929] dark:bg-[#1A1A1A] dark:text-textDark'
                 }`}
               >
                 {status}
@@ -209,7 +209,7 @@ export function ApprovalsQueue() {
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(320px,0.9fr)]">
-        <section className="rounded-[20px] border border-[#eadfb7] bg-[#fffaf1]/90 p-5 shadow-[0_10px_22px_rgba(66,56,56,0.04)] dark:border-white/10 dark:bg-[#352d2d]/90">
+        <section className="rounded-[20px] border border-[#D9D6CF] bg-[#F5F3EE]/90 p-5 shadow-[0_12px_28px_rgba(13,13,13,0.05)] dark:border-[#292929] dark:bg-[#151515]/90">
           <div className="mb-4 flex items-center justify-between gap-3">
             <h2 className="text-xl font-semibold text-text dark:text-textDark">Tasks</h2>
             <label className="flex items-center gap-2 text-xs font-medium text-text/65 dark:text-textDark/70">
@@ -238,8 +238,8 @@ export function ApprovalsQueue() {
                   onClick={() => setSelectedTaskId(task.id)}
                   className={`w-full rounded-[16px] border p-4 text-left transition ${
                     selectedTaskId === task.id
-                      ? 'border-[#d7c0f0] bg-[#f3eaff] dark:border-[#ae8de8]/70 dark:bg-[#473a59]'
-                      : 'border-[#efe1c0] bg-[#fdf7ea] hover:border-[#d7c0f0] dark:border-white/10 dark:bg-[#483d3d]/70'
+                      ? 'border-[#E53935]/40 bg-[#FCE9E8] dark:border-[#E53935]/40 dark:bg-[#1F1717]'
+                      : 'border-[#D9D6CF] bg-[#F5F3EE] hover:border-[#E53935]/40 dark:border-[#292929] dark:bg-[#1A1A1A]/80'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -263,7 +263,7 @@ export function ApprovalsQueue() {
           )}
         </section>
 
-        <aside className="rounded-[20px] border border-[#eadfb7] bg-[#fffaf1]/90 p-5 shadow-[0_10px_22px_rgba(66,56,56,0.04)] dark:border-white/10 dark:bg-[#352d2d]/90">
+        <aside className="rounded-[20px] border border-[#D9D6CF] bg-[#F5F3EE]/90 p-5 shadow-[0_12px_28px_rgba(13,13,13,0.05)] dark:border-[#292929] dark:bg-[#151515]/90">
           {selectedTask ? (
             <>
               <div className="flex items-start justify-between gap-3">
@@ -277,7 +277,7 @@ export function ApprovalsQueue() {
               </div>
 
               <div className="mt-4 space-y-3 text-sm text-text/70 dark:text-textDark/70">
-                <div className="rounded-[14px] border border-[#efe1c0] bg-[#fdf7ea] px-3 py-2 dark:border-white/10 dark:bg-[#483d3d]">
+                <div className="rounded-[14px] border border-[#D9D6CF] bg-[#F5F3EE] px-3 py-2 dark:border-[#292929] dark:bg-[#1A1A1A]">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-text/55 dark:text-textDark/60">Review notes</p>
                   <p className="mt-2 leading-6">{selectedTask.comments || 'No review comments yet.'}</p>
                 </div>
@@ -306,7 +306,7 @@ export function ApprovalsQueue() {
                     value={commentDraft}
                     onChange={(event) => setCommentDraft(event.target.value)}
                     rows={4}
-                    className="mt-2 w-full rounded-[12px] border border-[#e7d9c0] bg-[#f7f0df] px-3 py-2 text-sm text-text focus:border-accent dark:border-white/10 dark:bg-[#4a3c3c] dark:text-textDark"
+                    className="mt-2 w-full rounded-[12px] border border-[#D9D6CF] bg-[#F5F3EE] px-3 py-2 text-sm text-text focus:border-accent dark:border-[#292929] dark:bg-[#1A1A1A] dark:text-textDark"
                   />
                 </label>
                 <button

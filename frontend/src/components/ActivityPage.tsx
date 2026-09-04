@@ -61,7 +61,7 @@ export function ActivityPage() {
 
   return (
     <div className="space-y-6">
-      <header className="rounded-[20px] border border-[#eadfb7] bg-[#fffaf1]/90 p-5 shadow-[0_10px_22px_rgba(66,56,56,0.04)] dark:border-white/10 dark:bg-[#352d2d]/90">
+      <header className="rounded-[20px] border border-[#D9D6CF] bg-[#F5F3EE]/90 p-5 shadow-[0_12px_28px_rgba(13,13,13,0.05)] dark:border-[#292929] dark:bg-[#151515]/90">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">Activity</p>
@@ -74,7 +74,7 @@ export function ActivityPage() {
           <button
             type="button"
             onClick={() => void loadActivity()}
-            className="inline-flex items-center justify-center rounded-xl border border-[#e7d9c0] bg-[#f7f0df] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-text dark:border-white/10 dark:bg-[#4a3c3c] dark:text-textDark"
+            className="inline-flex items-center justify-center rounded-xl border border-[#D9D6CF] bg-[#F5F3EE] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-text dark:border-[#292929] dark:bg-[#1A1A1A] dark:text-textDark"
           >
             Refresh
           </button>
@@ -85,7 +85,7 @@ export function ActivityPage() {
           <select
             value={projectFilter}
             onChange={(event) => setProjectFilter(event.target.value)}
-            className="mt-2 w-full rounded-[12px] border border-[#e7d9c0] bg-[#f7f0df] px-3 py-2 text-sm text-text dark:border-white/10 dark:bg-[#4a3c3c] dark:text-textDark"
+            className="mt-2 w-full rounded-[12px] border border-[#D9D6CF] bg-[#F5F3EE] px-3 py-2 text-sm text-text dark:border-[#292929] dark:bg-[#1A1A1A] dark:text-textDark"
           >
             <option value="ALL">All accessible projects</option>
             {projects.map((project) => (
@@ -97,13 +97,13 @@ export function ActivityPage() {
 
       {error ? <div className="rounded-[16px] border border-statusError/60 bg-statusError/20 p-4 text-sm font-semibold">{error}</div> : null}
 
-      <section className="rounded-[20px] border border-[#eadfb7] bg-[#fffaf1]/90 p-5 shadow-[0_10px_22px_rgba(66,56,56,0.04)] dark:border-white/10 dark:bg-[#352d2d]/90">
+      <section className="rounded-[20px] border border-[#D9D6CF] bg-[#F5F3EE]/90 p-5 shadow-[0_12px_28px_rgba(13,13,13,0.05)] dark:border-[#292929] dark:bg-[#151515]/90">
         {visibleActivities.length === 0 ? (
           <CozyEmptyState icon="•" title="No activity recorded" message="Events from your accessible projects will appear here." />
         ) : (
           <div className="space-y-3">
             {visibleActivities.map((item) => (
-              <article key={item.id} className="rounded-[16px] border border-[#efe1c0] bg-[#fdf7ea] p-4 dark:border-white/10 dark:bg-[#483d3d]/70">
+              <article key={item.id} className="rounded-[16px] border border-[#D9D6CF] bg-[#F5F3EE] p-4 dark:border-[#292929] dark:bg-[#1A1A1A]/80">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="flex items-start gap-3">
                     <span className={`rounded-xl border px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] ${activityBadgeStyles[item.activity_type] || 'bg-background text-text border-black/10 dark:bg-[#554949] dark:text-textDark'}`}>

@@ -7,24 +7,34 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Segoe UI', 'Helvetica Neue', 'Arial', 'sans-serif'],
+        sans: ['DM Sans', 'sans-serif'],
+        display: ['Space Grotesk', 'sans-serif'],
+        mono: ['IBM Plex Mono', 'monospace'],
       },
       colors: {
-        background: '#FFF2C2',
-        backgroundDark: '#423838',
-        text: '#423838',
-        textDark: '#FFF2C2',
-        accent: '#B497E7',
-        statusPending: '#F7C98B',
-        statusSuccess: '#B9D7B0',
-        statusError: '#E9B6B0',
-        statusEscalated: '#D99A6C'
+        background: '#F5F3EE',
+        backgroundDark: '#0D0D0D',
+        surface: '#151515',
+        surfaceDeep: '#101010',
+        border: '#D9D6CF',
+        borderDark: '#292929',
+        text: '#0D0D0D',
+        textDark: '#F5F3EE',
+        accent: '#E53935',
+        accentSoft: '#FCE9E8',
+        muted: '#77736D',
+        statusPending: '#77736D',
+        statusSuccess: '#77736D',
+        statusError: '#E53935',
+        statusEscalated: '#77736D'
       },
       boxShadow: {
-        cozy: '0 12px 30px rgba(66, 56, 56, 0.12)'
+        cozy: '0 18px 36px rgba(13, 13, 13, 0.10)',
+        panel: '0 18px 36px rgba(13, 13, 13, 0.08)'
       },
       borderRadius: {
-        cozy: '16px'
+        cozy: '8px',
+        panel: '12px'
       }
     }
   },

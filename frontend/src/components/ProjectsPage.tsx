@@ -26,7 +26,7 @@ export function ProjectsPage() {
 
   return (
     <div className="space-y-6">
-      <header className="rounded-[20px] border border-[#eadfb7] bg-[#fffaf1]/90 p-5 shadow-[0_10px_22px_rgba(66,56,56,0.04)] dark:border-white/10 dark:bg-[#352d2d]/90">
+      <header className="rounded-[20px] border border-[#D9D6CF] bg-[#F5F3EE]/90 p-5 shadow-[0_12px_28px_rgba(13,13,13,0.05)] dark:border-[#292929] dark:bg-[#151515]/90">
         <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">Projects</p>
@@ -54,7 +54,7 @@ export function ProjectsPage() {
                 key={project.id}
                 type="button"
                 onClick={() => navigate(`/projects/${project.id}`)}
-                className="rounded-[18px] border border-[#efe1c0] bg-[#fffaf1]/90 p-5 text-left shadow-[0_10px_20px_rgba(66,56,56,0.03)] transition hover:border-[#d7c0f0] hover:bg-[#f9f0ff] dark:border-white/10 dark:bg-[#352d2d]/80 dark:hover:border-[#ae8de8]/50 dark:hover:bg-[#42313d]"
+                className="rounded-[18px] border border-[#D9D6CF] bg-[#F5F3EE]/90 p-5 text-left shadow-[0_10px_20px_rgba(13,13,13,0.03)] transition hover:border-[#D9D6CF] hover:bg-[#FCE9E8]/40 dark:border-[#292929] dark:bg-[#151515]/80 dark:hover:border-[#E53935]/40 dark:hover:bg-[#1D1919]"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -72,14 +72,14 @@ export function ProjectsPage() {
                   {projectStations.slice(0, 4).map((station) => (
                     <span
                       key={station.id}
-                      className="rounded-full border border-[#e7d9c0] bg-[#f4efe3] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-text/70 dark:border-white/10 dark:bg-[#4b3b3b] dark:text-textDark/75"
+                      className="rounded-full border border-[#D9D6CF] bg-[#F5F3EE] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-text/70 dark:border-[#292929] dark:bg-[#1A1A1A] dark:text-textDark/75"
                     >
                       {station.station_type}
                     </span>
                   ))}
                 </div>
 
-                <div className="mt-5 flex items-center justify-between border-t border-[#efe1c0] pt-3 text-xs text-text/60 dark:border-white/10 dark:text-textDark/60">
+                <div className="mt-5 flex items-center justify-between border-t border-[#D9D6CF] pt-3 text-xs text-text/60 dark:border-[#292929] dark:text-textDark/60">
                   <span>{projectStations.length} workspaces</span>
                   <span className="font-semibold text-accent">Open project</span>
                 </div>

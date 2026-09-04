@@ -169,7 +169,7 @@ export function OrganizationPage() {
         <SummaryCard label="Access" value={String(people.reduce((total, person) => total + person.project_names.length, 0))} detail="Project assignments" />
       </div>
 
-      <section className="rounded-2xl border border-black/10 bg-white/60 p-5 dark:border-white/10 dark:bg-[#3a2d2d]/70">
+      <section className="rounded-2xl border border-[#D9D6CF] bg-[#F5F3EE]/90 p-5 dark:border-[#292929] dark:bg-[#151515]/90">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-lg font-bold">People</h2>
           <span className="rounded-full bg-accent/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-accent">{people.length} members</span>
@@ -180,25 +180,25 @@ export function OrganizationPage() {
             placeholder="Full name"
             value={newPerson.name}
             onChange={(event) => setNewPerson((current) => ({ ...current, name: event.target.value }))}
-            className="rounded-xl border border-black/10 bg-background px-3 py-2 text-sm outline-none focus:border-accent/60 dark:border-white/10 dark:bg-[#4f3d3d]"
+            className="rounded-xl border border-[#D9D6CF] bg-[#F5F3EE] px-3 py-2 text-sm outline-none focus:border-accent/60 dark:border-[#292929] dark:bg-[#1A1A1A]"
           />
           <input
             placeholder="Email"
             value={newPerson.email}
             onChange={(event) => setNewPerson((current) => ({ ...current, email: event.target.value }))}
-            className="rounded-xl border border-black/10 bg-background px-3 py-2 text-sm outline-none focus:border-accent/60 dark:border-white/10 dark:bg-[#4f3d3d]"
+            className="rounded-xl border border-[#D9D6CF] bg-[#F5F3EE] px-3 py-2 text-sm outline-none focus:border-accent/60 dark:border-[#292929] dark:bg-[#1A1A1A]"
           />
           <input
             type="password"
             placeholder="Temporary password"
             value={newPerson.password}
             onChange={(event) => setNewPerson((current) => ({ ...current, password: event.target.value }))}
-            className="rounded-xl border border-black/10 bg-background px-3 py-2 text-sm outline-none focus:border-accent/60 dark:border-white/10 dark:bg-[#4f3d3d]"
+            className="rounded-xl border border-[#D9D6CF] bg-[#F5F3EE] px-3 py-2 text-sm outline-none focus:border-accent/60 dark:border-[#292929] dark:bg-[#1A1A1A]"
           />
           <select
             value={role}
             onChange={(event) => setRole(event.target.value)}
-            className="rounded-xl border border-black/10 bg-background px-3 py-2 text-sm outline-none focus:border-accent/60 dark:border-white/10 dark:bg-[#4f3d3d]"
+            className="rounded-xl border border-[#D9D6CF] bg-[#F5F3EE] px-3 py-2 text-sm outline-none focus:border-accent/60 dark:border-[#292929] dark:bg-[#1A1A1A]"
           >
             {ROLES.map((item) => <option key={item} value={item}>{item}</option>)}
           </select>
@@ -226,7 +226,7 @@ export function OrganizationPage() {
                     'rounded-2xl border p-4 transition-colors',
                     isSelected
                       ? 'border-accent/60 bg-accent/10'
-                      : 'border-black/10 bg-background/30 dark:border-white/10 dark:bg-[#4f3d3d]/40',
+                      : 'border-[#D9D6CF] bg-[#F5F3EE]/80 dark:border-[#292929] dark:bg-[#1A1A1A]/80',
                   ].join(' ')}
                 >
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -248,7 +248,7 @@ export function OrganizationPage() {
                       <button
                         type="button"
                         onClick={() => setSelectedPersonId(person.user.id)}
-                        className="rounded-xl border border-black/10 bg-white/70 px-3 py-2 text-xs font-bold text-text dark:border-white/10 dark:bg-[#352d2d] dark:text-textDark"
+                        className="rounded-xl border border-[#D9D6CF] bg-[#F5F3EE] px-3 py-2 text-xs font-bold text-text dark:border-[#292929] dark:bg-[#1A1A1A] dark:text-textDark"
                       >
                         {isSelected ? 'Selected' : 'Manage Access'}
                       </button>
@@ -262,7 +262,7 @@ export function OrganizationPage() {
         )}
       </section>
 
-      <section className="rounded-2xl border border-black/10 bg-white/60 p-5 dark:border-white/10 dark:bg-[#3a2d2d]/70">
+      <section className="rounded-2xl border border-[#D9D6CF] bg-[#F5F3EE]/90 p-5 dark:border-[#292929] dark:bg-[#151515]/90">
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-bold">Projects</h2>
@@ -275,13 +275,13 @@ export function OrganizationPage() {
             placeholder="Project name"
             value={newProject.title}
             onChange={(event) => setNewProject((current) => ({ ...current, title: event.target.value }))}
-            className="rounded-xl border border-black/10 bg-background px-3 py-2 text-sm outline-none focus:border-accent/60 dark:border-white/10 dark:bg-[#4f3d3d]"
+            className="rounded-xl border border-[#D9D6CF] bg-[#F5F3EE] px-3 py-2 text-sm outline-none focus:border-accent/60 dark:border-[#292929] dark:bg-[#1A1A1A]"
           />
           <input
             placeholder="Description"
             value={newProject.description}
             onChange={(event) => setNewProject((current) => ({ ...current, description: event.target.value }))}
-            className="rounded-xl border border-black/10 bg-background px-3 py-2 text-sm outline-none focus:border-accent/60 dark:border-white/10 dark:bg-[#4f3d3d]"
+            className="rounded-xl border border-[#D9D6CF] bg-[#F5F3EE] px-3 py-2 text-sm outline-none focus:border-accent/60 dark:border-[#292929] dark:bg-[#1A1A1A]"
           />
           <button
             type="button"
@@ -322,7 +322,7 @@ export function OrganizationPage() {
       </section>
 
       {selectedPerson ? (
-        <section className="rounded-2xl border border-black/10 bg-white/60 p-5 dark:border-white/10 dark:bg-[#3a2d2d]/70">
+        <section className="rounded-2xl border border-[#D9D6CF] bg-[#F5F3EE]/90 p-5 dark:border-[#292929] dark:bg-[#151515]/90">
           <div className="flex flex-col gap-2 border-b border-black/10 pb-4 dark:border-white/10 md:flex-row md:items-end md:justify-between">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-accent">Manage Access</p>
@@ -406,7 +406,7 @@ export function OrganizationPage() {
 
 function SummaryCard({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
-    <div className="rounded-2xl border border-black/10 bg-white/60 p-4 dark:border-white/10 dark:bg-[#3a2d2d]/70">
+    <div className="rounded-2xl border border-[#D9D6CF] bg-[#F5F3EE]/90 p-4 dark:border-[#292929] dark:bg-[#151515]/90">
       <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent">{label}</p>
       <div className="mt-2 text-2xl font-bold text-text dark:text-textDark">{value}</div>
       <p className="mt-1 text-xs text-text/60 dark:text-textDark/60">{detail}</p>

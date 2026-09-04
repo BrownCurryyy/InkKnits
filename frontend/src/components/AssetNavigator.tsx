@@ -251,20 +251,20 @@ export function AssetNavigator({
   };
 
   return (
-    <aside className="flex h-full min-h-[420px] w-[260px] min-w-[220px] max-w-[280px] flex-col overflow-hidden rounded-2xl border border-black/10 bg-white/70 dark:border-white/10 dark:bg-[#3a2d2d]/70">
-      <div className="flex items-center justify-between border-b border-black/10 px-3.5 py-3 dark:border-white/10">
+    <aside className="flex h-full min-h-[420px] w-[260px] min-w-[220px] max-w-[280px] flex-col overflow-hidden rounded-2xl border border-[#D9D6CF] bg-[#F5F3EE]/90 dark:border-[#292929] dark:bg-[#151515]/90">
+      <div className="flex items-center justify-between border-b border-[#D9D6CF] px-3.5 py-3 dark:border-[#292929]">
         <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent">{title}</span>
         <span className="rounded-full bg-accent/10 px-2 py-1 text-[10px] font-bold text-accent">{assets.length}</span>
       </div>
 
-      <div className="border-b border-black/10 px-3.5 py-3 dark:border-white/10">
+      <div className="border-b border-[#D9D6CF] px-3.5 py-3 dark:border-[#292929]">
         <input
           type="text"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search content..."
           aria-label="Search content"
-          className="w-full rounded-xl border border-black/10 bg-background px-3 py-2 text-xs text-text outline-none ring-0 placeholder:text-text/45 focus:border-accent/60 dark:border-white/10 dark:bg-[#4f3d3d] dark:text-textDark dark:placeholder:text-textDark/45"
+          className="w-full rounded-xl border border-[#D9D6CF] bg-[#F5F3EE] px-3 py-2 text-xs text-text outline-none ring-0 placeholder:text-text/45 focus:border-accent/60 dark:border-[#292929] dark:bg-[#1A1A1A] dark:text-textDark dark:placeholder:text-textDark/45"
         />
       </div>
 
@@ -273,14 +273,14 @@ export function AssetNavigator({
       </div>
 
       {showCreateButton && onCreateAsset ? (
-        <div className="border-t border-black/10 px-3.5 py-3 dark:border-white/10">
+        <div className="border-t border-[#D9D6CF] px-3.5 py-3 dark:border-[#292929]">
           {onCreateTitleChange ? (
             <input
               value={createTitle}
               onChange={(event) => onCreateTitleChange(event.target.value)}
               placeholder="New document title"
               aria-label="New document title"
-              className="mb-2 w-full rounded-xl border border-black/10 bg-background px-3 py-2 text-xs outline-none focus:border-accent/60 dark:border-white/10 dark:bg-[#4f3d3d]"
+              className="mb-2 w-full rounded-xl border border-[#D9D6CF] bg-[#F5F3EE] px-3 py-2 text-xs outline-none focus:border-accent/60 dark:border-[#292929] dark:bg-[#1A1A1A]"
             />
           ) : null}
           <button
