@@ -135,7 +135,15 @@ export async function apiFetch<T>(
   }
 
   if (!response.ok) {
-    throw new Error(safeErrorMessage(response.status));
+    let message = safeErrorMessage(response.status);
+    try {
+      const errorBody = (await response.json()) as { detail?: string | Array<{ msg?: string }> };
+      if (typeof errorBody.detail === 'string') message = errorBody.detail;
+      else if (Array.isArray(errorBody.detail)) message = errorBody.detail.map((item) => item.msg).filter(Boolean).join(', ') || message;
+    } catch {
+      // Keep the status-based message when the server did not return JSON.
+    }
+    throw new Error(message);
   }
 
   if (response.status === 204) {

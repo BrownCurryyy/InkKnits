@@ -28,13 +28,20 @@ if errorlevel 1 (
     exit /b 1
 )
 
+if not exist "%FRONTEND_ROOT%\node_modules" (
+    echo Frontend dependencies not found.
+    echo Run: cd frontend ^&^& npm install
+    pause
+    exit /b 1
+)
+
 set "DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/inkknits"
 set "JWT_SECRET_KEY=67ygHSIK347R91MkSd0F51G6skKfI63CrPoLB7oE8Mz"
 
-start "InkKnits Backend" cmd /k "cd /d "%ROOT%" && set "DATABASE_URL=%DATABASE_URL%" && set "JWT_SECRET_KEY=%JWT_SECRET_KEY%" && "%VENV_PYTHON%" -m uvicorn backend.app.main:app --host localhost --port 8000 --reload"
-start "InkKnits Frontend" cmd /k "cd /d "%FRONTEND_ROOT%" && npm run dev -- --host localhost --port 5173"
+start "InkKnits Backend" cmd /k "cd /d "%ROOT%" && set "DATABASE_URL=%DATABASE_URL%" && set "JWT_SECRET_KEY=%JWT_SECRET_KEY%" && "%VENV_PYTHON%" -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload"
+start "InkKnits Frontend" cmd /k "cd /d "%FRONTEND_ROOT%" && npm run dev -- --host 127.0.0.1 --port 5173"
 
 echo InkKnits backend and frontend started in separate terminals.
-echo Backend: http://localhost:8000
-echo Frontend: http://localhost:5173
+echo Backend: http://127.0.0.1:8000
+echo Frontend: http://127.0.0.1:5173
 endlocal

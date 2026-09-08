@@ -16,6 +16,12 @@ interface ProductionState {
   links: AssetLinkRecord[];
 }
 
+interface ProjectLineageRecord {
+  project_id: string;
+  assets: AssetRecord[];
+  links: AssetLinkRecord[];
+}
+
 interface TreeNode {
   asset: AssetRecord;
   version: AssetVersionRecord;
@@ -48,10 +54,32 @@ export function VersionTrackingPage() {
     }
     setLoadingState(true);
     setError('');
-    void apiFetch<ProductionState>(`/projects/${selectedProjectId}/production-state`)
-      .then(setState)
-      .catch(() => setError('Unable to load the current project state.'))
-      .finally(() => setLoadingState(false));
+    let active = true;
+    const projectId = selectedProjectId;
+    void apiFetch<ProjectLineageRecord>(`/projects/${projectId}/lineage`)
+      .then((lineage) => {
+        if (!active) return;
+        setState({ project_id: projectId, assets: [], links: lineage.links });
+        lineage.assets.forEach((asset) => {
+          void apiFetch<AssetVersionRecord[]>(`/versions/${asset.id}`)
+            .then((versions) => {
+              if (!active) return;
+              const currentVersion = [...versions].sort((left, right) => right.version_number - left.version_number)[0];
+              if (!currentVersion) return;
+              setState((current) => current && current.project_id === projectId && !current.assets.some((item) => item.asset.id === asset.id)
+                ? { ...current, assets: [...current.assets, { asset, current_version: currentVersion, is_active: true }] }
+                : current);
+            })
+            .catch(() => undefined);
+        });
+      })
+      .catch(() => {
+        if (active) setError('Unable to load the current project state.');
+      })
+      .finally(() => {
+        if (active) setLoadingState(false);
+      });
+    return () => { active = false; };
   }, [selectedProjectId]);
 
   const selectedProject = projects.find((project) => project.id === selectedProjectId);

@@ -70,8 +70,10 @@ export function OrganizationPage() {
       await action();
       setMessage(success);
       await load();
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Permission denied or request failed.');
+      return false;
     } finally {
       setBusyId(null);
     }
@@ -79,9 +81,9 @@ export function OrganizationPage() {
 
   const selectedPerson = people.find((person) => person.user.id === selectedPersonId) ?? null;
 
-  const handleCreatePerson = () => {
+  const handleCreatePerson = async () => {
     if (!user) return;
-    void run(
+    const created = await run(
       () => apiFetch('/auth/register', {
         method: 'POST',
         body: {
@@ -94,6 +96,7 @@ export function OrganizationPage() {
       }).then(() => undefined),
       'Person created.',
     );
+    if (created) setNewPerson({ name: '', email: '', password: '' });
   };
 
   const handleCreateProject = () => {

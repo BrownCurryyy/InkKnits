@@ -24,21 +24,16 @@ export function ActivityPage() {
   const [error, setError] = useState('');
 
   const loadActivity = async () => {
+    setLoading(true);
     try {
       setError('');
-      const [activityData, projectData, assetData, stationData] = await Promise.all([
-        apiFetch<ActivityRecord[]>('/activities'),
-        apiFetch<ProjectRecord[]>('/projects'),
-        apiFetch<AssetRecord[]>('/assets'),
-        apiFetch<StationRecord[]>('/stations'),
-      ]);
-      setActivities(activityData);
-      setProjects(projectData);
-      setAssets(assetData);
-      setStations(stationData);
+      const reportError = (err: unknown) => setError((current) => current || (err instanceof Error ? err.message : 'Unable to load activity.'));
+      void apiFetch<ActivityRecord[]>('/activities').then(setActivities).catch(reportError).finally(() => setLoading(false));
+      void apiFetch<ProjectRecord[]>('/projects').then(setProjects).catch(reportError);
+      void apiFetch<AssetRecord[]>('/assets').then(setAssets).catch(reportError);
+      void apiFetch<StationRecord[]>('/stations').then(setStations).catch(reportError);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load activity.');
-    } finally {
       setLoading(false);
     }
   };

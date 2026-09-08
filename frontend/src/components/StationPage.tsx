@@ -115,13 +115,27 @@ export function StationPage() {
   useEffect(() => {
     if (!stationId) return;
     const currentStationId = stationId;
+    let active = true;
+    setLoading(true);
+    setError('');
+    setStation(null);
+    setAssets([]);
+    setLineage({});
+    setCurrentVersions({});
+    setSelectedId('');
     void Promise.all([
       apiFetch<StationRecord>(`/stations/${currentStationId}`),
       apiFetch<StationRecord[]>('/stations'),
     ]).then(async ([stationData]) => {
+      if (!active) return;
       setStation(stationData);
       await loadAssets(currentStationId, stationData);
-    }).catch(() => setError('Unable to load this station.')).finally(() => setLoading(false));
+    }).catch(() => {
+      if (active) setError('Unable to load this station.');
+    }).finally(() => {
+      if (active) setLoading(false);
+    });
+    return () => { active = false; };
   }, [stationId]);
 
   useEffect(() => {
@@ -364,6 +378,11 @@ function ImageStation({ station, assets, lineage, currentVersions }: ReadOnlySta
   const [imageAssets, setImageAssets] = useState(assets.filter((asset) => asset.asset_type.toUpperCase() === 'IMAGE'));
   const [selectedId, setSelectedId] = useState(imageAssets[0]?.id ?? '');
   const selected = imageAssets.find((asset) => asset.id === selectedId) ?? null;
+  useEffect(() => {
+    const nextAssets = assets.filter((asset) => asset.asset_type.toUpperCase() === 'IMAGE');
+    setImageAssets(nextAssets);
+    setSelectedId((current) => nextAssets.some((asset) => asset.id === current) ? current : nextAssets[0]?.id ?? '');
+  }, [assets, station.id]);
   const upload = async (file: File) => {
     if (!user || !canUpload) return;
     const body = new FormData();
