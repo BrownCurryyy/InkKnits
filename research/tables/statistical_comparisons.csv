@@ -1,0 +1,3 @@
+comparison,n_pairs,mean_difference_seconds,median_difference_seconds,bootstrap_95ci_low,bootstrap_95ci_high,wilcoxon_p_value
+atomization_5 - atomization_2,45,14.278588279999612,11.988198299979558,12.177140131111567,16.53771970666777,unavailable: scipy not installed
+shortening - summarization,45,1.5503740755537163,1.250952000002144,0.9209354888880625,2.2909288866645916,unavailable: scipy not installed

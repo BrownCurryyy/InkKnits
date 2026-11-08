@@ -25,6 +25,9 @@ uploads/
 *.db
 *.log
 
+# Generated research data; keep source and benchmark metadata tracked
+datasets/cleaned_articles.csv
+
 # Frontend
 node_modules/
 build/

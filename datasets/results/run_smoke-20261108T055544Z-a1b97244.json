@@ -1,0 +1,42 @@
+{
+  "run_id": "smoke-20261108T055544Z-a1b97244",
+  "sample_ids": [
+    "ART-000090",
+    "ART-000113",
+    "ART-000677"
+  ],
+  "sample_size": 3,
+  "random_seed": 20261108,
+  "model": "gemma2:2b",
+  "ollama_base_url": "http://127.0.0.1:11434",
+  "generation_options": {
+    "temperature": 0.2,
+    "num_ctx": 8192
+  },
+  "warmup_seconds_excluded": 6.647942699986743,
+  "resource_summary": {
+    "sample_count": 14,
+    "cpu_percent_mean": 34.41428571428572,
+    "cpu_percent_max": 50.9,
+    "ram_percent_mean": 95.22142857142856,
+    "ram_percent_max": 98.7,
+    "ram_used_bytes_mean": 15631822555.428572,
+    "ram_used_bytes_max": 16206671872,
+    "gpu_utilization_percent_mean": 88.35714285714286,
+    "gpu_utilization_percent_max": 95.0,
+    "gpu_memory_used_bytes_mean": 2511189723.428571,
+    "gpu_memory_used_bytes_max": 2702180352.0,
+    "gpu_memory_total_bytes_mean": 6439305216.0,
+    "gpu_memory_total_bytes_max": 6439305216.0
+  },
+  "software": {
+    "python": "3.13.5",
+    "platform": "Windows-11-10.0.26200-SP0"
+  },
+  "dataset_sha256": "a9ce58506c3905abc41d97817dc6d92d2a3d4975f2ea51cdf9cbc79334a0e54c",
+  "readiness_audit": {
+    "legacy_smoke_prompts_reconstructed": true,
+    "legacy_smoke_child_boundaries_preserved": false,
+    "full_benchmark_not_started": true
+  }
+}

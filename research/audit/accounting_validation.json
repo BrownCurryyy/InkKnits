@@ -1,0 +1,26 @@
+{
+  "run_id": "full-20261108T110310Z-f766ae7b",
+  "run_id_matches_manifest": true,
+  "sample_count": 45,
+  "unique_sample_ids": 45,
+  "full_observations": 180,
+  "actual_model_calls": 405,
+  "atomization_child_outputs": 315,
+  "all_observations_successful": true,
+  "failed_observations": 0,
+  "incomplete_generations": 0,
+  "operation_counts": {
+    "summarization": 45,
+    "shortening": 45,
+    "atomization_2": 45,
+    "atomization_5": 45
+  },
+  "all_operations_have_45": true,
+  "same_article_ids_all_operations": true,
+  "missing_sample_ids": [],
+  "unexpected_article_ids": [],
+  "duplicate_experiment_ids": [],
+  "full_rows_only": true,
+  "manifest_observations_match": true,
+  "manifest_calls_match": true
+}

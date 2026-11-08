@@ -1,0 +1,12 @@
+{
+  "run_id": "full-20261108T110310Z-f766ae7b",
+  "original_manifest_preserved": true,
+  "required_additions_before_submission": {
+    "bootstrap_iterations": 5000,
+    "bootstrap_seed": 20261108,
+    "bootstrap_resampling_unit": "observation for operation means; paired article-level latency differences for comparisons",
+    "resource_timeline_ordering": "sort resource samples by timestamp before plotting",
+    "resource_scope": "system-wide CPU/RAM and device-wide GPU metrics, not process-specific"
+  },
+  "reason": "These settings are used by the analysis code or required to interpret the resource figures but are not fully represented in the original manifest."
+}

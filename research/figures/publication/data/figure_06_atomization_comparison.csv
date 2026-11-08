@@ -1,0 +1,3 @@
+operation,total_seconds_mean,seconds_per_output_mean,output_words_mean,success_rate
+atomization_2,14.605589546668085,7.302794773334043,449.64444444444445,1.0
+atomization_5,28.884177826667695,5.776835565333539,883.3777777777777,1.0

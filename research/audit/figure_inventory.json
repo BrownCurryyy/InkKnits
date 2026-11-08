@@ -1,0 +1,126 @@
+{
+  "figures": [
+    {
+      "figure": 1,
+      "png_count": 1,
+      "svg_count": 1,
+      "pdf_count": 1,
+      "data_csv_count": 1,
+      "status": "present"
+    },
+    {
+      "figure": 2,
+      "png_count": 1,
+      "svg_count": 1,
+      "pdf_count": 1,
+      "data_csv_count": 1,
+      "status": "present"
+    },
+    {
+      "figure": 3,
+      "png_count": 1,
+      "svg_count": 1,
+      "pdf_count": 1,
+      "data_csv_count": 1,
+      "status": "present"
+    },
+    {
+      "figure": 4,
+      "png_count": 1,
+      "svg_count": 1,
+      "pdf_count": 1,
+      "data_csv_count": 1,
+      "status": "present"
+    },
+    {
+      "figure": 5,
+      "png_count": 1,
+      "svg_count": 1,
+      "pdf_count": 1,
+      "data_csv_count": 1,
+      "status": "present"
+    },
+    {
+      "figure": 6,
+      "png_count": 1,
+      "svg_count": 1,
+      "pdf_count": 1,
+      "data_csv_count": 1,
+      "status": "present"
+    },
+    {
+      "figure": 7,
+      "png_count": 1,
+      "svg_count": 1,
+      "pdf_count": 1,
+      "data_csv_count": 1,
+      "status": "present"
+    },
+    {
+      "figure": 8,
+      "png_count": 1,
+      "svg_count": 1,
+      "pdf_count": 1,
+      "data_csv_count": 1,
+      "status": "present"
+    },
+    {
+      "figure": 9,
+      "png_count": 1,
+      "svg_count": 1,
+      "pdf_count": 1,
+      "data_csv_count": 1,
+      "status": "present"
+    },
+    {
+      "figure": 10,
+      "png_count": 1,
+      "svg_count": 1,
+      "pdf_count": 1,
+      "data_csv_count": 1,
+      "status": "present"
+    },
+    {
+      "figure": 11,
+      "png_count": 1,
+      "svg_count": 1,
+      "pdf_count": 1,
+      "data_csv_count": 1,
+      "status": "present"
+    },
+    {
+      "figure": 12,
+      "png_count": 1,
+      "svg_count": 1,
+      "pdf_count": 1,
+      "data_csv_count": 1,
+      "status": "present"
+    },
+    {
+      "figure": 13,
+      "png_count": 1,
+      "svg_count": 1,
+      "pdf_count": 1,
+      "data_csv_count": 1,
+      "status": "present"
+    },
+    {
+      "figure": 14,
+      "png_count": 1,
+      "svg_count": 1,
+      "pdf_count": 1,
+      "data_csv_count": 1,
+      "status": "present"
+    },
+    {
+      "figure": 15,
+      "png_count": 1,
+      "svg_count": 1,
+      "pdf_count": 1,
+      "data_csv_count": 1,
+      "status": "present"
+    }
+  ],
+  "all_formats_and_data_present": true,
+  "figure_data_source": "research/figures/publication/data/*.csv"
+}

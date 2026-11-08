@@ -1,0 +1,18 @@
+{
+  "pairs": 45,
+  "two_requested_outputs": 90,
+  "five_requested_outputs": 225,
+  "two_successful_outputs": 90,
+  "five_successful_outputs": 225,
+  "two_mean_total_seconds": 14.605589546668085,
+  "five_mean_total_seconds": 28.884177826667695,
+  "mean_latency_increase_seconds": 14.278588279999612,
+  "median_latency_increase_seconds": 11.988198299979558,
+  "mean_two_seconds_per_child": 7.302794773334043,
+  "mean_five_seconds_per_child": 5.776835565333539,
+  "mean_two_output_words": 449.64444444444445,
+  "mean_five_output_words": 883.3777777777777,
+  "mean_output_word_increase": 433.73333333333335,
+  "two_compliance": 1.0,
+  "five_compliance": 1.0
+}

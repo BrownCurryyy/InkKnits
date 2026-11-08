@@ -1,0 +1,45 @@
+{
+  "sample_count": 8292,
+  "monitor_interval_configured_seconds": 0.25,
+  "time_span_seconds": 2494.762018442154,
+  "chronological_interval_min_seconds": 0.003170013427734375,
+  "chronological_interval_max_seconds": 0.9864044189453125,
+  "chronological_interval_mean_seconds": 0.30090001428562946,
+  "out_of_order_rows_in_original_file": 5,
+  "metrics": {
+    "cpu_percent": {
+      "count": 8292,
+      "mean": 20.509840810419682,
+      "max": 84.0
+    },
+    "ram_percent": {
+      "count": 8292,
+      "mean": 90.13066811384466,
+      "max": 99.9
+    },
+    "ram_used_bytes": {
+      "count": 8292,
+      "mean": 14795121959.394115,
+      "max": 16405426176.0
+    },
+    "gpu_utilization_percent": {
+      "count": 8292,
+      "mean": 89.65533043897733,
+      "max": 100.0
+    },
+    "gpu_memory_used_bytes": {
+      "count": 8292,
+      "mean": 2698198241.744332,
+      "max": 2733637632.0
+    },
+    "gpu_memory_total_bytes": {
+      "count": 8292,
+      "mean": 6439305216.0,
+      "max": 6439305216.0
+    }
+  },
+  "usage_scope": "system-wide CPU/RAM via psutil; GPU utilization and device memory via nvidia-smi; not process-specific",
+  "paging_or_swap_evidence": "not recorded by benchmark; no historical pagefile or swap counters available in captured logs",
+  "monitoring_overhead": "not separately measured; nvidia-smi subprocess polling and psutil sampling may add small overhead, but no causal correction is possible",
+  "vram_semantics": "nvidia-smi memory.used and memory.total; device-reported used memory, not application allocator reserved memory"
+}

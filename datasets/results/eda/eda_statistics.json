@@ -1,0 +1,37 @@
+{
+  "record_count": 11992,
+  "word_count_statistics": {
+    "count": 11992,
+    "mean": 772.7598398932622,
+    "median": 682.0,
+    "stddev": 518.0800395599608,
+    "min": 11.0,
+    "max": 9040.0,
+    "p25": 483.0,
+    "p75": 939.0,
+    "p90": 1266.0,
+    "p95": 1522.0
+  },
+  "character_count_statistics": {
+    "count": 11992,
+    "mean": 4537.182621747832,
+    "median": 4020.5,
+    "stddev": 3005.0256488146747,
+    "min": 59.0,
+    "max": 54078.0,
+    "p25": 2856.75,
+    "p75": 5503.75,
+    "p90": 7391.9,
+    "p95": 8893.449999999999
+  },
+  "quality_breakdown": {
+    "valid": 11990,
+    "questionable": 2
+  },
+  "length_group_counts": {
+    "long": 2270,
+    "medium": 6254,
+    "short": 3223,
+    "very_long": 245
+  }
+}

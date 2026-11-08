@@ -1,0 +1,11 @@
+metric,value
+records,11992
+valid_unique,11990
+questionable_duplicates,2
+short,3223
+medium,6254
+long,2270
+very_long,245
+mean_words,772.7598398932622
+median_words,682.0
+p95_words,1522.0

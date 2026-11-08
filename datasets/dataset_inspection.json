@@ -1,0 +1,42 @@
+{
+  "source": "C:\\Users\\BrownCurryyy.LAPTOP-LK24DON8\\Documents\\InkKnits\\datasets\\raw_articles.csv",
+  "sha256": "930f6575836c90120f7f8882d848b7735c3fd86b24b060773abd4967bec61205",
+  "columns": [
+    "Article"
+  ],
+  "record_count": 11992,
+  "valid_nonempty_count": 11992,
+  "missing_text_count": 0,
+  "empty_text_count": 0,
+  "exact_duplicate_row_count": 1,
+  "unique_nonempty_count": 11991,
+  "encoding_mojibake_marker_count": 4,
+  "word_count_statistics": {
+    "mean": 772.7598398932622,
+    "median": 682.0,
+    "stddev": 518.0800395599608,
+    "min": 11,
+    "max": 9040,
+    "p25": 483.0,
+    "p75": 939.0,
+    "p90": 1266.0,
+    "p95": 1522.0
+  },
+  "character_count_statistics": {
+    "mean": 4537.238325550367,
+    "median": 4020.5,
+    "stddev": 3005.030825233065,
+    "min": 59,
+    "max": 54078,
+    "p25": 2857.0,
+    "p75": 5503.75,
+    "p90": 7391.9,
+    "p95": 8893.449999999999
+  },
+  "very_short_under_50_words": 40,
+  "very_long_over_5000_words": 21,
+  "language_hints": {
+    "mostly_latin": 11992
+  },
+  "near_duplicate_detection": "not performed in streaming inspection; exact duplicates are measured"
+}
