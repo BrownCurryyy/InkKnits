@@ -27,6 +27,7 @@ uploads/
 
 # Generated research data; keep source and benchmark metadata tracked
 datasets/cleaned_articles.csv
+datasets/results/generated_images/
 
 # Frontend
 node_modules/

@@ -1,0 +1,49 @@
+{
+  "run_id": "image-full-20261108T131126Z-c4c3d9e4",
+  "requests": 45,
+  "successes": 45,
+  "failures": 0,
+  "success_rate": 1.0,
+  "generation_latency": {
+    "n": 45,
+    "mean": 13.814056491108689,
+    "median": 14.066925999999512,
+    "stddev": 0.5540459672261785,
+    "min": 12.365847800014308,
+    "max": 16.037505599990254,
+    "p25": 13.359718399995472,
+    "p75": 14.100153800012777,
+    "p95": 14.136658500006888
+  },
+  "end_to_end_latency": {
+    "n": 45,
+    "mean": 13.814056491108689,
+    "median": 14.066925999999512,
+    "stddev": 0.5540459672261785,
+    "min": 12.365847800014308,
+    "max": 16.037505599990254,
+    "p25": 13.359718399995472,
+    "p75": 14.100153800012777,
+    "p95": 14.136658500006888
+  },
+  "queue_wait": {
+    "available": false,
+    "reason": "ComfyUI history API did not expose queue timestamps"
+  },
+  "throughput_completed_images_per_minute": 4.343401957174457,
+  "file_size_bytes": {
+    "n": 45,
+    "mean": 859758.3555555556,
+    "median": 838572.0,
+    "stddev": 87779.20077494947,
+    "min": 730036.0,
+    "max": 1154198.0,
+    "p25": 788533.0,
+    "p75": 908846.0,
+    "p95": 974342.0
+  },
+  "dimensions": [
+    "768x768"
+  ],
+  "quality_evaluation": "pending human evaluation; no reference images or fabricated FID/CLIP scores"
+}

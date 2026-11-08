@@ -22,13 +22,13 @@ class ResourceMonitor:
         self._stop_event = threading.Event()
 
     def sample(self) -> dict:
-        result = {"timestamp": time.time(), "cpu_percent": None, "ram_percent": None, "ram_used_bytes": None, "gpu_utilization_percent": None, "gpu_memory_used_bytes": None, "gpu_memory_total_bytes": None}
+        result = {"timestamp": time.time(), "cpu_percent": None, "ram_percent": None, "ram_used_bytes": None, "gpu_utilization_percent": None, "gpu_memory_used_bytes": None, "gpu_memory_total_bytes": None, "gpu_temperature_celsius": None, "gpu_power_watts": None}
         if psutil is not None:
             result.update({"cpu_percent": psutil.cpu_percent(interval=None), "ram_percent": psutil.virtual_memory().percent, "ram_used_bytes": psutil.virtual_memory().used})
         if shutil.which("nvidia-smi"):
             try:
-                output = subprocess.check_output(["nvidia-smi", "--query-gpu=utilization.gpu,memory.used,memory.total", "--format=csv,noheader,nounits"], text=True, timeout=2).strip().splitlines()[0].split(",")
-                result.update({"gpu_utilization_percent": float(output[0]), "gpu_memory_used_bytes": float(output[1]) * 1024 * 1024, "gpu_memory_total_bytes": float(output[2]) * 1024 * 1024})
+                output = subprocess.check_output(["nvidia-smi", "--query-gpu=utilization.gpu,memory.used,memory.total,temperature.gpu,power.draw", "--format=csv,noheader,nounits"], text=True, timeout=2).strip().splitlines()[0].split(",")
+                result.update({"gpu_utilization_percent": float(output[0]), "gpu_memory_used_bytes": float(output[1]) * 1024 * 1024, "gpu_memory_total_bytes": float(output[2]) * 1024 * 1024, "gpu_temperature_celsius": float(output[3]), "gpu_power_watts": float(output[4])})
             except (OSError, ValueError, IndexError, subprocess.SubprocessError):
                 pass
         self.samples.append(result)

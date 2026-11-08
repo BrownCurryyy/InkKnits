@@ -1,0 +1,17 @@
+{
+  "run_id": "image-full-20261108T131126Z-c4c3d9e4",
+  "request_rows": 45,
+  "prompt_rows": 45,
+  "unique_article_ids": 45,
+  "duplicate_article_ids": [],
+  "successes": 45,
+  "failures": 0,
+  "all_success_outputs_valid": true,
+  "warmup_excluded": true,
+  "resource_log_exists": true,
+  "queue_wait_available": false,
+  "notes": [
+    "ComfyUI queue timestamps are unavailable from the exercised API path; queue wait remains null.",
+    "Prior blocked smoke records remain separate from this run."
+  ]
+}

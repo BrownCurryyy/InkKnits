@@ -106,3 +106,9 @@ Future work should benchmark the actual InkKnits scheduler under concurrent requ
 ## 14. Paper-Ready Conclusions
 
 On a local Windows workstation using Gemma 2:2B, InkKnits content transformations completed 405 direct model calls across 45 paired articles without observed call failures. Mean latency increased from 5.03 seconds for summarization to 28.88 seconds for five-output atomization, while five-output atomization produced more content and required more model calls. These observations characterize one local model configuration and support workload-aware orchestration considerations; they do not establish scheduler performance, factual quality, or superiority over competing systems.
+
+## Separate Image-Generation Experiment Status
+
+The complementary image benchmark is implemented separately in `research/image_benchmark.py` and targets the existing ComfyUI workflow in `backend/final4.json`. The verified workflow uses `epicrealism_naturalSinRC1VAE.safetensors`, 512x512 images, batch size 1, 28 primary steps, CFG 7.5, `dpmpp_2m`, `karras`, and a 15-step refinement node. It uses the same 45 article IDs and deterministic article-derived seeds, but it does not alter the text benchmark.
+
+The initial image smoke run was blocked because ComfyUI was unavailable, and it remains preserved. After ComfyUI became available, smoke run `image-smoke2-20261108T130922Z-dc97cd1e` succeeded, followed by full run `image-full-20261108T131126Z-c4c3d9e4`: 45/45 sequential requests succeeded. Mean generation time was 13.814 seconds, median 14.067 seconds, p95 14.137 seconds, and throughput 4.343 completed images per minute. All saved outputs were valid 768x768 PNGs because the unchanged workflow applies a 1.5x latent upscale to the 512x512 input. Queue wait remained unavailable from the ComfyUI history API. No human image-quality evaluation was completed. See `IMAGE_GENERATION_METHODOLOGY.md`, `IMAGE_GENERATION_RESULTS.md`, and `IMAGE_GENERATION_AUDIT.md`.

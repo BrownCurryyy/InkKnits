@@ -38,3 +38,7 @@ They provide reproducible measurements of direct Gemma 2:2B transformation laten
 ## What the Results Do Not Prove
 
 They do not prove superior content quality, factual consistency, general performance across models or machines, production scheduler performance, or superiority over Adobe, Jasper, Bynder, or other systems.
+
+## Image Benchmark Extension
+
+The complementary ComfyUI image benchmark used the same 45 article IDs. After an initial blocked smoke attempt, the successful run generated 45/45 valid 768x768 PNGs using the configured `epicrealism_naturalSinRC1VAE.safetensors` workflow. Mean generation time was 13.814 seconds, median 14.067 seconds, and p95 14.137 seconds. GPU utilization averaged 90.27%, with mean VRAM use of approximately 2.60 GB. Queue wait was unavailable from the ComfyUI history API. These are direct sequential image-pipeline measurements, not application scheduler or visual-quality claims.
