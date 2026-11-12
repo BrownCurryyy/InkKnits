@@ -1,0 +1,22 @@
+{
+  "captured_at_utc": "2026-11-12T12:56:01.720371+00:00",
+  "connection_type": "Wi-Fi",
+  "platform": "Windows 11 (10.0.26200)",
+  "local_api_tcp_connect": {
+    "host": "127.0.0.1",
+    "port": 8000,
+    "attempts": 10,
+    "failures": 0,
+    "median_ms": 15.229250013362616
+  },
+  "cloudflare_hostname_tcp_connect": {
+    "host": "inkknits.trustium.tech",
+    "port": 443,
+    "attempts": 10,
+    "failures": 0,
+    "median_ms": 77.67594998585992
+  },
+  "bandwidth_mbps": null,
+  "bandwidth_note": "No independent bandwidth test was run. TCP connection time is not application latency or bandwidth.",
+  "scope": "Captured during a local-only application condition on the same laptop; not a geographically remote-client measurement."
+}

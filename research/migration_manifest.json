@@ -1,0 +1,54 @@
+{
+  "created_at_utc": "2026-11-12T00:00:00Z",
+  "purpose": "Preserve the completed local component benchmark and establish a clean cloudflare_benchmark directory structure without altering existing benchmark evidence.",
+  "status": "research_outputs_updated",
+  "preserved_authoritative_files": [
+    "datasets/results/experiment_results.csv",
+    "datasets/results/experiment_results.jsonl",
+    "datasets/results/run_full-20261108T110310Z-f766ae7b.json",
+    "datasets/results/image_experiment_results.csv",
+    "datasets/results/image_experiment_results.jsonl",
+    "datasets/results/image_experiment_summary.json",
+    "research/FINAL_EXPERIMENT_MANIFEST.json",
+    "research/IMAGE_EXPERIMENT_MANIFEST.json",
+    "research/README.md",
+    "backend/final4.json",
+    "backend/scripts/local_dev_setup.py"
+  ],
+  "created_directories": [
+    "research/cloudflare_benchmark",
+    "research/cloudflare_benchmark/scripts",
+    "research/cloudflare_benchmark/config",
+    "research/cloudflare_benchmark/local",
+    "research/cloudflare_benchmark/cloudflare",
+    "research/cloudflare_benchmark/comparison",
+    "research/cloudflare_benchmark/results",
+    "research/cloudflare_benchmark/outputs",
+    "research/cloudflare_benchmark/logs",
+    "research/cloudflare_benchmark/reports",
+    "research/cloudflare_benchmark/figures/exploratory",
+    "research/cloudflare_benchmark/figures/publication",
+    "research/cloudflare_benchmark/tables",
+    "research/cloudflare_benchmark/manifests",
+    "research/component_benchmark/text/results",
+    "research/component_benchmark/text/outputs",
+    "research/component_benchmark/text/reports",
+    "research/component_benchmark/image/results",
+    "research/component_benchmark/image/outputs",
+    "research/component_benchmark/image/reports",
+    "research/component_benchmark/monitoring",
+    "research/component_benchmark/manifests"
+  ],
+  "created_files": [
+    "research/cloudflare_benchmark/README.md",
+    "research/cloudflare_benchmark/BLOCKER_STATUS.md",
+    "research/migration_manifest.json"
+  ],
+  "notes": [
+    "No raw benchmark datasets or completed local result files were moved, overwritten, or deleted.",
+    "The isolated benchmark project was available; an authenticated local smoke and Cloudflare smoke were completed.",
+    "The application-level condition remains incomplete: 59 of 225 local requests were checkpointed and no full Cloudflare condition was recorded.",
+    "The direct text component and direct image results remain authoritative and separate from application-level observations.",
+    "See research/FINAL_BENCHMARK_STATUS.md for the handoff and limitations."
+  ]
+}

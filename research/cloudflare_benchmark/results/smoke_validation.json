@@ -1,0 +1,46 @@
+{
+  "project_id": "ffd0cf00-24f8-46e8-82a8-85efd13b2ffe",
+  "project_title": "InkKnits Research Benchmark - Nov 2026",
+  "scope": "Authenticated application workflow smoke checks only; not a full paired benchmark.",
+  "local_runner_smoke": {
+    "benchmark_id": "app-20261112T125418Z-135fc2ee",
+    "runtime_seconds": 62.0284799,
+    "requests": 5,
+    "successes": 5,
+    "failures": 0,
+    "requests_detail": [
+      {"operation": "summarization", "task_id": "1af7da57-bbfb-4c4f-8e54-33c44d404707", "status": "COMPLETED", "elapsed_seconds": 6.1783794, "queue_wait_seconds": 0.040344, "inference_seconds": 5.302867, "persistence_observed_seconds": 0.022076, "persisted_asset_ids": ["e1a4fda0-35d5-4fec-840f-e7afe13d2232"], "persistence_verified": true},
+      {"operation": "shortening", "task_id": "49a92c11-696a-4be8-9cbf-773d88db6b04", "status": "COMPLETED", "elapsed_seconds": 8.137025, "queue_wait_seconds": 0.002121, "inference_seconds": 6.512386, "persistence_observed_seconds": 0.0328521, "persisted_asset_ids": ["80bd4120-f062-410e-98eb-83df5d52697f"], "persistence_verified": true},
+      {"operation": "atomization_2", "task_id": "e22904b6-e705-4902-a419-791f6dd86a25", "status": "COMPLETED", "elapsed_seconds": 8.2324159, "queue_wait_seconds": 0.001835, "inference_seconds": 7.135836, "persistence_observed_seconds": 0.0653333, "persisted_asset_ids": ["afc81e55-ca99-49fe-900f-f11ecd978dee", "05d8f9ef-d6b6-4634-8f7e-092d3b1dffdd"], "persistence_verified": true},
+      {"operation": "atomization_5", "task_id": "e2c7a3ab-b5e0-4917-b144-2b555e3abdb2", "status": "COMPLETED", "elapsed_seconds": 16.2964061, "queue_wait_seconds": 0.0027, "inference_seconds": 14.479793, "persistence_observed_seconds": 0.0901238, "persisted_asset_ids": ["667c9b6a-ea03-4bab-a717-f5aac512fef0", "99d194d2-40c8-492a-a305-b9f8ad021f81", "ebf98240-a20d-41ad-81fa-63d969a3b40c", "ef32bf7f-117b-40a5-8b12-9e9e28bf0979", "7e1d6177-29fa-4195-8773-36752c483475"], "persistence_verified": true},
+      {"operation": "image_generation", "task_id": "cfbe9d7a-a3b8-4adc-93ac-848f548d8d76", "status": "COMPLETED", "elapsed_seconds": 20.2290162, "queue_wait_seconds": 0.002697, "inference_seconds": 19.769233, "persistence_observed_seconds": 0.026913, "persisted_asset_ids": ["1cab31ae-5205-4bfe-9236-4594f5a949b3"], "image_seed": 1495099379, "persistence_verified": true}
+    ]
+  },
+  "additional_local_smoke_jobs": [
+    {"operation": "summarization", "task_id": "c1cb0b17-93e7-4e6f-8223-31719cf3d467", "status": "COMPLETED", "source_asset_id": "7410b696-0da9-475d-a138-f5d15780072b", "result_asset_id": "317420d9-b58a-4679-bc05-d4fe39d48a2a", "persistence_verified_at_request_time": true, "elapsed_seconds": 3.93696},
+    {"operation": "image_generation", "task_id": "17242d42-ac69-4ea8-85e7-1d74119ab015", "status": "COMPLETED", "result_asset_id": "e67de1ee-f1c7-429e-b225-7617f804ea70", "storage_file_exists_at_verification": true, "storage_file_bytes": 690523, "created_at": "2026-11-12T09:00:20.752320+05:30", "started_at": "2026-11-12T09:00:20.757195+05:30", "completed_at": "2026-11-12T09:00:30.927090+05:30"}
+  ],
+  "cloudflare_smoke": {
+    "access_path": "https://inkknits.trustium.tech",
+    "requests": 2,
+    "successes_at_request_time": 2,
+    "failures": 0,
+    "requests_detail": [
+      {"operation": "summarization", "task_id": "5c159b8b-0f5b-4413-a3da-dd4188799edf", "status_at_request_time": "COMPLETED", "result_asset_id": "9577aa6d-fe5d-47c9-a350-a1140218d0fb", "asset_fetch_succeeded_at_request_time": true, "duration_seconds": null},
+      {"operation": "image_generation", "task_id": "081e7e27-7b70-4670-a4c6-82030e79f7e6", "status": "COMPLETED", "result_asset_id": "5056cddb-1a22-403b-a1f5-f89d111774be", "asset_fetch_succeeded": true, "storage_file_bytes": 754970, "created_at": "2026-11-12T08:59:12.942477+05:30", "started_at": "2026-11-12T08:59:12.946568+05:30", "completed_at": "2026-11-12T08:59:26.746528+05:30", "duration_seconds": 13.804051}
+    ],
+    "current_requery_note": "Historical task rows could not all be re-queried through the current backend during handoff; the image asset fetch was rechecked successfully. The recorded request-time completion/persistence is retained as historical smoke evidence."
+  },
+  "stale_job_recovery": {
+    "benchmark_project_jobs_marked_failed": 14,
+    "automatic_retries": 0,
+    "unrelated_project_jobs_modified": 0,
+    "snapshot": "research/cloudflare_benchmark/logs/scheduler_recovery_20261112T124844Z.json"
+  },
+  "limitations": [
+    "The smoke requests are not a full or statistically meaningful local-versus-Cloudflare comparison.",
+    "The Cloudflare hostname accesses the same laptop-hosted services and is not cloud compute or geographic remote-client testing.",
+    "No independent bandwidth measurement was performed.",
+    "Asset persistence was verified by authenticated asset retrieval; for image results the storage file was also checked where the path was available."
+  ]
+}

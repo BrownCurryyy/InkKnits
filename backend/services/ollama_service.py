@@ -6,6 +6,7 @@ Ported and adapted from test/ollama_compute.py for production FastAPI integratio
 import json
 import os
 import subprocess
+from typing import Any
 
 try:
     import ollama as _ollama_lib
@@ -84,10 +85,10 @@ def build_prompt(
     return "\n\n".join(parts)
 
 
-def _call_ollama_lib(model: str, final_prompt: str) -> str:
+def _call_ollama_lib(model: str, final_prompt: str, options: dict[str, Any] | None = None) -> str:
     """Call Ollama using the installed Python library."""
     client = _ollama_lib.Client()
-    response = client.generate(model=model, prompt=final_prompt)
+    response = client.generate(model=model, prompt=final_prompt, options=options or {})
     if hasattr(response, "response"):
         return response.response.strip()
     if isinstance(response, dict):
@@ -95,10 +96,10 @@ def _call_ollama_lib(model: str, final_prompt: str) -> str:
     return str(response)
 
 
-def _call_ollama_http(model: str, final_prompt: str) -> str:
+def _call_ollama_http(model: str, final_prompt: str, options: dict[str, Any] | None = None) -> str:
     """Fallback: call Ollama via its HTTP REST API."""
     import urllib.request
-    payload = json.dumps({"model": model, "prompt": final_prompt, "stream": False}).encode()
+    payload = json.dumps({"model": model, "prompt": final_prompt, "stream": False, "options": options or {}}).encode()
     req = urllib.request.Request(
         f"{OLLAMA_BASE_URL}/api/generate",
         data=payload,
@@ -123,6 +124,7 @@ class OllamaService:
         audience: str = "",
         content_length: str = "",
         model: str = OLLAMA_MODEL,
+        options: dict[str, Any] | None = None,
     ) -> str:
         """Run a text generation request through Gemma and return the result."""
         final_prompt = build_prompt(
@@ -138,12 +140,12 @@ class OllamaService:
         # Try library first, then HTTP, then subprocess as last resort
         if HAS_OLLAMA_LIB:
             try:
-                return _call_ollama_lib(model, final_prompt)
+                return _call_ollama_lib(model, final_prompt, options)
             except Exception:
                 pass
 
         try:
-            return _call_ollama_http(model, final_prompt)
+            return _call_ollama_http(model, final_prompt, options)
         except Exception:
             pass
 
@@ -165,7 +167,7 @@ class OllamaService:
             raise RuntimeError("Ollama generation failed") from exc
 
     @staticmethod
-    def enrich_image_prompt(user_prompt: str, model: str = OLLAMA_MODEL) -> str:
+    def enrich_image_prompt(user_prompt: str, model: str = OLLAMA_MODEL, options: dict[str, Any] | None = None) -> str:
         """
         Use Gemma to convert a simple user description into a high-quality
         Stable Diffusion positive prompt (visual tags, style, lighting, quality).
@@ -175,6 +177,7 @@ class OllamaService:
             prompt=user_prompt,
             action="image_prompt",
             model=model,
+            options=options,
         )
 
     @staticmethod
@@ -185,15 +188,17 @@ class OllamaService:
         audience: str = "",
         content_length: str = "",
         model: str = OLLAMA_MODEL,
+        prompts: list[str] | None = None,
+        options: dict[str, Any] | None = None,
     ) -> list[dict]:
         """
         Content Atomization: generate multiple child assets from one parent asset.
         Returns a list of dicts: {format, content}.
         """
         results = []
-        for fmt in formats:
+        for index, fmt in enumerate(formats):
             generated = OllamaService.generate(
-                prompt=f"Generate a {fmt} from the following content.",
+            prompt=prompts[index] if prompts and index < len(prompts) else f"Generate a {fmt} from the following content.",
                 draft=parent_content,
                 action="atomize_format",
                 mood=mood,
@@ -201,6 +206,7 @@ class OllamaService:
                 audience=audience,
                 content_length=content_length,
                 model=model,
+                options=options,
             )
             results.append({"format": fmt, "content": generated})
         return results

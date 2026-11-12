@@ -76,6 +76,12 @@ class Phase910Tests(unittest.TestCase):
             "epicrealism_naturalSinRC1VAE.safetensors",
         )
 
+    def test_comfyui_workflow_uses_requested_seed(self) -> None:
+        workflow = _build_workflow("a studio portrait", seed=1495099379)
+
+        self.assertEqual(workflow["3"]["inputs"]["seed"], 1495099379)
+        self.assertEqual(workflow["20"]["inputs"]["seed"], 1495099380)
+
     def test_scheduler_persists_result_and_error(self) -> None:
         engine = create_engine("sqlite:///:memory:")
         Base.metadata.create_all(engine)

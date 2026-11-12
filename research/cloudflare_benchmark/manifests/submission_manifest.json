@@ -1,0 +1,85 @@
+{
+  "generated_at_utc": "2026-11-12T16:37:33+00:00",
+  "status": "PRELIMINARY_APPLICATION_EVALUATION",
+  "experiments": {
+    "direct_text_component": {
+      "status": "COMPLETED",
+      "run_id": "full-20261108T110310Z-f766ae7b",
+      "sample_size": 45,
+      "observations": 180,
+      "model_calls": 405,
+      "successes": 180,
+      "failures": 0,
+      "runtime_seconds": 2494.762018442154,
+      "model": "gemma2:2b",
+      "temperature": 0.2,
+      "context_length": 8192,
+      "source_manifest": "research/FINAL_EXPERIMENT_MANIFEST.json",
+      "raw_results": ["datasets/results/experiment_results.csv", "datasets/results/experiment_results.jsonl"]
+    },
+    "direct_image_component": {
+      "status": "COMPLETED",
+      "run_id": "image-full-20261108T131126Z-c4c3d9e4",
+      "sample_size": 45,
+      "requests": 45,
+      "successes": 45,
+      "failures": 0,
+      "measured_interval_seconds": 624.720714,
+      "mean_generation_seconds": 13.814056491108689,
+      "median_generation_seconds": 14.066925999999512,
+      "p95_generation_seconds": 14.136658500006888,
+      "queue_wait": null,
+      "source_manifest": "research/IMAGE_EXPERIMENT_MANIFEST.json",
+      "raw_results": ["datasets/results/image_experiment_results.csv", "datasets/results/image_experiment_results.jsonl"]
+    },
+    "application_smoke_local": {
+      "status": "COMPLETED",
+      "benchmark_id": "app-20261112T125418Z-135fc2ee",
+      "requests": 5,
+      "successes": 5,
+      "failures": 0,
+      "runtime_seconds": 62.0284799,
+      "persistence_verified": true,
+      "records": "research/cloudflare_benchmark/local/app-20261112T125418Z-135fc2ee-local/records.csv"
+    },
+    "application_smoke_cloudflare": {
+      "status": "COMPLETED_AT_REQUEST_TIME",
+      "requests": 2,
+      "successes": 2,
+      "failures": 0,
+      "persistence_verified_at_request_time": true,
+      "records": "research/cloudflare_benchmark/results/smoke_validation.json"
+    },
+    "application_full_local_partial": {
+      "status": "INTERRUPTED",
+      "benchmark_id": "app-20261112T125600Z-870967b9",
+      "expected_requests": 225,
+      "recorded_requests": 59,
+      "successes": 47,
+      "failures": 12,
+      "runtime_seconds": 1099.291942,
+      "image_requests_recorded": 0,
+      "failure_cause": "HTTP 422: article text exceeded the API prompt field limit on summarization and shortening submissions",
+      "raw_local_records_preserved_untracked": true,
+      "sanitized_records": "research/cloudflare_benchmark/results/application_partial_records_sanitized.csv",
+      "summary": "research/cloudflare_benchmark/local/app-20261112T125600Z-870967b9-local/summary.json"
+    },
+    "matched_local_vs_cloudflare_application": {
+      "status": "NOT_COMPLETED",
+      "matched_full_requests": 0,
+      "latency_comparison_valid": false
+    }
+  },
+  "network_measurement": "research/cloudflare_benchmark/results/application_network_conditions.json",
+  "figure_sets": {
+    "text_component": {"png_300_dpi": 15, "svg": 15, "pdf": 15, "chart_data_csv": 15},
+    "image_component": {"png_300_dpi": 7, "svg": 7, "pdf": 7, "chart_data_csv": 7}
+  },
+  "integrity": {
+    "credentials_in_repository": false,
+    "completed_component_outputs_overwritten": false,
+    "full_45_image_application_run_started": false,
+    "cloudflare_inference_is_cloud_compute": false,
+    "geographic_remote_client_test": false
+  }
+}

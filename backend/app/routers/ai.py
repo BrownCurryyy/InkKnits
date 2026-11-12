@@ -103,6 +103,8 @@ async def submit_job(
             raise HTTPException(status_code=404, detail="Asset not found")
         payload.organization_id = asset.organization_id
         payload.station_id = asset.station_id
+        if not payload.draft and payload.job_type != "ATOMIZE":
+            payload.draft = asset.content or ""
     elif payload.organization_id is not None and payload.organization_id != current_user.organization_id:
         raise HTTPException(status_code=403, detail="Organization access denied")
     if payload.station_id is not None and not can_access_station(db, current_user, payload.station_id):
@@ -235,4 +237,5 @@ async def list_jobs(
 
 @router.get("/health")
 async def ai_health() -> dict[str, bool | int]:
-    return {"scheduler_running": scheduler._worker_task is not None, "comfyui_available": ComfyUIService.is_available(), "queued_jobs": scheduler.queue_size()}
+    active_jobs = sum(job.status == "RUNNING" for job in scheduler._jobs.values())
+    return {"scheduler_running": scheduler._worker_task is not None, "comfyui_available": ComfyUIService.is_available(), "queued_jobs": scheduler.queue_size(), "active_jobs": active_jobs}

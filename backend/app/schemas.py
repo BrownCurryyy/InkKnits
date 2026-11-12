@@ -339,7 +339,10 @@ class AIJobSubmit(BaseModel):
     audience: str = ""
     content_length: str = ""
     formats: list[str] = Field(default_factory=list, max_length=12)
+    child_prompts: list[str] = Field(default_factory=list, max_length=12)
+    model_options: dict[str, Any] = Field(default_factory=dict)
     model: str | None = Field(default=None, max_length=100)
+    seed: int | None = Field(default=None, ge=0, le=2147483646)
     width: int = Field(default=512, ge=64, le=1024, multiple_of=64)
     height: int = Field(default=512, ge=64, le=1024, multiple_of=64)
     name: str | None = Field(default=None, max_length=255)

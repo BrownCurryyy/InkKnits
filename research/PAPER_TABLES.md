@@ -1,5 +1,7 @@
 # Paper-Ready Tables
 
+**Scope note:** The tables below separate direct local component measurements from application-path observations. No complete matched local-versus-Cloudflare application benchmark exists; the application rows are preliminary and must not be used to calculate tunnel overhead.
+
 ## Dataset Statistics
 
 | Metric | Value |
@@ -84,3 +86,53 @@ Wilcoxon tests were not run because SciPy was unavailable; no p-values are repor
 | Direct Ollama path | Production scheduler not tested |
 | One full run | Run-to-run variance unknown |
 | Local hardware | Results are environment-dependent |
+
+## Separate Direct Image-Pipeline Experiment
+
+| Metric | Measured value |
+|---|---:|
+| Run | `image-full-20261108T131126Z-c4c3d9e4` |
+| Sequential image requests | 45 |
+| Successes / failures | 45 / 0 |
+| Mean latency | 13.814 s |
+| Median latency | 14.067 s |
+| Standard deviation | 0.554 s |
+| P95 latency | 14.137 s |
+| Throughput | 4.343 images/min |
+| Final dimensions | 768 x 768 px |
+| Mean file size | 859,758 bytes |
+| Queue wait | Unavailable from ComfyUI history API |
+| Human quality rating | Not performed |
+
+These are direct sequential ComfyUI pipeline measurements, not InkKnits scheduler performance or a Cloudflare comparison.
+
+## Application-Level Evaluation (Incomplete)
+
+| Condition | Planned | Recorded | Successful / failed | Runtime through last checkpoint | Interpretation |
+|---|---:|---:|---:|---:|---|
+| Local application smoke `app-20261112T125418Z-135fc2ee` | 5 | 5 | 5 / 0 | 62.03 s | One article, four text operations and one image; result assets verified |
+| Cloudflare authenticated smoke | 2 | 2 | 2 / 0 | Not retained | One text and one image; result assets were fetched at request time |
+| Local application partial `app-20261112T125600Z-870967b9` | 225 | 59 | 47 / 12 | 1,099.29 s | Interrupted before images; 12 requests rejected with HTTP 422 |
+| Full matched local-vs-Cloudflare run | 225 per route | 0 matched full requests | N/A | Not run | No comparison or tunnel-overhead estimate is valid |
+
+### Local Partial Operation Counts
+
+| Operation | Recorded | Successful | Failed | Mean elapsed among successes |
+|---|---:|---:|---:|---:|
+| Summarization | 15 | 9 | 6 | 4.304 s |
+| Shortening | 15 | 9 | 6 | 10.796 s |
+| Atomization, 2 | 15 | 15 | 0 | 16.838 s |
+| Atomization, 5 | 14 | 14 | 0 | 50.550 s |
+
+The 12 request failures were API validation errors because the runner sent article text inside a `prompt` field limited to 12,000 characters. These successful-only means are incomplete and order-dependent; they are not paired with the direct component results. The partial run produced no image measurements.
+
+## Automated Proxy Averages
+
+| Direct text operation | Mean lexical overlap | Mean output/input word ratio | Output-count compliant |
+|---|---:|---:|---:|
+| Summarization | 0.1031 | 0.1574 | 45/45 |
+| Shortening | 0.1587 | 0.2463 | 45/45 |
+| Atomization, 2 | 0.2027 | 0.5364 | 45/45 |
+| Atomization, 5 | 0.2589 | 1.0150 | 45/45 |
+
+Lexical overlap and compression are descriptive automated proxies only; neither validates factual correctness, relevance, or editorial quality.

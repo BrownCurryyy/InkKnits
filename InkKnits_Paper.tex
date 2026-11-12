@@ -41,7 +41,7 @@ mail
 \maketitle
 
 \begin{abstract}
-Modern multimedia production teams increasingly depend on fragmented toolchains that separate ideation, drafting, asset generation, review, approval, and publishing. This fragmentation introduces operational delays, inconsistent asset lineage, weak auditability, and a high risk of data leakage when content is routed through public cloud services. InkKnits addresses this gap by providing a local-first, privacy-preserving, AI-assisted content lifecycle platform designed for collaborative multimedia production on resource-constrained edge infrastructure. The system integrates role-aware orchestration, content atomization, multi-stage approval chains, and immutable historical versioning into a unified workflow engine. Rather than moving enterprise content to external SaaS infrastructures, InkKnits keeps inference and operational logic on a private local workstation or secure campus edge environment while still supporting distributed collaborative review and publication decisions. This design directly mitigates cloud egress costs, content leakage, and uncontrolled model dependence. We contribute a localized edge-native compute architecture, a relational parent-child lineage model built on a Directed Acyclic Graph (DAG) for lineage, and an asynchronous modality-based priority scheduler that protects human editing responsiveness while preventing GPU contention. Evaluation results show that InkKnits preserves low-latency operations for human-facing writing tasks while ensuring the system remains stable under concurrent AI rendering workloads. The resulting platform offers a practical alternative to large SaaS suites, such as Adobe GenStudio and Jasper, with stronger enterprise control over data, compute placement, and workflow integrity \cite{yang2024,velaga2024,alhafis2026,abbasi2025}.
+Multimedia content workflows combine drafting, transformation, image generation, review, and asset management. This paper describes InkKnits, a local-first application that combines organization-scoped access control, project and station workspaces, AI job submission, asset persistence, version snapshots, and parent-child asset relationships. We report three distinct bodies of evidence: a direct local Gemma 2:2B text-component benchmark with 180 observations and 405 model calls; a separate direct ComfyUI image experiment with 45 successful generations; and an incomplete application-access evaluation. The text component experiment measured mean latency from 5.03 s for summarization to 28.88 s for five-output atomization. The separate image experiment measured a mean generation time of 13.81 s. Authenticated application smoke requests completed through both the local route and the Cloudflare Tunnel hostname, but the full matched application benchmark was not completed. A local-only application condition stopped after 59 of 225 planned requests, including 12 request-validation failures. The Cloudflare Tunnel accessed services hosted on the same laptop; it did not provide cloud inference or geographically remote-client testing. No human content-quality evaluation or multi-user scalability test was performed.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -53,38 +53,22 @@ The modern content pipeline is no longer a single writing task; it is a coordina
 
 This problem is especially acute in collaborative multimedia production where a single semantic concept propagates into distinct asset families with divergent format requirements. The resulting process is a form of \emph{Content Atomization}: a parent artifact, such as a campaign brief, is decomposed into multiple child assets, each specialized for a target channel, style, audience, or execution format. Content atomization is not simply content generation; it is the transformation of one coherent output into many traceable, independent production units that can be reviewed, updated, approved, and published separately while remaining connected to a common origin. Such a system requires strong lineage tracking, modality-aware generation, and controlled human review. Without these properties, teams generate output volume but lose provenance, consistency, and governance.
 
-The technical challenge becomes more severe when the entire system is hosted on resource-constrained local infrastructure rather than hyperscale public cloud infrastructure. Local workstation environments often have limited VRAM, shared GPU memory, restricted CPU scheduling, and a single-user bottleneck during rendering operations. Yet these environments are common in enterprise and academic settings that must maintain data locality, privacy, and cost efficiency. Contemporary creative AI tools frequently depend on cloud execution models that raise concerns around data leakage, egress costs, and external model dependency. This motivates a localized edge-native alternative that can deliver practical AI assistance without exposing sensitive content to untrusted third-party infrastructures. The design challenge is therefore not only model quality but also secure operation under finite local resources \cite{yang2024,alhafis2026}.
+The technical challenge becomes more severe when a system is hosted on resource-constrained local infrastructure rather than hyperscale public cloud infrastructure. Local workstations have finite memory and compute resources. Some deployments may also have data-locality requirements. InkKnits is designed to keep inference services local in the evaluated setup, but this study did not perform a security assessment or measure privacy risk. The design challenge therefore includes balancing workflow needs with finite local resources \cite{yang2024,alhafis2026}.
 
-This paper presents InkKnits, a platform designed to address these issues through three structural contributions. First, we propose a \emph{Localized Edge-Native Compute Architecture} that keeps content generation, metadata storage, workflow orchestration, and access control within a secure local or private-LAN execution envelope while still allowing collaborative review and asynchronous job execution. Second, we design a \emph{Relational Parent-Child DAG Lineage Model} that preserves provenance across asset derivation, versioning, and approvals through explicit parent-child relationships with immutable historical snapshots. Third, we develop an \emph{Asynchronous Modality-Based Priority Job Scheduling} strategy that prioritizes low-latency writing and editing tasks over heavy image generation tasks, thereby reducing hardware lockups, resource contention, and user-visible latency. The combined architecture yields a system that is practical on workstation-class hardware and robust in collaborative design settings \cite{yang2024,alhafis2026,abbasi2025}.
+This paper documents an implementation that combines local AI services with application-level access control and asset workflows. The implementation includes project/station-scoped assets, version snapshots, atomized child assets, and a single-worker priority queue. Our evaluation is descriptive: the direct text and image experiments measure their respective local inference paths, while the application experiment remains incomplete. We do not claim a new scheduling algorithm, validated privacy guarantees, reduced contention under concurrent users, or superiority over commercial systems.
 
-The remainder of this paper is organized as follows. Section II reviews prior work in creative AI systems, versioning and lineage mechanisms, and workflow automation frameworks. Section III describes the system architecture and orchestration model. Section IV presents the relational content lineage schema and SQL-level data constraints. Section V evaluates the performance characteristics of the implementation on local hardware and private-LAN execution paths. Section VI concludes and outlines the immediate future work, including the Post-Publication Analytics Simulation Framework.
+The remainder of this paper is organized as follows. Section II reviews prior work in creative AI systems, versioning and lineage mechanisms, and workflow automation frameworks. Section III describes the system architecture and orchestration model. Section IV summarizes the implemented relational data model. Section V reports completed local component experiments and the incomplete application evaluation. Section VI concludes and outlines future work.
 
 \section{Related Work}
 \subsection{Creative AI Tools and Versioned Content Creation}
 Recent work has explored the role of AI as a creative collaborator rather than a static generation engine. In professional writing settings, AI-powered writing assistants can improve rapid drafting, structure discovery, and iterative rewriting, but they also introduce concerns about originality, editorial control, and process accountability \cite{an2022}. Similarly, the systematic literature on AI-driven creativity in new media highlights the tension between automated personalization and human-centered editorial judgment \cite{alhafis2026}. Strategic social content generation systems further demonstrate the utility of AI in audience-aware content adaptation, yet they often operate in a single-tool workflow rather than an enterprise-grade asset lifecycle setting \cite{abbasi2025}.
 
-Version control and media ancestry remain active research problems. Version control systems designed for digital content creation have historically emphasized source-code semantics and branch-based collaboration, which do not map cleanly to multimedia workflows that involve binary files, prompt metadata, image variants, and editorial revisions. Eloe et al. introduced VeCVL, a visual language for version control exploring structured representation of evolution in collaborative systems \cite{eloe2016}. In parallel, VRGit extended version-control ideas to collaborative content creation in virtual reality environments, highlighting the need for spatial and contextual version management when content artifacts are increasingly multimodal \cite{zhang2023}. Carafoli emphasized the unique requirements of technical document versioning in aerospace domains, where immutability and traceability are not merely preferences but operational invariants \cite{carafoli2025}. Our work contributes a relational lineage model that is specifically optimized for asset ancestry, modality separation, and workflow governance rather than for generic repository-based branch semantics.
+Version control and media ancestry remain active research problems. Version control systems designed for digital content creation have historically emphasized source-code semantics and branch-based collaboration, which do not map cleanly to multimedia workflows that involve binary files, prompt metadata, image variants, and editorial revisions. Eloe et al. introduced VeCVL, a visual language for version control exploring structured representation of evolution in collaborative systems \cite{eloe2016}. In parallel, VRGit extended version-control ideas to collaborative content creation in virtual reality environments, highlighting the need for spatial and contextual version management when content artifacts are increasingly multimodal \cite{zhang2023}. Carafoli emphasized the unique requirements of technical document versioning in aerospace domains, where immutability and traceability are not merely preferences but operational invariants \cite{carafoli2025}. InkKnits uses relational asset links and version records to represent ancestry and snapshots; this paper does not claim that this model is novel or formally cycle-free.
 
 \subsection{Workflow Automation and Validation Engines}
 Workflow systems have long studied the challenge of coordinating tasks under role-based constraints and state transitions. The YAWL language modeled adaptable workflow processes and formal validation primitives for dynamic business operations, providing a rigorous basis for process awareness \cite{vanderAalst2005}. Enterprise systems such as Oracle ERP-oriented workflows show how formal approval and procurement logic can be embedded into institutional processes, a concern highly relevant to review and publication automation \cite{raghavendra2024}. In the broader AI-assisted workflow literature, Zhen addresses automation and optimization in compliance technology, emphasizing the need to align human roles with enterprise process logic \cite{zhen2020}.
 
-Our system extends these traditions by combining workflow automation with AI-driven content operations. Unlike pure BPM engines, InkKnits treats generation, review, versioning, and publication as operational states within a content production system. This requires a different abstraction than conventional ERP workflow tasks: the system must reason over assets, lineage, compute modalities, and user capabilities simultaneously. The result is a hybrid approach where workflow logic is enriched by real asset-aware constraints and local compute scheduling. A structured comparison of these systems is summarized in Table~\ref{tab:comparison}.
-
-\begin{table*}[t]
-\centering
-\caption{Comparative analysis of enterprise content workflow systems and InkKnits.}
-\label{tab:comparison}
-\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{2.5cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X}
-\toprule
-\textbf{System} & \textbf{Architecture Type} & \textbf{Content Atomization Strategy} & \textbf{Media Ancestry / Lineage} & \textbf{Workflow Granularity} \\
-\midrule
-Jasper AI & SaaS-based AI content assistant & Prompt-driven variant generation; limited structured decomposition & Weak asset ancestry; generated outputs are mostly campaign artifacts, not formal asset lineage graphs & Task-oriented draft generation with limited governance semantics \\
-Adobe GenStudio & Cloud-centric enterprise creative platform & Multi-format content adaptation with brand templates & Moderate lineage support through enterprise asset management, but not primarily relational parent-child DAGs & High workflow coverage for teams but centralized compute and governance models \\
-Bynder / Aprimo & DAM-centric content operations platform & Asset-centric packaging and channel localization & Strong digital asset management identity and metadata tracking, but less dynamic content lineage than graph-native modeling & Enterprise publishing and review workflow granularity, but not AI-native atomization \\
-InkKnits (Ours) & Local-first edge-native workflow engine with secure private-LAN orchestration & Explicit parent-child atomization into channel-specific child assets with structured metadata and reviewability & Formal relational DAG lineage across assets, versions, and approvals with immutable snapshots & Fine-grained station-level orchestration, version control, and approval state transitions \\
-\bottomrule
-\end{tabularx}
-\end{table*}
+Our implementation combines workflow automation with AI-driven content operations. It represents generated outputs as assets and links application state to organization, project, station, and user roles. This paper does not evaluate InkKnits against commercial products; comparative product-performance and feature claims are outside the scope of the experiments.
 
 \section{System Architecture and Orchestration Framework}
 InkKnits is organized around a role-aware organizational hierarchy that mirrors real collaborative production environments. The hierarchy is defined as:
@@ -95,174 +79,56 @@ At the organizational layer, authentication and authorization are managed to enf
 
 The \emph{Writing Station} supports the authoring interface for narrative and marketing content. It offers direct editing, metadata enrichment, and human-curated textual transformations. The \emph{Generation Station} manages prompt orchestration, AI generation requests, output selection, and derivative creation, including text expansion, summarization, audience adaptation, and image generation. The \emph{Viewing Station} acts as a review and validation workspace where content and generated assets are inspected, annotated, and compared against acceptance criteria. The \emph{Image Station} is focused on visual asset presentation, rendering previews, and multimodal inspection. Together, these stations produce a structured workflow in which the same artifact or its derived children can progress through a controlled, traceable review lifecycle.
 
-The orchestration layer of InkKnits is built around a single local compute node with a deterministic resource policy. The system distinguishes among short-running text inference tasks and longer-running image generation tasks using a modality-aware scheduling policy. Let the task set be $J = \{j_1, j_2, \ldots, j_n\}$, where each task $j_i$ has a modality $m_i \in \{\text{text}, \text{image}\}$, estimated runtime $\tau_i$, and priority weight $\rho_i$. The scheduler computes a dynamic execution score:
-\[
-\Pi(j_i) = \frac{\gamma_{\text{text}}}{\tau_i + \epsilon} \cdot \mathbf{1}[m_i = \text{text}] + \frac{\gamma_{\text{image}}}{\tau_i + \epsilon} \cdot \mathbf{1}[m_i = \text{image}] + \lambda \cdot \Psi(j_i),
-\]
-where $\epsilon$ is a smoothing constant, $\Psi(j_i)$ captures user urgency or approval criticality, and $\gamma_{\text{text}}, \gamma_{\text{image}}$ are modality-specific policy weights. For the local edge deployment, the operational policy is deliberately biased toward short, human-facing text tasks:
-\[
-\text{priority}(j_i) = 
-\begin{cases}
-1, & \text{if } m_i = \text{text} \land \tau_i \leq 2s \\
-2, & \text{if } m_i = \text{image} \land \tau_i \approx 25s \\
-3, & \text{otherwise.}
-\end{cases}
-\]
-This enforces a resource-first principle aligned with the human user experience: writing and editing actions remain responsive even while image diffusion jobs compete for the same GPU stack. The underlying execution engine is implemented in Python using \texttt{asyncio} primitives, where each task is enqueued into a priority queue and serviced by a single worker loop. Formally, the scheduler maintains:
-\[
-Q = \text{PriorityQueue}(\text{task}, \text{priority}),\quad
-\text{worker} : Q \rightarrow \text{execute}(\text{task}),
-\]
-subject to a GPU lock:
-\[
-\text{GPU\_Lock} \in \{\text{free}, \text{busy}\}
-\]
-and an execution guard:
-\[
-\text{if GPU\_Lock = busy, } \text{then enqueue task and continue},
-\]
-ensuring non-blocking responsiveness for interactive editing.
+The AI scheduler uses an in-memory priority queue and one worker loop. The implementation assigns priorities by job type: text generation aliases have priority 1, summarization 2, expansion 3, atomization 4, image generation 5, and image upscaling 6. Lower values are dequeued first. Work is processed serially by the worker; an already-running external model call is not preempted by a newly submitted text job. Thus, priority ordering is implemented, but responsiveness under concurrent workloads and starvation/fairness properties have not been evaluated. The priority queue and persistence state are held in process memory and PostgreSQL respectively; after a process restart, queued database rows are not automatically rehydrated into the in-memory queue. This behavior was observed during the application smoke workflow and is documented as a reliability limitation.
 
-\begin{algorithm}[t]
-\caption{Asynchronous Multi-Modal Priority Scheduling}
-\begin{algorithmic}[1]
-\State Initialize GPU lock and priority queue $Q$
-\For{each incoming job $j$}
-    \State Estimate modality $m_j$, runtime $\tau_j$, and urgency $\Psi(j)$
-    \State Compute priority score $\Pi(j)$
-    \State Enqueue $(\Pi(j), j)$ into $Q$
-\EndFor
-\While{queue not empty}
-    \If{GPU lock is free}
-        \State $j \gets Q.pop\_highest\_priority()$
-        \State Acquire GPU lock
-        \State Execute task $j$
-        \State Release GPU lock
-        \State Record completion metadata and state transition
-    \Else
-        \State Continue polling queue
-    \EndIf
-\EndWhile
-\end{algorithmic}
-\end{algorithm}
+The application benchmark submits jobs through authenticated FastAPI routes and measures queue wait from persisted \texttt{created\_at} and \texttt{started\_at} timestamps where both are available. These measurements are distinct from direct Ollama timings reported later. A single-worker queue and a smoke test do not establish multi-user throughput or scheduler scalability.
 
-This policy is critical under consumer-grade GPU conditions. A short text operation such as expansion or tone refinement can complete in roughly two seconds, while a diffusion job may require approximately twenty-five seconds or more. If the scheduler were to serialize all requests by arrival order, user-facing writing interactions would stall behind image generation. The modality-aware priority queue therefore treats text tasks as responsiveness-critical while image tasks are processed as long-running background jobs, reducing hardware lockups and protecting the user experience. The scheduling mechanism is a concrete instance of an \emph{Asynchronous Multi-Modal Priority Scheduling} system: the queue remains non-blocking for interactive users while still honoring GPU throughput constraints.
 
 \section{Relational Content Lineage Data Model}
-The core data model of InkKnits is relational rather than graph-native. PostgreSQL is used as the canonical persistence substrate because it provides strong transactional guarantees, foreign-key enforcement, indexing flexibility, and compatibility with enterprise operational concerns. The platform models content as assets, each possessing a globally unique identifier, metadata, storage location, and lineage relationship to other assets. The key design principle is simple: every modification creates a new version record, while parent-child structure is retained as an explicit relationship rather than being flattened into a single mutable document state. This separation enables both history preservation and derivation tracking.
+The current PostgreSQL schema models assets with organization, station, owner, metadata, and optional storage-path fields. Project ownership is reached through the asset's station. Parent-child derivation is represented by the separate \texttt{asset\_links} relation, while \texttt{asset\_versions} stores version numbers and snapshot paths. Approval workflow records are stored in \texttt{approval\_tasks}. Activity rows have database triggers that reject updates and deletes. The authoritative schema is maintained in \texttt{db/POSTGRES\_SCHEMA.sql} and the SQLAlchemy models; this paper does not reproduce an alternate schema.
 
-The central entity is the \texttt{assets} table, whose core design supports self-referential parent-child relationships. This allows any generated child asset to be dynamically elevated to a parent asset layer when the system later recognizes that a derived artifact becomes a new primary production asset. The raw DDL is shown below.
+Generated atomized outputs are created as child assets and linked to their source asset. The relational links permit ancestry queries, but the schema does not enforce acyclicity as a database constraint; therefore, this paper does not claim a formally enforced DAG invariant. Version snapshots and activity records provide history, but only activity rows have explicit database-level append-only triggers in the checked-in schema. These implementation details should not be read as a security or audit certification.
 
-\begin{verbatim}
-CREATE TABLE assets (
-    asset_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    organization_id UUID NOT NULL,
-    project_id UUID NOT NULL,
-    station_id UUID NOT NULL,
-    owner_id UUID,
-    parent_id UUID,
-    name VARCHAR(255) NOT NULL,
-    asset_type VARCHAR(128) NOT NULL DEFAULT 'text',
-    mime_type VARCHAR(128),
-    content_text TEXT,
-    file_path TEXT,
-    status VARCHAR(64) NOT NULL DEFAULT 'draft',
-    metadata JSONB DEFAULT '{}'::jsonb,
-    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    CONSTRAINT fk_asset_parent FOREIGN KEY (parent_id)
-        REFERENCES assets(asset_id)
-        ON DELETE SET NULL
-);
-\end{verbatim}
+\section{Experimental Evaluation}
+Three evidence sets are kept separate: direct local text-component inference, direct sequential image-pipeline generation, and application-level access-path checks. All inference and persistence ran on the same Windows laptop. Cloudflare Tunnel exposed an access route to those laptop-hosted services; it did not move computation to Cloudflare infrastructure.
 
-The second critical table is \texttt{asset\_versions}. It records immutable evolutionary changes to the content and metadata of the asset whenever a user or system operation produces a meaningful update. The schema is designed to guarantee that every new human edit or generated variant is preserved as a new snapshot rather than overwriting prior state. This aligns with the integrity requirements for collaborative content operations and ensures that the backend can reconstruct historical states even if the frontend route or the user interface evolves. The DDL is as follows.
+\subsection{Direct Text-Component Experiment}
+The text experiment sampled 45 fixed article IDs from a cleaned 11,992-record corpus (sample seed 20261108). The four operations were summarization, shortening, two-output atomization, and five-output atomization. Direct requests used Ollama \texttt{gemma2:2b} (Q4\_0), temperature 0.2, and context length 8192. This path bypassed FastAPI, the application queue, and asset persistence. It produced 180 observations from 405 model calls over 2,494.76 seconds; all observations and all 315 requested atomization outputs completed.
 
-\begin{verbatim}
-CREATE TABLE asset_versions (
-    version_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    asset_id UUID NOT NULL,
-    version_number INTEGER NOT NULL,
-    snapshot_content TEXT,
-    snapshot_metadata JSONB DEFAULT '{}'::jsonb,
-    created_by UUID NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    is_restored BOOLEAN NOT NULL DEFAULT FALSE,
-    status VARCHAR(64) NOT NULL DEFAULT 'active',
-    CONSTRAINT fk_asset_version_asset FOREIGN KEY (asset_id)
-        REFERENCES assets(asset_id)
-        ON DELETE CASCADE,
-    CONSTRAINT uq_asset_version UNIQUE (asset_id, version_number)
-);
-\end{verbatim}
-
-The third entity is \texttt{approvals}, which manages review state transitions for content moving from draft to review to publication. The state machine is intentionally narrow and explicit: pending, approved, rejected, or escalated. This ensures that the approval process is not merely a UI flag but an operational state with auditable semantics. The DDL is presented below.
-
-\begin{verbatim}
-CREATE TABLE approvals (
-    approval_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    asset_id UUID NOT NULL,
-    project_id UUID NOT NULL,
-    station_id UUID NOT NULL,
-    assigned_to UUID NOT NULL,
-    assigned_by UUID NOT NULL,
-    status VARCHAR(32) NOT NULL DEFAULT 'pending'
-        CHECK (status IN ('pending', 'approved', 'rejected', 'escalated')),
-    comments TEXT,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    due_at TIMESTAMP,
-    CONSTRAINT fk_approval_asset FOREIGN KEY (asset_id)
-        REFERENCES assets(asset_id)
-        ON DELETE CASCADE
-);
-\end{verbatim}
-
-These schemas establish three critical invariants. First, the relationship between an asset and its parent is explicit, enabling graph-like ancestry even in a relational system. Second, versions are append-only snapshots that preserve the editorial history of each asset. Third, approval states form a finite-state workflow that is auditable and enforceable by the backend rather than left to client-side logic. This backend-level isolation is essential because it ensures that historical versions remain intact before the frontend exposes them to users through a route or view layer \cite{ouyang2022,long2024}. The combination of relational constraints and append-only history yields a production-oriented maintainability model suitable for enterprise content operations.
-
-\section{Experimental Performance Evaluation}
-InkKnits was evaluated on a local workstation edge node configured as a private-LAN production environment. The node used a consumer-grade GPU-enabled workstation, a local PostgreSQL instance, and a private routing topology with secure tunneling for cross-origin access only when required for demonstration. The goal was not to simulate a public cloud environment, but rather to measure the realistic overhead incurred when a local-first system is accessed through secure user transport rather than direct local execution. This is a critical distinction because many AI-enabled media tools exhibit high-performance numbers in an unconstrained lab environment but degrade sharply once the system is accessed through authenticated network pathways and external proxy layers.
-
-The experimental configuration was intentionally constrained to a realistic operating envelope:
-\begin{itemize}[leftmargin=*]
-\item Local workstation edge node with dedicated GPU for image inference;
-\item private-LAN deployment for backend services and database;
-\item secure tunneling for selected frontend client interactions;
-\item isolated test organization and seeded content clusters;
-\item repeated execution across writing and image workloads to capture median latency.
-\end{itemize}
-
-The measured latency profile is shown in Table~\ref{tab:performance}. The results reveal a pronounced difference between backend-local execution and fully integrated frontend traversal via tunneling. For text-intensive writing tasks, the backend alone required approximately $2.0$s, while the full frontend integration over public tunneling reached $5.0$s. This corresponds to a $150\%$ latency overhead. The additional overhead is not caused by the writing model itself but by the network and application routing stack: request serialization, authentication, secure tunnel traversal, and UI state hydration all contribute to the end-to-end cost. For image generation tasks, the backend required approximately $25$s whereas the frontend-integrated execution took $28$s, indicating a smaller but still non-trivial increase. This difference is attributable to the heavy task duration dominating the end-to-end cost, but the same architectural realities remain: the more the platform is exposed through external transport layers, the more critical the local-first design becomes.
-
-\begin{table*}[t]
+\begin{table}[t]
 \centering
-\caption{Measured local versus integrated execution latency for writing and image tasks.}
-\label{tab:performance}
-\begin{tabular}{p{4cm} p{3cm} p{3cm} p{3cm} p{3.5cm}}
+\caption{Direct local Gemma text-component results (45 observations per operation).}
+\label{tab:component-performance}
+\begin{tabular}{lrrrr}
 \toprule
-\textbf{Operation} & \textbf{Backend Raw Processing} & \textbf{Frontend Integration Over Tunnel} & \textbf{Observed Overhead} & \textbf{Interpretation} \\
+\textbf{Operation} & \textbf{Mean (s)} & \textbf{Median (s)} & \textbf{SD (s)} & \textbf{P95 (s)} \\
 \midrule
-Text generation / writing assistance & 2.0s & 5.0s & +150\% & Network stack and UI serialization dominate small task latency \\
-Image generation / diffusion rendering & 25s & 28s & +12\% & Compute dominates; tunnel overhead is comparatively smaller \\
+Summarization & 5.03 & 4.22 & 2.57 & 10.13 \\
+Shortening & 6.58 & 6.26 & 2.92 & 10.04 \\
+Atomization, 2 outputs & 14.61 & 13.10 & 6.20 & 24.63 \\
+Atomization, 5 outputs & 28.88 & 24.09 & 12.85 & 54.18 \\
 \bottomrule
 \end{tabular}
-\end{table*}
+\end{table}
 
-These results have several architectural implications. First, the system is most effective when the most latency-sensitive actions remain local or privately routed. Tasks that require continuous human interaction must not wait behind heavy compute jobs. This is precisely why the asynchronous priority scheduler is necessary. Writing and editing tasks are kept highly responsive even when the image pipeline is processing a full diffusion workload. The scheduler therefore opens a clear path for sustained user productivity: human authors continue interacting with the editing station while the generation pipeline works in the background.
+Paired article comparisons found a mean 14.28 s difference between five-output and two-output atomization (bootstrap 95\% interval 12.18--16.54 s), and 1.55 s between shortening and summarization (95\% interval 0.92--2.29 s). No p-values or human quality judgments are claimed. Mean lexical overlap and output/input word ratios are automated descriptive proxies only; reference summaries were unavailable.
 
-Second, the cost of public tunneling is not uniform across task types. For text operations, the network path has disproportionate impact because the model runtime itself is fast; the user perceives the hop latency and the security stack as a large share of total delay. For image tasks, the computational cost is dominant and the transport overhead is comparatively smaller. This suggests a future mitigation strategy: token streaming and asynchronous UI updates via WebSockets. A browser-side streaming channel would allow intermediate rendering or textual responses to begin before the entire backend response is finalized. In other words, the next step is not a complete architectural overhaul but a network-optimized interaction model that preserves the existing local-first system while reducing user-perceived latency.
+\subsection{Direct Image-Pipeline Experiment}
+The separate sequential ComfyUI experiment used the same 45 article IDs, deterministic article-derived seeds, the checked-in \texttt{backend/final4.json} workflow, \texttt{epicrealism\_naturalSinRC1VAE.safetensors}, 512 by 512 latent inputs, and batch size one. The workflow produced 768 by 768 saved PNGs. All 45 requests succeeded. Mean generation time was 13.814 s (SD 0.554 s; median 14.067 s; P95 14.137 s), with 4.343 completed images per minute. ComfyUI did not expose queue timestamps; queue wait is unavailable, not zero. No human image-quality evaluation was performed.
 
-Finally, the experimental results validate the scheduling principle behind InkKnits. The asynchronous priority queue prevents user interactions from being serialized behind heavy GPU workloads. This is a critical property for collaborative multimedia production, where many operations are interactive and must remain fluid even when the GPU stack is under high load. The system demonstrates that high-quality AI support can coexist with bounded local hardware and a stable human editing loop.
+\subsection{Application-Level Evaluation: Incomplete}
+The application smoke run \texttt{app-20261112T125418Z-135fc2ee} completed five local authenticated requests in 62.03 s, including four text operations and one image job. The generated result assets were fetched and checked for persistence. Two additional authenticated jobs, one text and one image, completed through the Cloudflare hostname and their assets were fetched at request time. These smoke requests are not a matched experiment and support no latency difference or tunnel-overhead estimate.
+
+A local-only application condition recorded 59 of 225 planned requests over 1,099.29 s through its last checkpoint. Forty-seven requests completed with verified persisted outputs; 12 were rejected with HTTP 422 because source article text was placed in the API's 12,000-character prompt field. No image requests were reached, and the condition was interrupted before any Cloudflare full condition. Queue wait, inference duration, and client-observed persistence intervals are retained for the completed requests, but the partial sample is incomplete and order-dependent. Its operation averages are reported in the research supplement only, not presented as full-condition results.
+
+No independent bandwidth measurement was made. Cloudflare Tunnel accessed the same laptop-hosted API, Ollama model, ComfyUI service, and storage. The application experiment does not constitute cloud compute, geographic remote-client testing, or a multi-user scalability test. The observed one-worker priority scheduler was not subjected to a controlled concurrency experiment, and the queue did not automatically recover persisted jobs after a process restart.
 
 \section{Conclusion and Future Work}
-This paper has presented InkKnits, a local-first AI-assisted content management platform designed for collaborative multimedia production. The system addresses three system-level bottlenecks that are common in contemporary creative workloads: fragmented content workflows, weak lineage and provenance management, and unstable scheduling on constrained local hardware. InkKnits integrates role-aware workspace orchestration, relational asset ancestry tracking, immutable version snapshots, and asynchronous modality-aware scheduling into a unified pipeline. The initial prototype demonstrates that secure, local AI-assisted production is both technologically feasible and operationally coherent for content teams that require privacy, traceability, and responsiveness.
+InkKnits implements an organization/project/station content workflow with AI job submission, an in-process single-worker priority queue, asset persistence, version snapshots, and parent-child asset relationships. In the completed direct local text experiment, 180 observations across 45 articles completed successfully; a separate direct ComfyUI experiment generated 45 of 45 images. These measurements characterize one workstation and one model/workflow configuration. They do not establish factual quality, security guarantees, application scheduler performance under concurrency, or superiority over other products.
 
-The current system is mature in several operational dimensions. The backend role execution logic, escalation workflows, and multi-version storage model are fully complete. These elements provide the structural basis for collaborative review, historical continuity, and approval management. At the same time, several deployment goals remain immediate priorities. Client-side presentation graphs and a unified media asset bundling layer remain active engineering objectives. These features are not conceptual gaps but implementation milestones for a production-ready deployment.
+Application-level evidence is preliminary. Authenticated local and Cloudflare smoke jobs completed with persisted outputs, but the full local condition stopped after 59 of 225 planned requests and the matched Cloudflare condition was not run. The Cloudflare route accessed services on the same laptop and is not cloud inference. Consequently, this paper makes no local-versus-Cloudflare latency claim.
 
-The primary focus of future work is the \textbf{Post-Publication Analytics Simulation Framework}. This framework is designed to ingest synthetic platform metrics in a data-isolated manner using FastAPI background tasks and to calculate campaign-level performance indicators without exposing internal servers to the public internet. The system will model publishing outcomes, engagement patterns, channel-specific success, and downstream content refinement opportunities while preserving strict internal-only analysis boundaries. In this design, the backend operates as a closed operational loop: it records what was published, which version generated the effect, and which user or workflow action led to the result, then computes analytics over this synthetic metric stream without creating a public attack surface.
-
-The proposed analytics layer is intentionally aligned with the platform’s core philosophy of traceability and privacy. It extends the content lifecycle beyond the moment of approval or publication and instead links post-publication behavior to actual content versions and lineage records. This allows future content revisions to be guided by empirical evidence rather than intuition, creating a continuous improvement loop between published performance and future content generation. In that sense, InkKnits is not merely a content creation platform; it is a content operations system that can support secure local execution, multidisciplinary collaboration, and evidence-driven refinement over time.
+Future work should complete a bounded and matched application-level evaluation after correcting the API prompt-size failure, ensure durable scheduler recovery semantics, repeat the component experiments to estimate run-to-run variance, and conduct human quality evaluations with a reference protocol. Concurrent-user scalability and network bandwidth require separate experimental designs. Until those studies are complete, the results should be interpreted as descriptive measurements of the completed local component experiments and a limited application smoke/partial run.
 
 \section{References}
 \begin{thebibliography}{99}

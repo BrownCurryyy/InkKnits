@@ -242,16 +242,18 @@ class AIScheduler:
             style=payload.get("style", "Narrative"),
             audience=payload.get("audience", ""),
             content_length=payload.get("content_length", ""),
+            options=payload.get("model_options"),
         )
         return {"content": text}
 
     @staticmethod
     def _run_summarize(payload: dict) -> dict:
         text = OllamaService.generate(
-            prompt="Summarize the following content.",
+            prompt=payload.get("prompt") or "Summarize the following content.",
             draft=payload.get("draft", ""),
             action="summarize",
             content_length=payload.get("content_length", "Short"),
+            options=payload.get("model_options"),
         )
         return {"content": text}
 
@@ -265,6 +267,7 @@ class AIScheduler:
             style=payload.get("style", "Narrative"),
             audience=payload.get("audience", ""),
             content_length=payload.get("content_length", "Medium"),
+            options=payload.get("model_options"),
         )
         return {"content": text}
 
@@ -276,6 +279,8 @@ class AIScheduler:
             mood=payload.get("mood", "Professional"),
             audience=payload.get("audience", ""),
             content_length=payload.get("content_length", ""),
+            prompts=payload.get("child_prompts"),
+            options=payload.get("model_options"),
         )
         return {"results": results}
 
@@ -292,7 +297,7 @@ class AIScheduler:
         asset_id = payload.get("output_asset_id", str(uuid.uuid4()))
 
         # Step 1: Gemma prompt enrichment (MUST complete before ComfyUI)
-        enriched_prompt = OllamaService.enrich_image_prompt(user_prompt)
+        enriched_prompt = OllamaService.enrich_image_prompt(user_prompt, options=payload.get("model_options"))
 
         # Step 2: Build save path
         project_id = payload.get("project_id")
@@ -317,6 +322,7 @@ class AIScheduler:
             model_filename=model,
             width=width,
             height=height,
+            seed=payload.get("seed"),
         )
 
         # Step 4: Base64 encode for response

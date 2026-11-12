@@ -28,6 +28,10 @@ uploads/
 # Generated research data; keep source and benchmark metadata tracked
 datasets/cleaned_articles.csv
 datasets/results/generated_images/
+research/cloudflare_benchmark/local/**/records.csv
+research/cloudflare_benchmark/local/**/events.jsonl
+research/cloudflare_benchmark/local/**/resources.jsonl
+research/cloudflare_benchmark/local/**/network_metadata.json
 
 # Frontend
 node_modules/

@@ -1,8 +1,8 @@
-# InkKnits Full Benchmark: Results and Methodology
+# InkKnits Research Results and Methodology
 
 ## 1. Executive Summary
 
-InkKnits was evaluated with 45 fixed article IDs sampled from the cleaned 11,992-record dataset. The same articles were used for summarization, shortening, two-output atomization, and five-output atomization. Local Ollama `gemma2:2b` inference produced 180 experiment observations from 405 model calls. All 180 observations completed successfully, and all 315 requested atomization child outputs were produced.
+The research package contains two completed direct-component studies and an incomplete application-access evaluation. The text component experiment used 45 fixed article IDs for four operations, producing 180 observations from 405 Gemma model calls; all 180 observations completed. A separate direct ComfyUI experiment generated 45/45 images. The authenticated application test has verified local and Cloudflare smoke outputs, plus an interrupted local-only run with 59 recorded requests (47 successful, 12 rejected before job creation). No full matched local-versus-Cloudflare application benchmark was completed.
 
 Mean request latency was 5.03 seconds for summarization, 6.58 seconds for shortening, 14.61 seconds for two-output atomization, and 28.88 seconds for five-output atomization. These are direct local Ollama measurements and do not measure the production InkKnits scheduler. Continuous monitoring collected 8,292 samples over approximately 2,495 seconds.
 
@@ -93,7 +93,7 @@ The sample supports descriptive paired comparisons but is not large enough to es
 
 ## 11. Limitations
 
-The experiment uses one model, one local machine, one temperature, and one 45-article sample. It has no verified human summaries, so ROUGE and BERTScore are intentionally absent. Lexical overlap is only a proxy. Direct Ollama calls bypass the InkKnits scheduler, so queue ordering, concurrency, persistence, and scheduler fairness were not tested. No image generation was measured. Formal nonparametric tests were unavailable in the installed environment. The full run is one repetition and does not quantify run-to-run variance.
+The text experiment uses one model, one local machine, one temperature, and one 45-article sample. It has no verified human summaries, so ROUGE and BERTScore are intentionally absent. Lexical overlap is only a proxy. Direct Ollama calls bypass the InkKnits scheduler, so queue ordering, concurrency, persistence, and scheduler fairness were not tested by this experiment. Image generation was measured separately through the direct ComfyUI integration (Section 15), not through the application scheduler. Formal nonparametric tests were unavailable in the installed environment. Each component study is one run and does not quantify run-to-run variance.
 
 ## 12. Implications for InkKnits
 
@@ -107,8 +107,26 @@ Future work should benchmark the actual InkKnits scheduler under concurrent requ
 
 On a local Windows workstation using Gemma 2:2B, InkKnits content transformations completed 405 direct model calls across 45 paired articles without observed call failures. Mean latency increased from 5.03 seconds for summarization to 28.88 seconds for five-output atomization, while five-output atomization produced more content and required more model calls. These observations characterize one local model configuration and support workload-aware orchestration considerations; they do not establish scheduler performance, factual quality, or superiority over competing systems.
 
-## Separate Image-Generation Experiment Status
+## 15. Separate Image-Generation Experiment
 
 The complementary image benchmark is implemented separately in `research/image_benchmark.py` and targets the existing ComfyUI workflow in `backend/final4.json`. The verified workflow uses `epicrealism_naturalSinRC1VAE.safetensors`, 512x512 images, batch size 1, 28 primary steps, CFG 7.5, `dpmpp_2m`, `karras`, and a 15-step refinement node. It uses the same 45 article IDs and deterministic article-derived seeds, but it does not alter the text benchmark.
 
 The initial image smoke run was blocked because ComfyUI was unavailable, and it remains preserved. After ComfyUI became available, smoke run `image-smoke2-20261108T130922Z-dc97cd1e` succeeded, followed by full run `image-full-20261108T131126Z-c4c3d9e4`: 45/45 sequential requests succeeded. Mean generation time was 13.814 seconds, median 14.067 seconds, p95 14.137 seconds, and throughput 4.343 completed images per minute. All saved outputs were valid 768x768 PNGs because the unchanged workflow applies a 1.5x latent upscale to the 512x512 input. Queue wait remained unavailable from the ComfyUI history API. No human image-quality evaluation was completed. See `IMAGE_GENERATION_METHODOLOGY.md`, `IMAGE_GENERATION_RESULTS.md`, and `IMAGE_GENERATION_AUDIT.md`.
+
+## 16. Application-Level Access Evaluation (Preliminary)
+
+The application experiment submits authenticated jobs to `/ai/jobs`, polls the app scheduler, and checks result assets through the asset API. The Cloudflare hostname routes to the same laptop-hosted application, database, Ollama model, ComfyUI service, and storage. It is an access-path test, not cloud inference or geographically remote-client testing.
+
+**Completed smoke evidence.** A local application smoke run `app-20261112T125418Z-135fc2ee` completed 5/5 requests in 62.03 seconds (four text operations on one article and one seeded image request), with all result assets fetched and verified. Separate authenticated smoke requests through the Cloudflare hostname completed one text and one image job; their assets were fetched at the time. The image output was a readable PNG stored beneath the benchmark project's storage directory. Current task re-queries no longer resolve every historical Cloudflare task ID, so those smoke checks are historical request-time evidence, not currently replayable jobs. Task IDs and asset IDs are recorded in `research/cloudflare_benchmark/results/smoke_validation.json`.
+
+**Interrupted local condition.** Run `app-20261112T125600Z-870967b9-local` recorded 59 of 225 planned requests over 1,099.29 seconds through its last checkpoint. It contains 47 successful requests whose result assets were verified and 12 HTTP 422 failures before job creation. All 12 failures occurred on summarization/shortening requests for longer source articles because the runner placed the full article in the API's 12,000-character-limited `prompt` field. The recorded operation counts are: summarization 9/15 successful, shortening 9/15, two-output atomization 15/15, and five-output atomization 14/14; no image requests were reached. The run is incomplete, local-only, and not paired with Cloudflare. Do not treat its operation means as a complete workload comparison. Raw records are retained locally; the sanitized 59-row derivative is `research/cloudflare_benchmark/results/application_partial_records_sanitized.csv`.
+
+Among the 47 successful partial-run requests, client-observed mean elapsed times were 4.304 s for summarization (n=9), 10.796 s for shortening (n=9), 16.838 s for two-output atomization (n=15), and 50.550 s for five-output atomization (n=14). These values include application polling and verified asset retrieval and are incomplete, order-dependent observations; they are not comparable to direct component latency as if paired. The 920 system/resource samples collected through the last checkpoint averaged 19.18% CPU, 92.22% RAM, 82.34% GPU utilization, and 65.80% VRAM utilization. They describe only the partial run interval.
+
+No independent network bandwidth test was run. Local and Cloudflare TCP connection measurements are retained in run metadata where available; they are not end-to-end application latency or bandwidth. There are no matched full conditions, so no local-versus-Cloudflare latency delta, statistical comparison, or tunnel-overhead claim is reported. The recovery record `research/cloudflare_benchmark/logs/scheduler_recovery_20261112T124844Z.json` documents 14 stale benchmark-project tasks terminalized as failed after the scheduler process restart; no retries were performed. An older stale task belonging to another project was excluded.
+
+## 17. Reproducibility and Submission Boundaries
+
+The direct component runs are reproduced with the scripts and exact manifests already in this repository. The source sample is `datasets/benchmark_sample.csv` (45 IDs, seed `20261108`); the image prompt/seed input is `datasets/results/image_generation_prompts.csv`. The completed direct results remain in `datasets/results/` and are not overwritten. Figures and chart data are under `research/figures/publication/` and `research/figures/image_generation/`; PNG exports are 300 DPI, with SVG/PDF companions.
+
+The application benchmark runner and stale-job recovery utility are in `research/cloudflare_benchmark/scripts/`. The prior full app attempt is preserved as an interrupted local checkpoint. Re-running it requires the benchmark environment variables and a working local backend; a paired Cloudflare run additionally requires the hostname to remain available. No further full image workload is required for this submission. See `FINAL_BENCHMARK_STATUS.md` for actual counts, runtime, push status, and limitations.
