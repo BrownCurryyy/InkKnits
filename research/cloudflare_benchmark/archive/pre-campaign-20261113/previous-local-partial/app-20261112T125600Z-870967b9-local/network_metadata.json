@@ -1,0 +1,49 @@
+{
+  "bandwidth_mbps": null,
+  "bandwidth_note": "No independent bandwidth test was run; application transfer times include inference and persistence.",
+  "captured_at_utc": "2026-11-12T12:56:01.720371+00:00",
+  "cloudflare_tcp_connect": {
+    "attempts": 10,
+    "failures": 0,
+    "host": "inkknits.trustium.tech",
+    "median_tcp_connect_ms": 77.67594998585992,
+    "port": 443,
+    "samples_ms": [
+      92.31239999644458,
+      78.27879997785203,
+      68.50340001983568,
+      65.73559998651035,
+      84.7825999953784,
+      93.38090001256205,
+      66.09449998359196,
+      67.17349999235012,
+      84.91250002407469,
+      77.0730999938678
+    ]
+  },
+  "connection_profiles": {
+    "IPv4Connectivity": 4,
+    "InterfaceAlias": "Wi-Fi",
+    "NetworkCategory": 0
+  },
+  "local_tcp_connect": {
+    "attempts": 10,
+    "failures": 0,
+    "host": "127.0.0.1",
+    "median_tcp_connect_ms": 15.229250013362616,
+    "port": 8000,
+    "samples_ms": [
+      0.44100001105107367,
+      16.48710001609288,
+      15.242200024658814,
+      15.216300002066419,
+      0.5633999826386571,
+      14.87690000794828,
+      15.44560000183992,
+      15.578300022752956,
+      14.805299986619502,
+      15.45470001292415
+    ]
+  },
+  "platform": "Windows-11-10.0.26200-SP0"
+}

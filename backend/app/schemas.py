@@ -331,8 +331,8 @@ class AIJobSubmit(BaseModel):
     organization_id: UUID | None = None
     station_id: UUID | None = None
     asset_id: UUID | None = None
-    prompt: str = Field(default="", max_length=12000)
-    draft: str = Field(default="", max_length=12000)
+    prompt: str = Field(default="")
+    draft: str = Field(default="")
     action: str = "generate"
     mood: str = "Professional"
     style: str = "Narrative"

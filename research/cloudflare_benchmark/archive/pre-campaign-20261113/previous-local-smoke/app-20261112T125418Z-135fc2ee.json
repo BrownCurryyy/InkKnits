@@ -1,0 +1,41 @@
+{
+  "benchmark_id": "app-20261112T125418Z-135fc2ee",
+  "conditions": [
+    {
+      "access_path": "local",
+      "benchmark_id": "app-20261112T125418Z-135fc2ee",
+      "ended_at_utc": "2026-11-12T12:55:20.294265+00:00",
+      "expected_requests": 5,
+      "failures": 0,
+      "image_dataset_sha256": "8031f450c21a33620bddc98cea7ed928d52e43ee29a64b9a4fc446b6c07f4341",
+      "image_rows": 1,
+      "organization_id": "980e6f3e-5609-50de-a8ce-b3a574225711",
+      "output_directory": "research\\cloudflare_benchmark\\local\\app-20261112T125418Z-135fc2ee-local",
+      "project_id": "ffd0cf00-24f8-46e8-82a8-85efd13b2ffe",
+      "recorded_requests": 5,
+      "run_id": "app-20261112T125418Z-135fc2ee-local",
+      "runtime_seconds": 62.02847990000737,
+      "smoke": true,
+      "started_at_utc": "2026-11-12T12:54:18.265752+00:00",
+      "status": "COMPLETED",
+      "successes": 5,
+      "text_dataset_sha256": "95855c3aac77e7d86995cf5c04a05c4fd47375659607c354f5b988f9b4dd9cd0",
+      "text_rows": 1
+    }
+  ],
+  "created_at_utc": "2026-11-12T12:55:20.296668+00:00",
+  "image_dataset": "datasets\\results\\image_generation_prompts.csv",
+  "image_dataset_sha256": "8031f450c21a33620bddc98cea7ed928d52e43ee29a64b9a4fc446b6c07f4341",
+  "image_rows": 1,
+  "limitations": [
+    "Same laptop and AI services serve both paths; this is not cloud compute or geographic remote-client testing.",
+    "No independent bandwidth test; TCP connect latency is recorded.",
+    "Persistence timing is the client-observed interval from terminal job response until result assets are fetchable."
+  ],
+  "paired_key": "workload + article_id + operation; image seeds reused from source prompt CSV",
+  "project_id": "ffd0cf00-24f8-46e8-82a8-85efd13b2ffe",
+  "status": "COMPLETED",
+  "text_dataset": "datasets\\benchmark_sample.csv",
+  "text_dataset_sha256": "95855c3aac77e7d86995cf5c04a05c4fd47375659607c354f5b988f9b4dd9cd0",
+  "text_rows": 1
+}

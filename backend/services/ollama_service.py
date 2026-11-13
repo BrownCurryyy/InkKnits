@@ -49,8 +49,6 @@ def build_prompt(
 
     if draft:
         clean_draft = draft.strip()
-        if len(clean_draft) > 12000:
-            clean_draft = clean_draft[-12000:]
         parts.append("Current draft context:")
         parts.append(clean_draft)
         parts.append(

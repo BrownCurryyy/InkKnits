@@ -45,12 +45,18 @@ See `../RESEARCH_RESULTS_AND_METHODOLOGY.md` and `../FINAL_BENCHMARK_STATUS.md` 
 
 The authoritative component datasets and outputs remain in `datasets/` and are not rewritten by the application runner. The application input sample is `datasets/benchmark_sample.csv`; the image prompt and deterministic seed list is `datasets/results/image_generation_prompts.csv`. The text sample SHA-256 is `95855c3aac77e7d86995cf5c04a05c4fd47375659607c354f5b988f9b4dd9cd0`.
 
-Use the development environment only. Set `INKKNITS_BENCHMARK_EMAIL`, `INKKNITS_BENCHMARK_PASSWORD`, and `INKKNITS_BENCHMARK_PROJECT_ID` in the shell; do not put their values in files. Start the existing FastAPI app and Vite frontend with the repository's local development settings. A bounded local smoke invocation from the repository root is:
+Use the development environment only. Set `INKKNITS_BENCHMARK_EMAIL`, `INKKNITS_BENCHMARK_PASSWORD`, and `INKKNITS_BENCHMARK_PROJECT_ID` in the shell; do not put their values in files. Start the existing FastAPI app and Vite frontend with the repository's local development settings. A bounded smoke invocation submits one text summarization and one image generation (two application job requests). For example, from the repository root:
 
 ```powershell
 & 'backend/.venv/Scripts/python.exe' research/cloudflare_benchmark/scripts/cloudflare_app_benchmark.py --smoke --local-only
 ```
 
-For a Cloudflare smoke, first verify that the hostname is reachable and authenticated, then use `--smoke --cloudflare-only`. The default mode is intentionally not shown here because it submits 225 requests per access condition, including 45 image generations. Every request is checkpointed into a unique run directory; raw records that contain article text are excluded from Git, while sanitized summaries are tracked. The full application condition remains incomplete and is not required for reproducing the completed component studies.
+The runner refreshes the local access token five minutes before its JWT expiry. After an explicit HTTP 401 it re-authenticates and retries that request at most once; generation requests are never retried after transport errors, timeouts, or server errors where acceptance could be ambiguous. Tokens and authorization headers are not logged. The focused auth regression tests can be run with:
+
+```powershell
+& 'backend/.venv/Scripts/python.exe' -m unittest discover -s 'research/cloudflare_benchmark/scripts' -p 'test_cloudflare_app_benchmark.py' -v
+```
+
+For a Cloudflare smoke, first verify that the hostname is reachable and authenticated, then use `--smoke --cloudflare-only`. A full Cloudflare-only run without `--smoke` submits 225 requests: four text operations for each of 45 articles and 45 image generations. Every request is checkpointed into a unique run directory. The historical partial and full local application runs remain preserved separately from the fresh local-only campaign; see `reports/` for the campaign report. These application-level results do not alter the completed component studies.
 
 To inspect stale persisted jobs, run `scripts/reconcile_stale_jobs.py` without `--apply` first. The tool refuses to act unless the live scheduler is idle, scopes to the benchmark project, writes a pre-change snapshot, and never retries jobs. Only use `--apply` for tasks known to be orphaned after a process restart.

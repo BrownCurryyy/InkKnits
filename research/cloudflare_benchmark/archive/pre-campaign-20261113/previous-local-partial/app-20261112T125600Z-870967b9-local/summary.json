@@ -1,0 +1,14 @@
+{
+  "access_path": "local",
+  "benchmark_id": "app-20261112T125600Z-870967b9",
+  "expected_requests": 225,
+  "failures": 12,
+  "recorded_requests": 59,
+  "run_id": "app-20261112T125600Z-870967b9-local",
+  "runtime_seconds": 1099.291942,
+  "status": "INTERRUPTED",
+  "interruption_reason": "Benchmark process is no longer active; preserved checkpoint is incomplete and no retries were performed.",
+  "last_checkpoint_at_utc": "2026-11-12T13:14:20.163856+00:00",
+  "successes": 47,
+  "updated_at_utc": "2026-11-12T13:14:20.163856+00:00"
+}

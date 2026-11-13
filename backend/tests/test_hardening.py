@@ -151,6 +151,12 @@ class HardeningTests(unittest.TestCase):
         payload = AIJobSubmit(job_type="TEXT", prompt="draft")
         self.assertIsNone(payload.created_by)
 
+    def test_ai_submit_schema_accepts_full_benchmark_prompt(self) -> None:
+        full_prompt = "Summarize this article concisely. " + ("A long article body. " * 2500)
+        payload = AIJobSubmit(job_type="TEXT", prompt=full_prompt)
+        self.assertEqual(payload.prompt, full_prompt)
+        self.assertEqual(len(payload.prompt), len(full_prompt))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,21 @@
+{
+  "access_path": "local",
+  "benchmark_id": "app-20261112T231519Z-dbb86fb9",
+  "ended_at_utc": "2026-11-12T23:15:48.613180+00:00",
+  "expected_requests": 2,
+  "failures": 0,
+  "image_dataset_sha256": "8031f450c21a33620bddc98cea7ed928d52e43ee29a64b9a4fc446b6c07f4341",
+  "image_rows": 1,
+  "organization_id": "1418e843-e36f-49d1-b74a-5e7abb0d2e60",
+  "output_directory": "research\\cloudflare_benchmark\\local\\app-20261112T231519Z-dbb86fb9-local",
+  "project_id": "84dc74f4-c77a-4163-bafd-f244ea655ca5",
+  "recorded_requests": 2,
+  "run_id": "app-20261112T231519Z-dbb86fb9-local",
+  "runtime_seconds": 29.223802599997725,
+  "smoke": true,
+  "started_at_utc": "2026-11-12T23:15:19.389343+00:00",
+  "status": "COMPLETED",
+  "successes": 2,
+  "text_dataset_sha256": "95855c3aac77e7d86995cf5c04a05c4fd47375659607c354f5b988f9b4dd9cd0",
+  "text_rows": 1
+}
